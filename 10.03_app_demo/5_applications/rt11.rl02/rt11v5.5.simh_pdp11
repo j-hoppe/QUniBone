@@ -1,0 +1,18 @@
+set cpu 11/34
+
+set rl enabled
+
+att rl0 rt11v5.5_34.rl02
+att rl1 rt11v5.5_games_34.rl02
+
+set rq enabled
+set rq0 ra82
+att rq0 tmp.ra82
+
+; To make a bootable RA82:
+; . init du0:
+; . copy /sys *.* du0:
+; . copy/boot  du0:rt11fb.sys du0:
+; . boot du0:
+
+boot rl0

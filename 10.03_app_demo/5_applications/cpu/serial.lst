@@ -1,0 +1,119 @@
+       1                                
+       2                                	.title	Serial I/O test for console
+       3                                
+       4                                	; This program tests the DEC DL11 or Robotron AIS K8060 console interface.
+       5                                	; It run in 4 phases:
+       6                                	; 1. print a start message,
+       7                                	; 2. echoes chars typed to the output until ^C is hit
+       8                                	; 3. prints an end message and HALTs.
+       9                                	; 4. on CONT it repeats.
+      10                                	;
+      11                                	; Contact: Joerg Hoppe / j_hoppe@t-online.de / www.retromcp.com
+      12                                
+      13                                	.asect
+      14                                
+      15                                	; select one type of console at assembly time
+      16 177560                         	dladr = 177560	; base addr of DEC DL11 console
+      17                                	; dladr = 176500	; DL11 #0
+      18                                	; dladr = 176510	; DL11 #1
+      19                                	; dladr = 176520	; DL11 #2
+      20                                
+      21                                
+      22 000000                         	.=0
+      23 000000 000137  001000          	jmp	@#start 	; early emulation started code execution from 0
+      24                                
+      25 000024                         	.=24			; If not HALTed: start on power-up
+      26 000024 001000                  	.word	start		; PC
+      27 000026 000340                  	.word	340		; PSW with priority level 7
+      28                                
+      29 001000                         	.=1000
+      30                                
+      31 000776                         stack	=	. - 2		; stack growns down from start
+      32                                
+      33                                start:
+      34 001000 012706  000776          	mov	#stack,sp	; init stack
+      35                                
+      36                                	; 1. print "Hello" msg
+      37 001004 012701  001126          	mov	#shello,r1
+      38 001010 004737  001054          	call	@#puts
+      39                                
+      40                                	; 2. echo chars until ^C hit
+      41                                1$:
+      42 001014 004737  001110          	call	@#getc		; wait for char, return in r0
+      43 001020 042700  177600          	bic	#177600,r0	; make 7bit: clear bits <15:7>
+      44 001024 120027  000003          	cmpb	r0,#3		; break by ^C ?
+      45 001030 001403                  	beq	2$		; yes: leave loop
+      46 001032 004737  001070          	call	@#putc		; no: echo char in r0 and loop
+      47 001036 000766                  	br	1$
+      48                                
+      49                                2$:
+      50                                
+      51                                	; 3. print "Bye bye" msg and HALT
+      52 001040 012701  001211          	mov	#sbye,r1
+      53 001044 004737  001054          	call	@#puts
+      54 001050 000000                  	halt
+      55                                
+      56                                	; 4. loop on CONT
+      57 001052 000752                  	br	start
+      58                                
+      59                                
+      60                                	; ----------------------
+      61                                	; puts - print a string
+      62                                	; r1 = pointer, r0,r1 changed
+      63                                puts:
+      64 001054 112100                  	movb	(r1)+,r0	; load xmt char
+      65 001056 001403                  	beq	1$		; string ends with 0
+      66 001060 004737  001070          	call	@#putc
+      67 001064 000773                  	br	puts		; transmit nxt char of string
+      68 001066 000207                  1$:	return
+      69                                
+      70                                
+      71                                	; ----------------------
+      72                                	; putc - output a single char
+      73                                	; r0 = char, r4 changed
+      74                                putc:
+      75 001070 012704  177560          	mov	#dladr,r4	; set base addr
+      76 001074 110064  000006          	movb	r0,6(r4)	; char into transmit buffer
+      77 001100 105764  000004          1$:	tstb	4(r4)		; XMT RDY?
+      78 001104 100375                  	bpl	1$		; no, loop
+      79 001106 000207                  	return
+      80                                
+      81                                	; ----------------------
+      82                                	; getc - input a single char
+      83                                	; result in r0, r4 changed
+      84                                getc:
+      85 001110 012704  177560          	mov	#dladr,r4	; set base addr
+      86 001114 105714                  1$:	tstb	(r4)		; RCVR DONE?
+      87 001116 100376                  	bpl	1$		; no, loop
+      88 001120 016400  000002          	mov	2(r4),r0	; return data
+      89 001124 000207                  	return
+      90                                
+      91                                
+      92                                shello:
+      93 001126    110     145     154  	.ascii	/Hello, World!/
+         001131    154     157     054  
+         001134    040     127     157  
+         001137    162     154     144  
+         001142    041                  
+      94 001143    015     012          	.byte	15,12		; CR, LF,
+      95 001145    124     171     160  	.ascii	/Typed chars are echoed, ^C HALTs./
+         001150    145     144     040  
+         001153    143     150     141  
+         001156    162     163     040  
+         001161    141     162     145  
+         001164    040     145     143  
+         001167    150     157     145  
+         001172    144     054     040  
+         001175    136     103     040  
+         001200    110     101     114  
+         001203    124     163     056  
+      96 001206    015     012     000  	.byte	15,12,0 	; CR, LF, NUL=end marker
+      97                                sbye:
+      98 001211    015     012          	.byte	15,12
+      99 001213    107     157     157  	.ascii	/Good bye!/
+         001216    144     040     142  
+         001221    171     145     041  
+     100 001224    015     012     000  	.byte	15,12,0 	; CR, LF, NUL=end marker
+     101                                
+     102                                	.end
+     102                                

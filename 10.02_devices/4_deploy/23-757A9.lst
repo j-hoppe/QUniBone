@@ -1,0 +1,103 @@
+       1                                	.title	M9312 'MM' BOOT prom for TU45/TU77/TE16 controllers
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-757A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the TU45/TU77/TE16 MASSBUS tape controllers.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 172440                         tucsr	=172440				; std TU45 csrbase
+      18                                
+      19 000000                         tucs	=+0				; control/status
+      20 000002                         tuwc	=+2				; word count
+      21 000004                         tuba	=+4				; bus address
+      22 000006                         tufc	=+6				; frame count
+      23 000012                         tuds	=+12				; drive status
+      24 000014                         tuer	=+14				; error register
+      25 000016                         tuas	=+16				; attention summary
+      26 000032                         tutc	=+32				; tape control
+      27                                
+      28 165564                         diags	=165564				; console diags phase2 entry
+      29                                
+      30                                	.asect
+      31 173000                         	.=173000
+      32                                
+      33                                	; --------------------------------------------------
+      34                                
+      35 173000    115     115          start:	.ascii	"MM"			; device code (reversed)
+      36                                
+      37 173002 000176                  	.word	last-.			; offset to next boot header
+      38                                
+      39 173004 000261                  mm0n:	sec				; boot std csr, unit zero, no diags
+      40 173006 012700  000000          mm0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      41 173012 012701  172440          mmNr:	mov	#tucsr,r1		; boot std csr, unit <R0>
+      42 173016 010704                  mmNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      43 173020 103064                  	bcc	diag			; br if diags requested
+      44 173022 000402                  	br	go			; return to (R4)+2 from diags
+      45                                					; then skip over pseudo reboot vector
+      46                                
+      47                                	; --------------------------------------------------
+      48                                
+      49 173024 173000                  	.word	173000			; prom start addess @ 24
+      50 173026 000340                  	.word	340			; and priority level @ 26
+      51                                
+      52                                	; --------------------------------------------------
+      53                                
+      54 173030 000005                  go:	reset				; reset the world
+      55                                
+      56 173032 010003                  	mov	r0,r3			; copy unit number
+      57 173034 052703  001300          	bis	#001300,r3		; set density 800NRZ, format 14
+      58 173040 010361  000032          	mov	r3,tutc(r1)		; execute
+      59 173044 032761  010000  000012  2$:	bit	#010000,tuds(r1)	; check medium is online
+      60 173052 001774                  	beq	2$			; br if not yet
+      61                                
+      62 173054 112711  000007          	movb	#007,(r1)		; REWIND+GO command
+      63 173060 105761  000012          3$:	tstb	tuds(r1)		; check drive is ready
+      64 173064 100375                  	bpl	3$			; br if not yet
+      65                                
+      66 173066 112711  000011          	movb	#011,(r1)		; DRIVE_CLEAR+GO command
+      67 173072 105761  000012          4$:	tstb	tuds(r1)		; check drive is ready
+      68 173076 100375                  	bpl	4$			; br if not yet
+      69                                
+      70 173100 012761  177777  000006  	mov	#-1,tufc(r1)		; set frame count
+      71 173106 112711  000031          	movb	#031,(r1)		; SPACE_FORWARD+GO command
+      72 173112 105761  000012          5$:	tstb	tuds(r1)		; check drive is ready
+      73 173116 100375                  	bpl	5$			; br if not yet
+      74                                
+      75 173120 016161  000016  000016  	mov	tuas(r1),tuas(r1)	; clear all attn summary bits
+      76 173126 012761  177000  000002  	mov	#-512.,tuwc(r1)		; set word count
+      77 173134 011103                  	mov	(r1),r3			; get current csr
+      78 173136 042703  000377          	bic	#377,r3			; clear function code
+      79 173142 152703  000071          	bisb	#071,r3			; READ_FORWARD+GO command
+      80 173146 010311                  	mov	r3,(r1)			; execute
+      81 173150 105711                  6$:	tstb	(r1)			; test ready
+      82 173152 100376                  	bpl	6$			; loop until complete
+      83                                
+      84 173154 005711                  	tst	(r1)			; test error
+      85 173156 100004                  	bpl	7$			; br if OK
+      86 173160 022761  001000  000014  	cmp	#1000,tuer(r1)		; check only error bit is frame count
+      87 173166 001320                  	bne	go			; nope, failed, back to start
+      88                                
+      89 173170 005007                  7$:	clr	pc			; jmp to bootstrap location zero
+      90                                
+      91                                	; --------------------------------------------------
+      92                                
+      93 173172 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      94                                
+      95                                	; --------------------------------------------------
+      96                                
+      97 173176                         	.=start+176
+      98 173176 162556                  crc16:	.word	<162556>		; CRC-16 will go here
+      99                                
+     100                                last:	; next boot prom starts here
+     101                                
+     102                                	.end
+     102                                

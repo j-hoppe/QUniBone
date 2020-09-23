@@ -1,0 +1,27 @@
+
+
+Implementation of a drive controeller, event based
+
+
+1) controller_c acceepts event callbacks
+
+busevent (from unibusadapter)
+	BUS_INIT, BUS_ACLO, DMA compelte, INTR accepted.
+
+driveevent (from storage drive)
+	status_change (needs drive status polling then)
+
+parameter (from user GUI)
+	parameter_changed
+
+2) drive_c accepts event callbacks
+
+parameter (from user GUI)
+	parameter_changed
+
+frontpanel (from lamps&switches logic)
+
+command (from controeller)
+
+
+

@@ -1,0 +1,12 @@
+set cpu 11/34
+
+set rk enabled
+
+att rk0 v6bin.rk
+att rk1 v6doc.rk
+att rk2 v6src.rk
+
+echo On "@" prompt, enter "rkunix"
+echo Attach 2nd disk: # /etc/mount /dev/rk1 /mnt
+
+boot rk0

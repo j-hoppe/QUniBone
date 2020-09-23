@@ -1,0 +1,92 @@
+	.title	M9312 'DK/DT' BOOT prom for RK03/05 and TU55/56 controllers
+
+	; This source code is a modified copy of the DEC M9312 23-756A9 boot PROM.
+	;
+	; This boot PROM is for the RK03/05 DECdisk controllers.
+	;
+	; Multiple units and/or CSR addresses are supported via different entry points.
+
+rkcsr	=177400				; std RK03/05 DECdisk csrbase
+
+rkwc	=+6-4				; word count
+rkda	=+12-4				; disk address
+
+xxwc	=rkwc				; common word count offset
+
+	.asect
+	; ---- Simple boot drive 0 from 0
+	. = 0
+	jmp	@#start0
+
+	; ---- Reboot drive 0 on power event
+	. = 24				; Power ON/OFF
+	.word	     start0		; PC
+	.word	     340		; PSW priority level 7
+
+
+	; ----- Main boot addresses
+	.=10000 			;  arbitrary position > 3000
+
+start:
+	; 8 unit numbers => 8 entry addresses
+start0:
+	mov	#0,r0
+	br	dknr
+	nop
+start1:
+	mov	#1,r0
+	br	dknr
+	nop
+start2:
+	mov	#2,r0
+	br	dknr
+	nop
+start3:
+	mov	#3,r0
+	br	dknr
+	nop
+start4:
+	mov	#4,r0
+	br	dknr
+	nop
+start5:
+	mov	#5,r0
+	br	dknr
+	nop
+start6:
+	mov	#6,r0
+	br	dknr
+	nop
+start7:
+	mov	#7,r0
+	br	dknr
+	nop
+
+
+dknr:
+	mov	#rkcsr+4,r1		; boot std csr, unit <R0>
+
+	mov	r0,r3			; get unit number
+	clc				; C=0 for ror
+	ror	r3			; shift into 15:12
+	ror	r3			;
+	ror	r3			;
+	ror	r3			;
+	mov	r3,rkda(r1)		; unit number, sector 0 to disk addr
+
+	mov	#-512.,xxwc(r1)		; set word count
+	bis	#5,r3			; command READ+GO
+	mov	r3,(r1)			; execute
+2$:	tstb	(r1)			; test ready
+	bpl	2$			; loop
+
+	tst	(r1)			; check error
+	bpl	3$			; br if no error
+
+	reset				; reset the world
+	br     dknr			; and retry
+
+3$:	bic	#377,(r1)		; nop command
+	clr	pc			; jump to loaded boot sector
+
+	.end

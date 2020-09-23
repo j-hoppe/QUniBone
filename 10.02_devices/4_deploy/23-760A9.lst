@@ -1,0 +1,97 @@
+       1                                	.title	M9312 'PR/TT' BOOT prom for PC11/DL11 controllers
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-760A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the PC11 high-speed paper-tape reader and the
+       6                                	; DL11 low-speed (ASR33) console serial paper-tape reader controllers.
+       7                                	;
+       8                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       9                                	;
+      10                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      11                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      12                                	; the low half of the device; the top half is blank and unused.
+      13                                	;
+      14                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      15                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      16                                	; select (and will be correctly asserted low).
+      17                                
+      18 177550                         prcsr	=177550				; std highspeed reader csrbase
+      19 177560                         ttcsr	=177560				; std console terminal csrbase
+      20                                
+      21 165564                         diags	=165564				; console diags phase2 entry
+      22                                
+      23                                	.asect
+      24 173000                         	.=173000
+      25                                
+      26                                	; --------------------------------------------------
+      27                                
+      28 173000    122     120          start:	.ascii	"RP"			; device code (reversed)
+      29                                
+      30 173002 000026                  	.word	next-.			; offset to next boot header
+      31                                
+      32 173004 000261                  pr0n:	sec				; boot std csr, unit zero, no diags
+      33 173006 012700  000000          pr0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      34 173012 012701  177550          prNr:	mov	#prcsr,r1		; boot std csr, unit <R0>
+      35 173016 010704                  prNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      36 173020 103064                  	bcc	diag			; br if diags requested
+      37 173022 000412                  	br	go			; return to (R4)+2 from diags
+      38                                					; then skip over pseudo reboot vector
+      39                                
+      40                                	; --------------------------------------------------
+      41                                
+      42 173024 173000                  	.word	173000			; prom start addess @ 24
+      43 173026 000340                  	.word	340			; and priority level @ 26
+      44                                
+      45                                	; --------------------------------------------------
+      46                                
+      47 173030    124     124          next:	.ascii	"TT"			; device code (reversed)
+      48                                
+      49 173032 000146                  	.word	last-.			; offset to next boot header
+      50                                
+      51 173034 000261                  tt0n:	sec				; boot std csr, unit zero, no diags
+      52 173036 012700  000000          tt0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      53 173042 012701  177560          ttNr:	mov	#ttcsr,r1		; boot std csr, unit <R0>
+      54 173046 000763                  ttNb:	br	prNb			; continue
+      55                                
+      56                                	; --------------------------------------------------
+      57                                
+      58 173050 012705  160000          go:	mov	#160000,r5		; 28KW memory boundary
+      59 173054 012703  000004          	mov	#4,r3			; ptr to timeout vector
+      60 173060 010723                  	mov	pc,(r3)+		; set timeout vector to 1$
+      61 173062 005013                  1$:	clr	(r3)			; clear loaded priority
+      62 173064 012706  000502          	mov	#502,sp			; (re)set stack ptr
+      63 173070 010145                  	mov	r1,-(r5)		; try to access top of memory
+      64                                					; FAIL: trap to 1$
+      65                                					; PASS: fall thru
+      66 173072 042705  000032          	bic	#32,r5			; backup to make room for our code
+      67 173076 012725  016701          	mov	#016701,(r5)+		; store 'mov 26(PC),r1'
+      68 173102 012725  000026          	mov	#000026,(r5)+		; 
+      69 173106 012725  012702          	mov	#012702,(r5)+		; store 'mov #352,r2'
+      70 173112 012725  000352          	mov	#000352,(r5)+		;
+      71 173116 012725  005211          	mov	#005211,(r5)+		; store 'inc (r1)'
+      72 173122 012725  105711          	mov	#105711,(r5)+		; store 'tstb (r1)'
+      73 173126 012725  100376          	mov	#100376,(r5)+		; store 'bpl .-2'
+      74 173132 012725  116162          	mov	#116162,(r5)+		; store 'movb 2(r1),x(r2)'
+      75 173136 012725  000002          	mov	#000002,(r5)+		;
+      76 173142 010515                  	mov	r5,(r5)			; current address
+      77 173144 105025                  	clrb	(r5)+			; clear low byte
+      78 173146 005205                  	inc	r5			; bump past upper byte
+      79 173150 012725  005267          	mov	#005267,(r5)+		; store 'inc -22(pc)'
+      80 173154 012725  177756          	mov	#177756,(r5)+		;
+      81 173160 012725  000765          	mov	#000765,(r5)+		; store 'br .-24'
+      82 173164 010115                  	mov	r1,(r5)			; store csr address
+      83 173166 000165  177746          	jmp	-32(r5)			; jump to code we wrote
+      84                                
+      85                                	; --------------------------------------------------
+      86                                
+      87 173172 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      88                                
+      89                                	; --------------------------------------------------
+      90                                
+      91 173176                         	.=start+176
+      92 173176 154747                  crc16:	.word	<154747>		; CRC-16 will go here
+      93                                
+      94                                last:	; next boot prom starts here
+      95                                
+      96                                	.end
+      96                                

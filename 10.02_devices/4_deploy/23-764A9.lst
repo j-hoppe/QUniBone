@@ -1,0 +1,124 @@
+       1                                	.title	M9312 'MS' BOOT prom for TS11/TS04/TU80 compatible controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-764A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for any TS11 compatible tape controller.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 172520                         tscsr	=172520				; std TS11 csrbase
+      18                                
+      19 177776                         tsdb	=+0-2				; data buffer reg offset
+      20 000000                         tssr	=+2-2				; command/status reg offset
+      21                                
+      22 165564                         diags	=165564				; console diags phase2 entry
+      23                                
+      24                                	.asect
+      25 173000                         	.=173000
+      26                                
+      27                                	; --------------------------------------------------
+      28                                
+      29 173000    123     115          start:	.ascii	"SM"			; device code (reversed)
+      30                                
+      31 173002 000176                  	.word	last-.			; offset to next boot header
+      32                                
+      33 173004 000261                  ms0n:	sec				; boot std csr, unit zero, no diags
+      34 173006 012700  000000          ms0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      35 173012 012701  172522          msNr:	mov	#tscsr+2,r1		; boot std csr, unit <R0>
+      36 173016 010704                  msNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      37 173020 103063                  	bcc	diag			; br if diags requested
+      38 173022 000411                  	br	go			; return to (R4)+2 from diags
+      39                                					; then skip over pseudo reboot vector
+      40                                
+      41                                	; --------------------------------------------------
+      42                                
+      43 173024 173000                  	.word	173000			; prom start addess @ 24
+      44 173026 000340                  	.word	340			; and priority level @ 26
+      45                                
+      46                                	; --------------------------------------------------
+      47                                
+      48                                					;        cmd1:    cmd2:    cmd3:
+      49 173030 142010                  pkt2:	.word	142010			; [1000] rewind   read     reread
+      50 173032 000000                  	.word	0			; [1002] zero     addrlo   addrlo
+      51 173034 000000                  	.word	0			; [1004]          addrhi   addrhi
+      52 173036 001000                  	.word	512.			; [1006]          bytecnt  bytecnt
+      53                                
+      54 173040 140004                  pkt1:	.word	140004			; [1010] set characteristics
+      55 173042 001012                  	.word	1012			; [1012] addrlo
+      56 173044 000000                  	.word	0			; [1014] addrhi
+      57                                
+      58 173046 010003                  go:	mov	r0,r3			; [1016] copy unit ID
+      59 173050 010702                  	mov	pc,r2			; [1020] mov #2$,r2: point at table
+      60 173052 012705  001022          2$:	mov	#1022,r5		; ptr to memory buffer
+      61 173056 014245                  3$:	mov	-(r2),-(r5)		; move table word to memory
+      62 173060 105705                  	tstb	r5			; is low byte of address zero?
+      63 173062 001375                  	bne	3$			; loop if not
+      64                                					; R5=1000; R0=R3=unitID
+      65                                
+      66 173064 006303                  	asl	r3			; unit ID times 4
+      67 173066 006303                  	asl	r3			;
+      68 173070 060301                  	add	r3,r1			; add to CSR base
+      69 173072 010102                  	mov	r1,r2			; dup in R1,R2
+      70 173074 005742                  	tst	-(r2)			; R1=tssr, R2=tsdb
+      71                                
+      72 173076 105711                  4$:	tstb	(r1)			; check ready<7>
+      73 173100 100376                  	bpl	4$			; loop if not ready
+      74                                
+      75 173102 005037  000000          	clr	@#0			; zap memory loc 0
+      76 173106 012712  001010          	mov	#1010,(r2)		; send command block at pkt1 (set char)
+      77                                
+      78 173112 111103                  5$:	movb	(r1),r3			; get status, check ready<7>
+      79 173114 100376                  	bpl	5$			; loop if not ready
+      80                                
+      81 173116 010512                  6$:	mov	r5,(r2)			; send command block at pkt2 (rewind)
+      82                                
+      83 173120 105711                  7$:	tstb	(r1)			; check ready<7>
+      84 173122 100376                  	bpl	7$			; loop if not ready
+      85                                
+      86 173124 032711  000012          	bit	#12,(r1)		; check if reg mod refused error
+      87 173130 001346                  	bne	go			; br if set, must retry from start
+      88                                
+      89 173132 012715  140001          	mov	#140001,(r5)		; change pkt2 command to read
+      90 173136 105103                  	comb	r3			; invert status from above
+      91 173140 100366                  	bpl	6$			; br if ready
+      92                                
+      93 173142 010512                  8$:	mov	r5,(r2)			; send command block at pkt2 (read 512.)
+      94                                
+      95 173144 105711                  9$:	tstb	(r1)			; check ready<7>
+      96 173146 100376                  	bpl	9$			; loop if not ready
+      97                                
+      98 173150 005711                  	tst	(r1)			; check error<15>
+      99 173152 100401                  	bmi	10$			; br if error
+     100                                
+     101 173154 005007                  	clr	pc			; jump to bootstrap at zero
+     102                                
+     103 173156 012715  161001          10$:	mov	#161001,(r5)		; change pkt2 command to reread
+     104 173162 105103                  	comb	r3			; invert status from above
+     105 173164 100366                  	bpl	8$			; if no error, go reread block
+     106 173166 000727                  	br	go			; else must retry from start
+     107                                
+     108                                	; --------------------------------------------------
+     109                                
+     110 173170 000137  165564          diag:	jmp	@#diags			; jump to console diags
+     111                                
+     112                                	; --------------------------------------------------
+     113                                
+     114 173174 000000                  	.word	0			; unused
+     115                                
+     116                                	; --------------------------------------------------
+     117                                
+     118 173176                         	.=start+176
+     119 173176 140726                  crc16:	.word	<140726>		; CRC-16 will go here
+     120                                
+     121                                last:	; next boot prom starts here
+     122                                
+     123                                	.end
+     123                                

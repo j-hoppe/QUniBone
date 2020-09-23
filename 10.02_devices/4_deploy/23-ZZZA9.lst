@@ -1,0 +1,111 @@
+       1                                	.sbttl	M9312 'ZZ' BOOT prom diagnostic tests
+       2                                
+       3                                	; This boot PROM is not a real boot PROM, but a pseudo-boot device that
+       4                                	; runs the internal M9312 full diagnostics continuously, incl memory test.
+       5                                	;
+       6                                	; This PROM is intimately tied to the standard 23-248F1 console/diag PROM,
+       7                                	; and will NOT work in boards other than a real M9312 with a '248F1.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 165564                         diags	=165564				; ph2 diags, ret to 2(R4), temp R2,R3,R5,SP
+      18 165430                         prtoct	=165430				; print octal in R0, ret to 2(R1), temp R2,R3
+      19 165500                         prteol	=165500				; print EOL, ret to 2(R1), temp R2,R3
+      20 165540                         txchar	=165540				; print char in R2, ret to 2(R3)
+      21                                
+      22                                	.asect
+      23 173000                         	.=173000
+      24                                
+      25                                	; --------------------------------------------------
+      26                                
+      27 173000    132     132          start:	.ascii	"ZZ"			; device code (reversed)
+      28                                
+      29 173002 000176                  	.word	last-.			; offset to next boot header
+      30                                
+      31 173004 000261                  zz0n:	sec				; boot std csr, unit zero, no diags
+      32 173006 012700  000000          zz0d:	mov	#0,r0			; boot std csr, unit zero, with diags [NOTUSED]
+      33 173012 012701  000000          zzNr:	mov	#0,r1			; boot std csr, unit <R0> [NOTUSED]
+      34 173016 010704                  zzNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      35 173020 103064                  	bcc	diag			; br if diags requested
+      36 173022 000402                  	br	go			; return to (R4)+2 from diags
+      37                                					; then skip over pseudo reboot vector
+      38                                
+      39                                	; --------------------------------------------------
+      40                                
+      41 173024 173000                  	.word	173000			; prom start addess @ 24
+      42 173026 000340                  	.word	340			; and priority level @ 26
+      43                                
+      44                                	; --------------------------------------------------
+      45                                
+      46 173030 010701                  go:	mov	pc,r1			; setup return address
+      47 173032 000455                  	br	87$			; call EOL print
+      48                                
+      49 173034 005003                  2$:	clr	r3			; R3=000000 C=0
+      50 173036 005203                  	inc	r3			; R3=000001 C=0
+      51 173040 005103                  	com	r3			; R3=177776 C=1
+      52 173042 006203                  	asr	r3			; R3=177777 C=0
+      53 173044 006303                  	asl	r3			; R3=177776 C=1
+      54 173046 006003                  	ror	r3			; R3=177777 C=0
+      55 173050 005703                  	tst	r3			; R3=177777 C=0
+      56 173052 005403                  	neg	r3			; R3=000001 C=1
+      57 173054 005303                  	dec	r3			; R3=000000 C=1
+      58 173056 005603                  	sbc	r3			; R3=177777 C=1
+      59 173060 006103                  	rol	r3			; R3=177777 C=1
+      60 173062 005503                  	adc	r3			; R3=000000 C=1
+      61 173064 000303                  	swab	r3			; R3=000000 C=0
+      62 173066 001377                  	bne	.			; br . if FAIL
+      63                                
+      64 173070 010704                  	mov	pc,r4			; setup return address
+      65 173072 000437                  	br	diag			; call ph2 diagnostics
+      66                                
+      67 173074 005200                  	inc	r0			; bump pass count
+      68 173076 010001                  	mov	r0,r1			;
+      69 173100 010102                  	mov	r1,r2			; check some registers
+      70 173102 010203                  	mov	r2,r3			;
+      71 173104 010304                  	mov	r3,r4			;
+      72 173106 010405                  	mov	r4,r5			; save pass count
+      73                                
+      74 173110 010701                  	mov	pc,r1			; where we are
+      75 173112 062701  000032          	add	#30$-.,r1		; offset to string
+      76 173116 112102                  4$:	movb	(r1)+,r2		; get next char
+      77 173120 001403                  	beq	5$			; br if done
+      78 173122 010703                  	mov	pc,r3			; setup return address
+      79 173124 000414                  	br	85$			; print char in R2
+      80 173126 000773                  	br	4$			; loop
+      81                                
+      82 173130 010701                  5$:	mov	pc,r1			; setup return address
+      83 173132 000413                  	br	86$			; call octal print of R0
+      84                                
+      85 173134 010701                  	mov	pc,r1			; setup return address
+      86 173136 000413                  	br	87$			; call EOL print
+      87                                
+      88 173140 010500                  	mov	r5,r0			; restore pass count
+      89 173142 000734                  	br	2$			; and loop forever
+      90                                
+      91                                	; --------------------------------------------------
+      92                                
+      93 173144    105     156     144  30$:	.asciz	"End Pass "		; a message
+         173147    040     120     141  
+         173152    163     163     040  
+         173155    000                  
+      94                                
+      95 173156 000137  165540          85$:	jmp	@#txchar		; jump to char print
+      96 173162 000137  165430          86$:	jmp	@#prtoct		; jump to octal print
+      97 173166 000137  165500          87$:	jmp	@#prteol		; jump to EOL print
+      98 173172 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      99                                
+     100                                	; --------------------------------------------------
+     101                                
+     102 173176                         	.=start+176
+     103 173176 152737                  crc16:	.word	<152737>		; CRC-16 will go here
+     104                                
+     105                                last:	; next boot prom starts here
+     106                                
+     107                                	.end
+     107                                

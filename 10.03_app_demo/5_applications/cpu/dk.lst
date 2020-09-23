@@ -1,0 +1,93 @@
+       1                                	.title	M9312 'DK/DT' BOOT prom for RK03/05 and TU55/56 controllers
+       2                                
+       3                                	; This source code is a modified copy of the DEC M9312 23-756A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RK03/05 DECdisk controllers.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                
+       9 177400                         rkcsr	=177400				; std RK03/05 DECdisk csrbase
+      10                                
+      11 000002                         rkwc	=+6-4				; word count
+      12 000006                         rkda	=+12-4				; disk address
+      13                                
+      14 000002                         xxwc	=rkwc				; common word count offset
+      15                                
+      16                                	.asect
+      17                                	; ---- Simple boot drive 0 from 0
+      18 000000                         	. = 0
+      19 000000 000137  010000          	jmp	@#start0
+      20                                
+      21                                	; ---- Reboot drive 0 on power event
+      22 000024                         	. = 24				; Power ON/OFF
+      23 000024 010000                  	.word	     start0		; PC
+      24 000026 000340                  	.word	     340		; PSW priority level 7
+      25                                
+      26                                
+      27                                	; ----- Main boot addresses
+      28 010000                         	.=10000 			;  arbitrary position > 3000
+      29                                
+      30                                start:
+      31                                	; 8 unit numbers => 8 entry addresses
+      32                                start0:
+      33 010000 012700  000000          	mov	#0,r0
+      34 010004 000435                  	br	dknr
+      35 010006 000240                  	nop
+      36                                start1:
+      37 010010 012700  000001          	mov	#1,r0
+      38 010014 000431                  	br	dknr
+      39 010016 000240                  	nop
+      40                                start2:
+      41 010020 012700  000002          	mov	#2,r0
+      42 010024 000425                  	br	dknr
+      43 010026 000240                  	nop
+      44                                start3:
+      45 010030 012700  000003          	mov	#3,r0
+      46 010034 000421                  	br	dknr
+      47 010036 000240                  	nop
+      48                                start4:
+      49 010040 012700  000004          	mov	#4,r0
+      50 010044 000415                  	br	dknr
+      51 010046 000240                  	nop
+      52                                start5:
+      53 010050 012700  000005          	mov	#5,r0
+      54 010054 000411                  	br	dknr
+      55 010056 000240                  	nop
+      56                                start6:
+      57 010060 012700  000006          	mov	#6,r0
+      58 010064 000405                  	br	dknr
+      59 010066 000240                  	nop
+      60                                start7:
+      61 010070 012700  000007          	mov	#7,r0
+      62 010074 000401                  	br	dknr
+      63 010076 000240                  	nop
+      64                                
+      65                                
+      66                                dknr:
+      67 010100 012701  177404          	mov	#rkcsr+4,r1		; boot std csr, unit <R0>
+      68                                
+      69 010104 010003                  	mov	r0,r3			; get unit number
+      70 010106 000241                  	clc				; C=0 for ror
+      71 010110 006003                  	ror	r3			; shift into 15:12
+      72 010112 006003                  	ror	r3			;
+      73 010114 006003                  	ror	r3			;
+      74 010116 006003                  	ror	r3			;
+      75 010120 010361  000006          	mov	r3,rkda(r1)		; unit number, sector 0 to disk addr
+      76                                
+      77 010124 012761  177000  000002  	mov	#-512.,xxwc(r1)		; set word count
+      78 010132 052703  000005          	bis	#5,r3			; command READ+GO
+      79 010136 010311                  	mov	r3,(r1)			; execute
+      80 010140 105711                  2$:	tstb	(r1)			; test ready
+      81 010142 100376                  	bpl	2$			; loop
+      82                                
+      83 010144 005711                  	tst	(r1)			; check error
+      84 010146 100002                  	bpl	3$			; br if no error
+      85                                
+      86 010150 000005                  	reset				; reset the world
+      87 010152 000752                  	br     dknr			; and retry
+      88                                
+      89 010154 042711  000377          3$:	bic	#377,(r1)		; nop command
+      90 010160 005007                  	clr	pc			; jump to loaded boot sector
+      91                                
+      92                                	.end
+      92                                

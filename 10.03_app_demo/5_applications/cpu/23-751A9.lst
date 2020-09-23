@@ -1,0 +1,109 @@
+       1                                	.title	M9312 'DL' BOOT prom for RL11 controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-751A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RL11 controller with RL01/RL02 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 174400                         rlcsr	=174400				; std RL11 csrbase
+      18                                
+      19 000000                         rlcs	=+0				; control/status
+      20 000002                         rlba	=+2				; bus address
+      21 000004                         rlda	=+4				; disk address
+      22 000006                         rlmp	=+6				; multipurpose
+      23                                
+      24 000004                         cmstat	=2*2				; get status
+      25 000006                         cmseek	=3*2				; seek
+      26 000010                         cmrdhd	=4*2				; read header
+      27 000014                         cmrdda	=6*2				; read data
+      28                                
+      29 165564                         diags	=165564				; console diags phase2 entry
+      30                                
+      31                                	.asect
+      32 173000                         	.=173000
+      33                                
+      34                                	; --------------------------------------------------
+      35                                
+      36 173000    114     104          start:	.ascii	"LD"			; device code (reversed)
+      37                                
+      38 173002 000176                  	.word	last-.			; offset to next boot header
+      39                                
+      40 173004 000261                  dl0n:	sec				; boot std csr, unit zero, no diags
+      41 173006 012700  000000          dl0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      42 173012 012701  174400          dlNr:	mov	#rlcsr,r1		; boot std csr, unit <R0>
+      43 173016 010704                  dlNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      44 173020 103064                  	bcc	diag			; br if diags requested
+      45 173022 000402                  	br	go			; return to (R4)+2 from diags
+      46                                					; then skip over pseudo reboot vector
+      47                                
+      48                                	; --------------------------------------------------
+      49                                
+      50 173024 173000                  	.word	173000			; prom start addess @ 24
+      51 173026 000340                  	.word	340			; and priority level @ 26
+      52                                
+      53                                	; --------------------------------------------------
+      54                                
+      55 173030 010003                  go:	mov	r0,r3			; save unit number
+      56 173032 000303                  	swab	r3			; unit number in upper byte
+      57 173034 010311                  	mov	r3,(r1)			; set unit, NOP cmd
+      58                                
+      59 173036 012761  000013  000004  	mov	#013,rlda(r1)		; subcmd reset+getstatus
+      60 173044 052703  000004          	bis	#cmstat,r3		; get status cmd (r3lo is 0)
+      61 173050 010311                  	mov	r3,(r1)			; execute
+      62 173052 105711                  1$:	tstb	(r1)			; test for ready
+      63 173054 100376                  	bpl	1$			; wait
+      64                                
+      65 173056 105003                  	clrb	r3			; unit number in upper byte
+      66 173060 052703  000010          	bis	#cmrdhd,r3		; read header cmd
+      67 173064 010311                  	mov	r3,(r1)			; execute
+      68 173066 105711                  2$:	tstb	(r1)			; test for ready
+      69 173070 100376                  	bpl	2$			; wait
+      70                                
+      71 173072 016102  000006          	mov	rlmp(r1),r2		; retrieve cyl/head/sector
+      72 173076 042702  000077          	bic	#77,r2			; set sector to zero
+      73 173102 005202                  	inc	r2			; set head 0, seek to cyl 0
+      74 173104 010261  000004          	mov	r2,rlda(r1)		; into da for seek
+      75 173110 105003                  	clrb	r3			; unit number in upper byte
+      76 173112 052703  000006          	bis	#cmseek,r3		; seek cmd
+      77 173116 010311                  	mov	r3,(r1)			; execute
+      78 173120 105711                  3$:	tstb	(r1)			; test for ready
+      79 173122 100376                  	bpl	3$			; wait
+      80                                
+      81 173124 005061  000004          	clr	rlda(r1)		; select cyl0/head0/sector0
+      82 173130 012761  177000  000006  	mov	#-512.,rlmp(r1)		; set word count
+      83 173136 105003                  	clrb	r3			; unit number in upper byte
+      84 173140 052703  000014          	bis	#cmrdda,r3		; read data cmd
+      85 173144 010311                  	mov	r3,(r1)			; execute
+      86 173146 105711                  4$:	tstb	(r1)			; test for ready
+      87 173150 100376                  	bpl	4$			; wait
+      88                                
+      89 173152 005711                  	tst	(r1)			; test for error
+      90 173154 100003                  	bpl	5$			; br if ok
+      91 173156 000005                  	reset				; ERROR - reset the world
+      92 173160 000164  000002          	jmp	2(r4)			; retry
+      93                                
+      94 173164 042711  000377          5$:	bic	#377,(r1)		; execute nop cmd
+      95 173170 005007                  	clr	pc			; jump to bootstrap at zero
+      96                                
+      97                                	; --------------------------------------------------
+      98                                
+      99 173172 000137  165564          diag:	jmp	@#diags			; jump to console diags
+     100                                
+     101                                	; --------------------------------------------------
+     102                                
+     103 173176                         	.=start+176
+     104 173176 171540                  crc16:	.word	<171540>		; CRC-16 will go here
+     105                                
+     106                                last:	; next boot prom starts here
+     107                                
+     108                                	.end
+     108                                

@@ -1,0 +1,122 @@
+       1                                	.title	M9312 'DP/DB' BOOT prom for RP0x/RM0x controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-755A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RP11 or RH11 controllers with RP0x/RM0x drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 176714                         rpcsr	=176714				; std RP11-C csrbase 
+      18                                .if df altrmcsr
+      19                                rmcsr	=176300				; alt RH11 csrbase [match J.West .bin]
+      20                                .iff
+      21 176700                         rmcsr	=176700				; std RH11 csrbase
+      22                                .endc
+      23                                
+      24 000000                         rpcs	=+0				; control status offset
+      25 000002                         rpwc	=+2				; word count offset
+      26 000004                         rpba	=+4				; bus addr offset
+      27 000010                         rpcs2	=+10				; control status 2 offset
+      28 000016                         rpas	=+16				; atten summary offset
+      29 000032                         rpof	=+32				; offset register offset
+      30                                
+      31 165564                         diags	=165564				; console diags phase2 entry
+      32                                
+      33                                	.asect
+      34 173000                         	.=173000
+      35                                
+      36                                	; --------------------------------------------------
+      37                                
+      38 173000    120     104          start:	.ascii	"PD"			; device code (reversed)
+      39                                
+      40 173002 000042                  	.word	next-.			; offset to next boot header
+      41                                
+      42 173004 000261                  dp0n:	sec				; boot std csr, unit zero, no diags
+      43 173006 012700  000000          dp0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      44 173012 012701  176714          dpNr:	mov	#rpcsr,r1		; boot std csr, unit <R0>
+      45 173016 010704                  dpNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      46 173020 103060                  	bcc	diag			; br if diags requested
+      47 173022 000402                  	br	go			; return to (R4)+2 from diags
+      48                                					; then skip over pseudo reboot vector
+      49                                
+      50                                	; --------------------------------------------------
+      51                                
+      52 173024 173000                  	.word	173000			; prom start addess @ 24
+      53 173026 000340                  	.word	340			; and priority level @ 26
+      54                                
+      55                                	; --------------------------------------------------
+      56                                
+      57 173030 010003                  go:	mov	r0,r3			; copy unit number
+      58 173032 000303                  	swab	r3			; into upper byte
+      59 173034 010311                  	mov	r3,(r1)			; store into controller
+      60 173036 012702  000005          	mov	#5,r2			; READ+GO command code
+      61 173042 000425                  	br	boot			; continue
+      62                                
+      63                                	; ----------------------------------------
+      64                                
+      65                                .if df altrmcsr
+      66                                next:	.ascii	"RD"			; device code (reversed) [match J.West .bin]
+      67                                .iff
+      68 173044    102     104          next:	.ascii	"BD"			; device code (reversed)
+      69                                .endc
+      70                                
+      71 173046 000132                  	.word	last-.			; offset to next boot header
+      72                                
+      73 173050 000261                  db0n:	sec				; boot std csr, unit zero, no diags
+      74 173052 012700  000000          db0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      75 173056 012701  176700          dbNr:	mov	#rmcsr,r1		; boot std csr, unit <R0>
+      76 173062 010704                  dbNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      77 173064 103036                  	bcc	diag			; br if diags requested
+      78                                
+      79                                	; ----------------------------------------
+      80                                
+      81 173066 010061  000010          	mov	r0,rpcs2(r1)		; set unit number into controller
+      82 173072 012702  000071          	mov	#071,r2			; READ+GO command code
+      83 173076 012711  000021          	mov	#021,(r1)		; RIP+GO command
+      84 173102 012761  014000  000032  	mov	#014000,rpof(r1)	; set 16b mode, inhibit ECC mode
+      85 173110 016161  000016  000016  	mov	rpas(r1),rpas(r1)	; clear attention bits
+      86                                
+      87 173116 012761  177000  000002  boot:	mov	#-512.,rpwc(r1)		; set word count
+      88 173124 011103                  	mov	(r1),r3			; get unit number
+      89 173126 042703  000377          	bic	#377,r3			; clear command byte
+      90 173132 050203                  	bis	r2,r3			; insert read command code
+      91 173134 010311                  	mov	r3,(r1)			; execute read command
+      92 173136 105711                  2$:	tstb	(r1)			; test unit ready
+      93 173140 100376                  	bpl	2$			; br if not yet
+      94                                
+      95 173142 005711                  	tst	(r1)			; test any error
+      96 173144 100003                  	bpl	3$			; br if not
+      97                                
+      98 173146 000005                  	reset				; error, reset the world
+      99 173150 000164  000002          	jmp	2(r4)			; and jump back to restart
+     100                                
+     101 173154 042711  000377          3$:	bic	#377,(r1)		; nop command, clear controller
+     102 173160 005007                  	clr	pc			; jump to bootstrap start
+     103                                
+     104                                	; ----------------------------------------
+     105                                
+     106 173162 000137  165564          diag:	jmp	@#diags			; jump to console diags
+     107                                
+     108                                	; ----------------------------------------
+     109                                
+     110 173166 000261                  dp1n:	sec				; boot std csr, unit one, no diags
+     111 173170 012700  000001          dp1d:	mov	#1,r0			; boot std csr, unit one, with diags
+     112 173174 000706                  	br	dpNr			; continue
+     113                                
+     114                                	; --------------------------------------------------
+     115                                
+     116 173176                         	.=start+176
+     117 173176 111612                  crc16:	.word	<111612>		; CRC-16 will go here
+     118                                
+     119                                last:	; next boot prom starts here
+     120                                
+     121                                	.end
+     121                                

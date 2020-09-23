@@ -1,0 +1,121 @@
+       1                                	.title	M9312 'DD' BOOT prom for TU58 DECtapeII serial tape controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-765A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the TU58 DECtapeII serial tape controller.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17                                
+      18                                	;VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+      19                                	;
+      20                                	; This code is REALLY BROKEN when it comes to supporting a non-std CSR.
+      21                                	; All the references to:  ddrbuf, ddxcsr, ddxbuf
+      22                                	; should be changed to:   2(R1),  4(R1),  6(R1)
+      23                                	; The one reference where 'ddrcsr' might have been used is '(R1)' instead
+      24                                	; which is actually correct (but totally inconsistent with other usage).
+      25                                	;
+      26                                	; ANY attempt to enter this bootstrap with a non-std CSR address in R1
+      27                                	; will fail to boot correctly at all, and will likely hang the system
+      28                                	; OR cause an unexpected timeout trap if address 776500 does not exist.
+      29                                	;
+      30                                	;AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      31                                
+      32                                
+      33 176500                         ddcsr	=176500				; std TU58 csrbase
+      34                                
+      35 176500                         ddrcsr	=ddcsr+0			; receive control
+      36 176502                         ddrbuf	=ddcsr+2			; receive data
+      37 176504                         ddxcsr	=ddcsr+4			; transmit control
+      38 176506                         ddxbuf	=ddcsr+6			; transmit data
+      39                                
+      40 165564                         diags	=165564				; console diags phase2 entry
+      41                                
+      42                                	.asect
+      43 173000                         	.=173000
+      44                                
+      45                                	; --------------------------------------------------
+      46                                
+      47 173000    104     104          start:	.ascii	"DD"			; device code (reversed)
+      48                                
+      49 173002 000176                  	.word	last-.			; offset to next boot header
+      50                                
+      51 173004 000261                  dd0n:	sec				; boot std csr, unit zero, no diags
+      52 173006 012700  000000          dd0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      53 173012 012701  176500          ddNr:	mov	#ddcsr,r1		; boot std csr, unit <R0>
+      54 173016 010704                  ddNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      55 173020 103054                  	bcc	diag			; br if diags requested
+      56 173022 000402                  	br	go			; return to (R4)+2 from diags
+      57                                					; then skip over pseudo reboot vector
+      58                                
+      59                                	; --------------------------------------------------
+      60                                
+      61 173024 173000                  	.word	173000			; prom start addess @ 24
+      62 173026 000340                  	.word	340			; and priority level @ 26
+      63                                
+      64                                	; --------------------------------------------------
+      65                                
+      66 173030 012706  002000          go:	mov	#2000,sp		; setup a stack
+      67 173034 005004                  	clr	r4			; zap old return address
+      68 173036 012702  176504          	mov	#ddxcsr,r2		; addr of transmit control reg
+      69 173042 005212                  	inc	(r2)			; set break bit
+      70 173044 005003                  	clr	r3			; data 000,000
+      71 173046 004767  173120'         	jsr	pc,10$			; transmit a bunch of zero chars
+      72 173052 005012                  	clr	(r2)			; clear break bit
+      73 173054 005737  176502          	tst	@#ddrbuf		; read/flush any stale rx char
+      74 173060 012703  004004          	mov	#<010*400>+004,r3	; data 010,004
+      75 173064 004767  173124'         	jsr	pc,12$			; transmit 004 (init) and 010 (boot)
+      76 173070 010003                  	mov	r0,r3			; get unit number
+      77 173072 004767  173126'         	jsr	pc,13$			; transmit unit number
+      78                                
+      79 173076 005003                  	clr	r3			; clear rx buffer ptr
+      80 173100 105711                  2$:	tstb	(r1)			; wait for rcv'd char available
+      81 173102 100376                  	bpl	2$			; br if not yet
+      82 173104 113723  176502          	movb	@#ddrbuf,(r3)+		; store the char in buffer, bump ptr
+      83 173110 022703  001000          	cmp	#1000,r3		; hit end of buffer (512. bytes)?
+      84 173114 101371                  	bhi	2$			; br if not yet
+      85                                
+      86 173116 005007                  	clr	pc			; jump to bootstrap at zero
+      87                                
+      88 173120 004717                  10$:	jsr	pc,(pc)			; recursive call for char replication
+      89 173122 004717                  11$:	jsr	pc,(pc)			; recursive call for char replication
+      90 173124 004717                  12$:	jsr	pc,(pc)			; recursive call for char replication
+      91 173126 105712                  13$:	tstb	(r2)			; wait for xmit buffer available
+      92 173130 100376                  	bpl	13$			; br if not yet
+      93 173132 110337  176506          	movb	r3,@#ddxbuf		; send the char
+      94 173136 000303                  	swab	r3			; swap to other char
+      95 173140 000207                  	rts	pc			; now recurse or return
+      96                                
+      97                                	; --------------------------------------------------
+      98                                
+      99 173142 000261                  dd1n:	sec				; boot std csr, unit one, no diags
+     100 173144 012700  000001          dd1d:	mov	#1,r0			; boot std csr, unit one, with diags
+     101 173150 000720                  	br	ddNr			; continue
+     102                                
+     103                                	; --------------------------------------------------
+     104                                
+     105 173152 000137  165564          diag:	jmp	@#diags			; jump to console diags
+     106                                
+     107                                	; --------------------------------------------------
+     108                                
+     109 173156 000000  000000  000000  	.word	0,0,0,0,0,0,0,0		; unused
+         173164 000000  000000  000000  
+         173172 000000  000000          
+     110                                
+     111                                	; --------------------------------------------------
+     112                                
+     113 173176                         	.=start+176
+     114 173176 125025                  crc16:	.word	<125025>		; CRC-16 will go here
+     115                                
+     116                                last:	; next boot prom starts here
+     117                                
+     118                                	.end
+     118                                

@@ -1,0 +1,24 @@
+
+Name scheme:
+<OS>_<boot device code>_<pdp11-version>
+-
+
+rt11v5.5sj_dl1_34.sh
+rt11v5.5fb_dl0_34.sh
+rt11v5.5_dl_34.cmd
+
+
+xxdp2.5_dl1.sh  .cmd
+
+
+rsx11m4.1_dl0_34.sh  .cmd
+
+rsx11m4.1_34.rl02
+rsx11m4.1_hlpdcl_34.rl02
+rsx11m4.1_excprv_34.rl02
+
+
+
+miniunix_dk0_05.sh
+
+unixv6_dk0_34

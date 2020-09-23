@@ -1,0 +1,107 @@
+       1                                	.title	M9312 'MT' BOOT prom for TM11 controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-758A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the TM11 controller with TS03/TU10/TE10 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 172520                         tmcsr	=172520				; std TM11 csrbase
+      18                                
+      19 177776                         tmcs	=+0-2				; status
+      20 000002                         tmwc	=+4-2				; word count
+      21                                
+      22 165564                         diags	=165564				; console diags phase2 entry
+      23                                
+      24                                	.asect
+      25 173000                         	.=173000
+      26                                
+      27                                	; --------------------------------------------------
+      28                                
+      29 173000    124     115          start:	.ascii	"TM"			; device code (reversed)
+      30                                
+      31 173002 000176                  	.word	last-.			; offset to next boot header
+      32                                
+      33 173004 000261                  mt0n:	sec				; boot std csr, unit zero, no diags
+      34 173006 012700  000000          mt0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      35 173012 012701  172522          mtNr:	mov	#tmcsr+2,r1		; boot std csr, unit <R0>
+      36 173016 010704                  mtNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      37 173020 103054                  	bcc	diag			; br if diags requested
+      38 173022 000411                  	br	go			; return to (R4)+2 from diags
+      39                                					; then skip over pseudo reboot vector
+      40                                
+      41                                	; --------------------------------------------------
+      42                                
+      43 173024 173000                  	.word	173000			; prom start addess @ 24
+      44 173026 000340                  	.word	340			; and priority level @ 26
+      45                                
+      46                                	; --------------------------------------------------
+      47                                
+      48 173030 012700  000001          mt1d:	mov	#1,r0			; boot std csr, unit one, with diags
+      49 173034 000766                  	br	mtNr			; continue
+      50                                
+      51 173036 012700  000001          mt1n:	mov	#1,r0			; boot std csr, unit one, no diags
+      52 173042 000261                  	sec				; no diag flag
+      53 173044 000762                  	br	mtNr			; continue
+      54                                
+      55                                	; --------------------------------------------------
+      56                                
+      57 173046 010003                  go:	mov	r0,r3			; copy unit number
+      58 173050 000303                  	swab	r3			; to upper byte
+      59 173052 010311                  	mov	r3,(r1)			; to command register
+      60 173054 006061  177776          2$:	ror	tmcs(r1)		; check tape unit ready bit<0>
+      61 173060 103375                  	bcc	2$			; br if not yet ready
+      62                                
+      63 173062 052711  060017          	bis	#060017,(r1)		; 800BPI/9ch, REWIND+GO
+      64 173066 105711                  3$:	tstb	(r1)			; test ready
+      65 173070 100376                  	bpl	3$			; br if not yet
+      66                                
+      67 173072 012761  177777  000002  	mov	#-1,tmwc(r1)		; set tape byte count
+      68 173100 112711  000011          	movb	#011,(r1)		; SPACEFORWARD+GO
+      69 173104 105711                  4$:	tstb	(r1)			; test ready
+      70 173106 100376                  	bpl	4$			; br if not yet
+      71                                
+      72 173110 005711                  	tst	(r1)			; test error bit<15>
+      73 173112 100415                  	bmi	6$			; br if ERROR; die and try again
+      74                                
+      75 173114 012761  177000  000002  	mov	#-512.,tmwc(r1)		; set word count
+      76 173122 011103                  	mov	(r1),r3			; get current unit in high byte
+      77 173124 042703  000377          	bic	#377,r3			; clear low byte
+      78 173130 152703  000003          	bisb	#003,r3			; READ+GO command
+      79 173134 010311                  	mov	r3,(r1)			; execute
+      80 173136 105711                  5$:	tstb	(r1)			; test ready
+      81 173140 100376                  	bpl	5$			; br if not yet
+      82                                
+      83 173142 005711                  	tst	(r1)			; test error bit<15>
+      84 173144 100004                  	bpl	exit			; br if OK
+      85                                
+      86 173146 000005                  6$:	reset				; FAILed; reset the world
+      87 173150 000720                  	br	mtNr			; back up to top and restart
+      88                                
+      89 173152 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      90                                
+      91 173156 042711  000377          exit:	bic	#377,(r1)		; NOP+GO command, execute
+      92 173162 005007                  	clr	pc			; jmp to bootstrap location zero
+      93                                
+      94                                	; --------------------------------------------------
+      95                                
+      96 173164 000000  000000  000000  	.word	0,0,0,0,0		; unused words
+         173172 000000  000000          
+      97                                
+      98                                	; --------------------------------------------------
+      99                                
+     100 173176                         	.=start+176
+     101 173176 021526                  crc16:	.word	<021526>		; CRC-16 will go here
+     102                                
+     103                                last:	; next boot prom starts here
+     104                                
+     105                                	.end
+     105                                

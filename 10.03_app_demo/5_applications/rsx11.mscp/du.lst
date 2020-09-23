@@ -1,0 +1,124 @@
+       1                                	.title	M9312 'DU' BOOT prom for MSCP compatible controller
+       2                                
+       3                                	; This source code is a mdified copy of the DEC M9312 23-767A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for any MSCP compatible controller (DEC UDA50, EMULEX UC17/UC18).
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                
+       9                                		;
+      10                                	; Revision history:
+      11                                	; May 2017: Joerg Hoppe
+      12                                	;
+      13                                	; 198?:  DEC
+      14                                	;      Original ROM 23-767A9 for M9312.
+      15                                	;
+      16                                
+      17                                
+      18                                
+      19 172150                         mscsr	=172150 			; std MSCP csrbase
+      20                                
+      21 000000                         msip	=+0				; IP register
+      22 000002                         mssa	=+2				; SA register
+      23                                
+      24                                	.asect
+      25                                	; ---- Simple boot drive 0 from 0
+      26 000000                         	. = 0
+      27 000000 000137  010000          	jmp	@#start0
+      28                                
+      29                                	; ---- Reboot drive 0 on power event
+      30 000024                         	. = 24				; Power ON/OFF
+      31 000024 010000                  	.word	     start0		; PC
+      32 000026 000340                  	.word	     340		; PSW priority level 7
+      33                                
+      34                                
+      35                                	; ----- Main boot addresses
+      36 010000                         	.=10000 			;  arbitrary position > 3000
+      37                                
+      38                                
+      39 001004                         rpkt	=1004	; rpkt structure
+      40 001070                         cpkt	=1070	; cpkt structure
+      41 001200                         comm	=1200	; comm structure
+      42                                ;comm	 =2404	 ; comm structure (at 'blt .+12')
+      43                                
+      44                                	; register usage:
+      45                                	; r0: unit number 0..3
+      46                                	; r1: MSCP csrbase
+      47                                	; r2: moving buffer pointer
+      48                                	; r3: moving buffer pointer
+      49                                	; r5: init mask
+      50                                
+      51                                	; 4 unit numbers => 4 entry addresses
+      52                                start0:
+      53 010000 012700  000000          	mov	#0,r0
+      54 010004 000413                  	br	duNr
+      55 010006 000240                  	nop
+      56                                start1:
+      57 010010 012700  000001          	mov	#1,r0
+      58 010014 000407                  	br	duNr
+      59 010016 000240                  	nop
+      60                                start2:
+      61 010020 012700  000002          	mov	#2,r0
+      62 010024 000403                  	br	duNr
+      63 010026 000240                  	nop
+      64                                start3:
+      65 010030 012700  000003          	mov	#3,r0
+      66                                
+      67                                	; retry entry
+      68 010034 012701  172150          duNr:	mov	#mscsr,r1		; boot std csr, unit <R0>
+      69                                
+      70 010040 010021                  go:	mov	r0,(r1)+		; init controller (write IP), bump ptr
+      71 010042 012705  004000          	mov	#4000,r5		; S1 state bitmask
+      72 010046 012703  010166          	mov	#mscpdt,r3		; point to data
+      73                                
+      74                                	; write 4 init words, with r5 mask from 4000 to 40000
+      75 010052 005711                  3$:	tst	(r1)			; error bit set ?
+      76 010054 100767                  	bmi	duNr			; yes, fail back to begin to retry
+      77 010056 031105                  	bit	(r1),r5 		; step bit set ?
+      78 010060 001774                  	beq	3$			; not yet, wait loop
+      79 010062 012311                  	mov	(r3)+,(r1)		; yes, send next init data
+      80 010064 006305                  	asl	r5			; next mask
+      81 010066 100371                  	bpl	3$			; s4 done? br if not yet
+      82                                
+      83 010070 005002                  4$:	clr	r2			; set bufptr to 0
+      84 010072 005022                  5$:	clr	(r2)+			; clear buffer [0..2403]
+      85 010074 020227  001200          	cmp	r2,#comm		; check for end of buffer
+      86 010100 001374                  	bne	5$			; loop if not done
+      87                                
+      88 010102 010237  001064          	mov	r2,@#cpkt-4		; set lnt -- R2=2404
+      89 010106 112337  001100          	movb	(r3)+,@#cpkt+10 	; set command
+      90 010112 111337  001105          	movb	(r3),@#cpkt+15		; set bytecnt(hi)
+      91 010116 010037  001074          	mov	r0,@#cpkt+4		; set unit
+      92 010122 012722  001004          	mov	#rpkt,(r2)+		; rq desc addr
+      93 010126 010522                  	mov	r5,(r2)+		; rq own bit15
+      94 010130 012722  001070          	mov	#cpkt,(r2)+		; cp desc addr
+      95 010134 010522                  	mov	r5,(r2)+		; cq own bit15
+      96 010136 016102  177776          	mov	-2(r1),r2		; wake controller (read IP)
+      97                                
+      98 010142 005737  001202          6$:	tst	@#comm+2		; rq own controller ?
+      99 010146 100775                  	bmi	6$			; loop if not done
+     100                                
+     101 010150 105737  001016          	tstb	@#rpkt+12		; check for error ?
+     102 010154 001327                  	bne	duNr			; yup, fail back to begin to retry
+     103                                
+     104 010156 105723                  	tstb	(r3)+			; check end of table ?
+     105 010160 001743                  	beq	4$			; br if not yet
+     106                                
+     107 010162 005041                  	clr	-(r1)			; init controller (write IP)
+     108 010164 005007                  	clr	pc			; jmp to bootstrap at zero
+     109                                
+     110                                	; MSCP init and command data
+     111                                	; pointed to by r3
+     112                                mscpdt:
+     113 010166 100000                  	.word	100000			; S1: 100000 = no int, ring size 1, no vector
+     114 010170 001200                  	.word	comm			; S2: 002404 = ringbase lo addr
+     115 010172 000000                  	.word	000000			; S3: 000000 = no purge/poll, ringbase hi addr
+     116 010174 000001                  	.word	000001			; S4: 000001 = go bit
+     117                                	;
+     118                                	; MSCP command data
+     119                                	;
+     120 010176    011     000          	.byte	011,000 		; cmd=011(online), bytecnt_hi=000(0)
+     121 010200    041     002          	.byte	041,002 		; cmd=041(read), bytecnt_hi=002(512)
+     122                                
+     123                                	.end
+     123                                

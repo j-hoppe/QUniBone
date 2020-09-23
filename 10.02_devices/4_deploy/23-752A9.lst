@@ -1,0 +1,107 @@
+       1                                	.title	M9312 'DM' BOOT prom for RK611 controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-752A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RK611 controller with RK06/RK07 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 177440                         rkcsr	=177440				; std RK611 csrbase
+      18                                
+      19 000000                         rkcs1	=+0				; control/status reg1
+      20 000002                         rkwc	=+2				; word count
+      21 000010                         rkcs2	=+10				; control/status reg2
+      22 000014                         rker	=+14				; error reg
+      23                                
+      24 165564                         diags	=165564				; console diags phase2 entry
+      25                                
+      26                                	.asect
+      27 173000                         	.=173000
+      28                                
+      29                                	; --------------------------------------------------
+      30                                
+      31 173000    115     104          start:	.ascii	"MD"			; device code (reversed)
+      32                                
+      33 173002 000176                  	.word	last-.			; offset to next boot header
+      34                                
+      35 173004 000261                  dm0n:	sec				; boot std csr, unit zero, no diags
+      36 173006 012700  000000          dm0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      37 173012 012701  177440          dmNr:	mov	#rkcsr,r1		; boot std csr, unit <R0>
+      38 173016 010704                  dmNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      39 173020 103055                  	bcc	diag			; br if diags requested
+      40 173022 000402                  	br	go			; return to (R4)+2 from diags
+      41                                					; then skip over pseudo reboot vector
+      42                                
+      43                                	; --------------------------------------------------
+      44                                
+      45 173024 173000                  	.word	173000			; prom start addess @ 24
+      46 173026 000340                  	.word	340			; and priority level @ 26
+      47                                
+      48                                	; --------------------------------------------------
+      49                                
+      50 173030 010061  000010          go:	mov	r0,rkcs2(r1)		; set unit number
+      51 173034 012711  000003          	mov	#0003,(r1)		; command pack+go rk06 type
+      52                                
+      53 173040 105711                  2$:	tstb	(r1)			; wait for done
+      54 173042 100376                  	bpl	2$			; loop 
+      55 173044 005711                  	tst	(r1)			; check for error
+      56 173046 100015                  	bpl	4$			; br if no error, rk06 was OK
+      57                                
+      58 173050 032761  000040  000014  	bit	#40,rker(r1)		; check if a disk-type error
+      59 173056 001426                  	beq	6$			; br if not, something else
+      60 173060 000005                  	reset				; yes, reset controller
+      61 173062 010061  000010          	mov	r0,rkcs2(r1)		; set unit number
+      62 173066 012711  002003          	mov	#2003,(r1)		; command pack+go rk07 type
+      63                                
+      64 173072 105711                  3$:	tstb	(r1)			; wait for done
+      65 173074 100376                  	bpl	3$			; loop
+      66 173076 005711                  	tst	(r1)			; check for error
+      67 173100 100415                  	bmi	6$			; br if error
+      68                                
+      69 173102 012761  177000  000002  4$:	mov	#-512.,rkwc(r1)		; set wordcount
+      70 173110 011103                  	mov	(r1),r3			; get current pack type
+      71 173112 042703  000377          	bic	#377,r3			; zap command portion
+      72 173116 052703  000021          	bis	#21,r3			; read+go command
+      73 173122 010311                  	mov	r3,(r1)			; execute
+      74                                
+      75 173124 105711                  5$:	tstb	(r1)			; wait for done
+      76 173126 100376                  	bpl	5$			; loop
+      77 173130 005711                  	tst	(r1)			; check for error
+      78 173132 100003                  	bpl	7$			; br if OK
+      79                                
+      80 173134 000005                  6$:	reset				; error; clear controller
+      81 173136 000164  000002          	jmp	2(r4)			; and retry from beginning
+      82                                
+      83 173142 005007                  7$:	clr	pc			; jump to bootstrap start
+      84                                
+      85                                	; --------------------------------------------------
+      86                                
+      87 173144 000261                  dm1n:	sec				; boot std csr, unit one, no diags
+      88 173146 012700  000001          dm1d:	mov	#1,r0			; boot std csr, unit one, with diags
+      89 173152 000717                  	br	dmNr			; merge to main flow
+      90                                
+      91                                	; --------------------------------------------------
+      92                                
+      93 173154 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      94                                
+      95                                	; --------------------------------------------------
+      96                                
+      97 173160 000000  000000  000000  	.word	0,0,0,0,0,0,0		; unused
+         173166 000000  000000  000000  
+         173174 000000                  
+      98                                
+      99 173176                         	.=start+176
+     100 173176 077161                  crc16:	.word	<077161>		; CRC-16 will go here
+     101                                
+     102                                last:	; next boot prom starts here
+     103                                
+     104                                	.end
+     104                                

@@ -1,0 +1,91 @@
+       1                                	.title	M9312 'DS' BOOT prom for RS03/RS04 controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-759A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RS11 controller with RS03/RS04 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 172040                         rscsr	=172040				; std RS11 csrbase
+      18                                
+      19 000000                         rscs1	=+0				; control/status1
+      20 000002                         rswc	=+2				; word count
+      21 000010                         rscs2	=+10				; control/status2
+      22 000016                         rsas	=+16				; attention summary
+      23                                
+      24 165564                         diags	=165564				; console diags phase2 entry
+      25                                
+      26                                	.asect
+      27 173000                         	.=173000
+      28                                
+      29                                	; --------------------------------------------------
+      30                                
+      31 173000    123     104          start:	.ascii	"SD"			; device code (reversed)
+      32                                
+      33 173002 000176                  	.word	last-.			; offset to next boot header
+      34                                
+      35 173004 000261                  ds0n:	sec				; boot std csr, unit zero, no diags
+      36 173006 012700  000000          ds0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      37 173012 012701  172040          dsNr:	mov	#rscsr,r1		; boot std csr, unit <R0>
+      38 173016 010704                  dsNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      39 173020 103026                  	bcc	diag			; br if diags requested
+      40 173022 000402                  	br	go			; return to (R4)+2 from diags
+      41                                					; then skip over pseudo reboot vector
+      42                                
+      43                                	; --------------------------------------------------
+      44                                
+      45 173024 173000                  	.word	173000			; prom start addess @ 24
+      46 173026 000340                  	.word	340			; and priority level @ 26
+      47                                
+      48                                	; --------------------------------------------------
+      49                                
+      50 173030 010003                  go:	mov	r0,r3			; copy unit number
+      51 173032 010361  000010          	mov	r3,rscs2(r1)		; set unit number
+      52 173036 016161  000016  000016  	mov	rsas(r1),rsas(r1)	; clear attention
+      53 173044 012761  177000  000002  	mov	#-512.,rswc(r1)		; set word count
+      54 173052 012711  000071          	mov	#71,(r1)		; command read+go
+      55 173056 105711                  2$:	tstb	(r1)			; wait for done
+      56 173060 100376                  	bpl	2$			; loop
+      57 173062 005711                  	tst	(r1)			; check error
+      58 173064 100401                  	bmi	3$			; br if error
+      59                                
+      60 173066 005007                  	clr	pc			; jump to bootstrap at zero
+      61                                
+      62 173070 000005                  3$:	reset				; reset controller
+      63 173072 000164  000002          	jmp	2(r4)			; and retry boot
+      64                                
+      65                                	; --------------------------------------------------
+      66                                
+      67 173076 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      68                                
+      69                                	; --------------------------------------------------
+      70                                
+      71 173102 000000  000000  000000  	.word	0,0,0,0,0,0,0,0		; unused
+         173110 000000  000000  000000  
+         173116 000000  000000          
+      72 173122 000000  000000  000000  	.word	0,0,0,0,0,0,0,0		;
+         173130 000000  000000  000000  
+         173136 000000  000000          
+      73 173142 000000  000000  000000  	.word	0,0,0,0,0,0,0,0		;
+         173150 000000  000000  000000  
+         173156 000000  000000          
+      74 173162 000000  000000  000000  	.word	0,0,0,0,0,0		;
+         173170 000000  000000  000000  
+      75                                
+      76                                	; --------------------------------------------------
+      77                                
+      78 173176                         	.=start+176
+      79 173176 126075                  crc16:	.word	<126075>		; CRC-16 will go here
+      80                                
+      81                                last:	; next boot prom starts here
+      82                                
+      83                                	.end
+      83                                

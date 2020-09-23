@@ -1,0 +1,55 @@
+; after  http://www.vaxman.de/publications/bsd211_inst.pdf
+
+; model a PDP-11/44 with maximum memory, fpu, no CIS
+set cpu 11/44 4096K fpp nocis
+
+; disable all extra devices by default, will enable later
+set ptr disabled
+set ptp disabled
+set lpt disabled
+set rha disabled
+set cr disabled
+set rp disabled
+set rk disabled
+set xu disabled
+set xq disabled
+set rx disabled
+set tm disabled
+set ts disabled
+set hk disabled
+set vh disabled
+
+; use 7b ascii terminal
+set tto 7b
+
+; set the boot disk as a 1GB RA72 on an MSCP UDA50
+set rq enabled
+set rq0 ra92
+attach rq0 2.11BSD_44.ra92
+
+; boot tape
+set ts enable
+attach ts 211bsd.tap
+
+; set one DZ11 8 line async mux
+; accessible via telnet to 127.0.0.1:4000...4007
+set dz enabled
+set dz lines=8
+set dz 7b
+set dz vector=310
+attach -am dz 4000
+
+; set one DELUA/DEUNA unibus enet controller
+; ==> must setup eth0/eth1 per your system config
+set xu enabled
+set xu type=delua
+attach xu eth0
+
+; enable one tape device on a TMSCP controller
+set tq enabled
+
+; show our config
+show devices
+
+; set cons telnet=23
+boot rq0

@@ -1,0 +1,15 @@
+set cpu 11/34
+
+set rl disabled
+
+set rq enabled
+set rq0 ra80
+att rq0 rt11v5.5_du0.ra80
+
+; To make a bootable RA8= from RT11 running on RL02s:
+; . init du0:
+; . copy /sys *.* du0:
+; . copy/boot  du0:rt11fb.sys du0:
+; . boot du0:
+
+boot rq0

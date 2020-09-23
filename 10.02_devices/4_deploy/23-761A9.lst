@@ -1,0 +1,111 @@
+       1                                	.title	M9312 'CT' BOOT prom for TA11/TU60 controller
+       2                                
+       3                                	; This source code is an exact copy of the DEC M9312 23-761A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the TA11 controller with TU60 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                	; Standard devices are 82S131, Am27S13, 74S571 or other compatible bipolar
+      10                                	; PROMs with a 512x4 TriState 16pin DIP architecture. This code resides in
+      11                                	; the low half of the device; the top half is blank and unused.
+      12                                	;
+      13                                	; Alternatively, 82S129 compatible 256x4 TriState 16pin DIP devices can be
+      14                                	; used, as the uppermost address line (hardwired low) is an active low chip
+      15                                	; select (and will be correctly asserted low).
+      16                                
+      17 177500                         tacsr	=177500				; std TA11 csrbase
+      18                                
+      19 000000                         tacs	=+0				; control/status
+      20 000002                         tadb	=+2				; data buffer
+      21                                
+      22 165564                         diags	=165564				; console diags phase2 entry
+      23                                
+      24                                	.asect
+      25 173000                         	.=173000
+      26                                
+      27                                	; --------------------------------------------------
+      28                                
+      29 173000    124     103          start:	.ascii	"TC"			; device code (reversed)
+      30                                
+      31 173002 000176                  	.word	last-.			; offset to next boot header
+      32                                
+      33 173004 000261                  dl0n:	sec				; boot std csr, unit zero, no diags
+      34 173006 012700  000000          dl0d:	mov	#0,r0			; boot std csr, unit zero, with diags
+      35 173012 012701  177500          dlNr:	mov	#tacsr,r1		; boot std csr, unit <R0>
+      36 173016 010704                  dlNb:	mov	pc,r4			; boot csr <R1>, unit <R0>
+      37 173020 103042                  	bcc	diag			; br if diags requested
+      38 173022 000402                  	br	go			; return to (R4)+2 from diags
+      39                                					; then skip over pseudo reboot vector
+      40                                
+      41                                	; --------------------------------------------------
+      42                                
+      43 173024 173000                  	.word	173000			; prom start addess @ 24
+      44 173026 000340                  	.word	340			; and priority level @ 26
+      45                                
+      46                                	; --------------------------------------------------
+      47                                
+      48 173030 010003                  go:	mov	r0,r3			; copy unit number
+      49 173032 042703  177776          	bic	#^c1,r3			; mask to 0/1
+      50 173036 000303                  	swab	r3			; to high byte
+      51 173040 010311                  	mov	r3,(r1)			; to controller<8>
+      52                                
+      53 173042 010405                  	mov	r4,r5			; r4=r5=173x20
+      54 173044 042705  000177          	bic	#177,r5			; r5=173x00
+      55 173050 062705  000132          	add	#table-start,r5		; offset to table start
+      56 173054 012702  000375          	mov	#375,r2			; -2 as a byte
+      57 173060 112503                  	movb	(r5)+,r3		; R3=240
+      58                                
+      59 173062 112511                  2$:	movb	(r5)+,(r1)		; send 037,015,005,024,224
+      60 173064 100407                  	bmi	4$			; exit if last command
+      61                                
+      62 173066 130311                  3$:	bitb	r3,(r1)			; check trreq<7> or ready<5>
+      63 173070 001776                  	beq	3$			; loop if neither
+      64                                
+      65 173072 105202                  	incb	r2			; count from -2,-1,0,...,177
+      66 173074 100772                  	bmi	2$			; loop twice
+      67                                
+      68 173076 116112  000002          	movb	tadb(r1),(r2)		; write data byte in buffer
+      69 173102 000771                  	br	3$			; loop
+      70                                
+      71 173104 005711                  4$:	tst	(r1)			; check error<15>
+      72 173106 100404                  	bmi	5$			; br if error
+      73                                
+      74 173110 005002                  	clr	r2			; point at address zero
+      75 173112 120312                  	cmpb	r3,(r2)			; check for NOP=240 there
+      76 173114 001001                  	bne	5$			; br if not, not a boot block
+      77                                
+      78 173116 005007                  	clr	pc			; jump to bootstrap start
+      79                                
+      80 173120 000005                  5$:	reset				; reset controller
+      81 173122 000164  000002          	jmp	2(r4)			; and retry the boot
+      82                                
+      83                                	; --------------------------------------------------
+      84                                
+      85 173126 000137  165564          diag:	jmp	@#diags			; jump to console diags
+      86                                
+      87                                	; --------------------------------------------------
+      88                                
+      89 173132    240                  table:	.byte	240			; trreq<7>+ready<5> AND NOP
+      90 173133    037                  	.byte	037			; ilbs+rewind+go command
+      91 173134    015                  	.byte	015			; spaceforwardblock+go command
+      92 173135    005                  	.byte	005			; read+go command
+      93 173136    024                  	.byte	024			; ilbs+read command
+      94 173137    224                  	.byte	224			; ilbs+read command + 200
+      95                                
+      96 173140 000000  000000  000000  	.word	0,0,0,0,0,0,0,0		; unused
+         173146 000000  000000  000000  
+         173154 000000  000000          
+      97 173160 000000  000000  000000  	.word	0,0,0,0,0,0,0		;
+         173166 000000  000000  000000  
+         173174 000000                  
+      98                                
+      99                                	; --------------------------------------------------
+     100                                
+     101 173176                         	.=start+176
+     102 173176 022763                  crc16:	.word	<022763>		; CRC-16 will go here
+     103                                
+     104                                last:	; next boot prom starts here
+     105                                
+     106                                	.end
+     106                                

@@ -1,0 +1,100 @@
+QBUS signal registers
+=====================
+
+Register layout optimized for "slave DIN " cycle, minimal CPLD access by PRU
+
+WTBT,REF,BS7 have different meanings in ADDRESS and DATA phase
+-> appear 2x in register space
+
+- ADDRESS, WTBT,REF,BS7 signals are latched on SYNC 0->1
+        and are transparent when SYNC = 0 OR when
+        SYNC-latched signals are indicated by "*"
+        Lacth state indicated by SYNClatch
+        Latches released by "Command"
+        Transparency necessary, else race condition inside CPLD
+        could make SYNC asserted and * signals not yet latched.
+
+Write on * signals always pass-through
+
+DEC Nomenclature:
+B<sig> = inverted signal on QBUS lines, behind 8641 drivers.  "asserted" = 0V
+R<sig> = Signal read from 8641. Asserted = 1
+T<sig> = Signal transmitted to 8641. Asserted = 1
+Examples: BDAL, TSYNC, RIAKI
+
+
+Register 0: DAL<7:0>
+--------------------
+Bit     R/W     CPLD#   Phase   Func
+7..0    R/W     1       A       DAL[7..0]*
+
+Register 1: DAL<15:8>
+---------------------
+7..0    R/W     1       A       DAL[15..8]*
+
+Register 2, DAL<21:16>
+-------------------------
+5..0    R/W     1       A       DAL[21..16]*
+6       R/W     1       A       BS7*    1st appearance
+7       R       1       A       RDATASYNClatch  see below
+
+Register 3 read: Address-signals, latched on SYNC
+-------------------------------------------------
+0       R       1       RDATASYNClatched:  "SYNC 0->1 gated with !REF" occured since last "cmd_clear_datasynclatch", * signals latched
+                        NOT cleared on RSYNC 1->0
+1       R       1       RBS7*    Addr phase: IOpage access, 2nd appearance
+2       R       2       RWTBT*   Addr phase: 0=DIN following. 1=DOUT following
+3       R       2       RREF*    Addr phase: Refresh cycle
+
+Register 3 write: Commands (bitwise)
+------------------------------------
+0       W       1       cmd_clear_datasynclatch: DATASYNC_latch = 0,
+                        DAL and BS7 show live status again
+                        even when SYNC still 1
+1       W       1       CLR DAL - negate all DAL lines and BS7
+                                (before master DIN, after master DOUT
+
+
+Register 4: DATA control signals
+----------------------------------
+0       R/W     1       SYNC           ungated
+1       R/W     2       DIN            (2nd meaning for INTR vector)
+2       R/W     2       DOUT
+3       R/W     2       RPLY
+4       R/W     2       WTBT           Data phase: DATOB/byte transfer
+5       R/W     1       BS7            Data phase: master wants another DATBI DIn cycle
+                                       3rd appearance
+6       R/W     2       REF            Data phase: slave accepts another block mode DATBI/DATBO cycle
+7       R       2       RINIT          read INIT, 2nd appearance
+
+AddrPhase                       1 = SYNC went active.
+                                * signals latched by SYNC. clear for pass-through
+                                if 1: PRU code must check for SYNC and BS7/Refresh cycle
+                                memread* := (REF == 0 && WTBT == 0 && BS7 == 0)
+                                fast path to mem read access
+
+
+Register 5: System
+--------------------
+0       R/W     2       INIT
+1       R/W     2       HALT
+2       R/W     2       EVNT
+3       R/W     2       POK    inverted
+4       R/W     2       DCOK   inverted
+5       R/W     2       SRUN
+
+
+
+Register 6: INTR/DMA REQUEST???
+0       R/W     2       IRQ4
+1       R/W     2       IRQ5
+2       R/W     2       IRQ6
+3       R/W     2       IRQ7
+4       R/W     2       DMR
+5       R       2       IAKI
+5       W       2       IAKO
+6       R       2       DMGI
+6       W       2       DMGO
+7       R/W     2       SACK
+
+Register 7: INTR/DMA GRANT???
