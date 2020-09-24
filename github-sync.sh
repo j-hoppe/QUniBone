@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-GITURL=https://github.com/j-hoppe/Q     UniBone.git
+GITURL=https://github.com/j-hoppe/QUniBone.git
 echo "This script updates local files from GitHub"
 echo "		$GITURL"
 echo "It forces all local files also present on GitHub to latest version,"
