@@ -50,7 +50,7 @@ iopageregisters_t deviceregisters;
  * put prepared register value onto bus, then set mailbox event to ARM
  * for post processing. SSYN must remain asserted until ARM is complete
  */
-uint8_t iopageregisters_read(uint32_t addr, uint16_t *val) {
+uint8_t emulated_addr_read(uint32_t addr, uint16_t *val) {
 	if (addr < deviceregisters.memory_limit_addr && addr >= deviceregisters.memory_start_addr) {
 		// speed priority on memory access: test for end_addr first
 		// addr in allowed memory range, not in I/O page
@@ -85,7 +85,7 @@ uint8_t iopageregisters_read(uint32_t addr, uint16_t *val) {
  * result 1 = sucessful, 0 = not implemented
  * may set mailbox event to ARM, then SSYN must remain asserted until ARM is complete
  */
-uint8_t iopageregisters_write_w(uint32_t addr, uint16_t w) {
+uint8_t emulated_addr_write_w(uint32_t addr, uint16_t w) {
 	if (addr < deviceregisters.memory_limit_addr && addr >= deviceregisters.memory_start_addr) {
 		// speed priority on memory access: test for end_addr first
 		// addr in allowed memory range, not in I/O page
@@ -112,7 +112,7 @@ uint8_t iopageregisters_write_w(uint32_t addr, uint16_t w) {
 		return 0;
 }
 
-uint8_t iopageregisters_write_b(uint32_t addr, uint8_t b) {
+uint8_t emulated_addr_write_b(uint32_t addr, uint8_t b) {
 	if (addr < deviceregisters.memory_limit_addr && addr >= deviceregisters.memory_start_addr) {
 		// speed priority on memory access: test for end_addr first
 		// addr in allowed memory range, not in I/O page

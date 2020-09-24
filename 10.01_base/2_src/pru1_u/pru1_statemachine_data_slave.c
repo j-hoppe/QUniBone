@@ -107,7 +107,7 @@ statemachine_state_func sm_data_slave_start() {
 	case QUNIBUS_CYCLE_DATI: // fast cases first
 	case QUNIBUS_CYCLE_DATIP:
 		// DATI: get data from memory or registers onto BUS, then SSYN
-		if (iopageregisters_read(addr, &data)) {
+		if (emulated_addr_read(addr, &data)) {
 
 			// DATA[0..7] = latch[5]
 			buslatches_setbyte(5, data & 0xff);
@@ -127,7 +127,7 @@ statemachine_state_func sm_data_slave_start() {
 		w = buslatches_getbyte(5);
 		// DATA[8..15] = latch[6]
 		w |= (uint16_t) buslatches_getbyte(6) << 8;
-		if (iopageregisters_write_w(addr, w)) {
+		if (emulated_addr_write_w(addr, w)) {
 
 			// SSYN = latch[4], bit 5
 			buslatches_setbits(4, BIT(5), BIT(5));
@@ -149,7 +149,7 @@ statemachine_state_func sm_data_slave_start() {
 			// DATA[0..7] = latch[5]
 			b = buslatches_getbyte(5);
 		}
-		if (iopageregisters_write_b(addr, b)) { // always sucessful, addr already tested
+		if (emulated_addr_write_b(addr, b)) { // always sucessful, addr already tested
 			// SSYN = latch[4], bit 5
 			buslatches_setbits(4, BIT(5), BIT(5));
 			// wait for MSYN to go inactive, then SSYN inactive

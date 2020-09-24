@@ -184,10 +184,10 @@ static statemachine_state_func sm_dma_state_1() {
 		if (is_datob) {
 			// A00=1: upper byte, A00=0: lower byte
 			uint8_t b = (addr & 1) ? (data >> 8) : (data & 0xff);
-			internal = iopageregisters_write_b(addr, b); // always sucessful, addr already tested
+			internal = emulated_addr_write_b(addr, b); // always sucessful, addr already tested
 		} else
 			// DATO
-			internal = iopageregisters_write_w(addr, data);
+			internal = emulated_addr_write_w(addr, data);
 		if (internal) {
 			buslatches_setbits(4, BIT(5), BIT(5)); // slave assert SSYN
 			buslatches_setbits(4, BIT(4), 0); // master deassert MSYN
@@ -224,7 +224,7 @@ static statemachine_state_func sm_dma_state_1() {
 		// MSYN = latch[4], bit 4
 		buslatches_setbits(4, BIT(4), BIT(4)); // master assert MSYN
 
-		if (iopageregisters_read(addr, &data)) {
+		if (emulated_addr_read(addr, &data)) {
 			// DATI to internal slave: put MSYN/SSYN/DATA protocol onto bus,
 			// slave puts data onto bus
 			// DATA[0..7] = latch[5]
