@@ -23,6 +23,7 @@ svn export --force ${GITURL}/trunk  .
 # This will not clear outdated files, they will remain as junk.
 
 # Create simple file links ("4_deploy") for QBone/UniBone variants ("4_deploy_q")
+chmod +x *.sh
 ./qunibone-platform.sh
 
 # Generating shortcuts for demo scripts in ~ home directory
