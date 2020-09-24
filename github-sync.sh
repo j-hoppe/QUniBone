@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-GITURL=https://github.com/j-hoppe/QUniBone.git
+GITURL=https://github.com/j-hoppe/Q     UniBone.git
 echo "This script updates local files from GitHub"
 echo "		$GITURL"
 echo "It forces all local files also present on GitHub to latest version,"
@@ -21,6 +21,9 @@ sudo apt install subversion
 # download from github without creating repository
 svn export --force ${GITURL}/trunk  .
 # This will not clear outdated files, they will remain as junk.
+
+# Create simple file links ("4_deploy") for QBone/UniBone variants ("4_deploy_q")
+./qunibone-platform.sh
 
 # Generating shortcuts for demo scripts in ~ home directory
 find 10.03_app_demo/5* -name \*.sh -exec ln -sf {} $HOME \;
