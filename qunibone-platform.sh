@@ -85,7 +85,7 @@ function link4dir() {
   replace=${PLATFORM_SUFFIX}
   filepath=${linkpath/%$substr/$replace}
 
-  mkdir $filepath
+  mkdir -p $filepath
 
   make_link
   return $?
