@@ -11,9 +11,12 @@ UniBone/QBone can keep old PDP-11s running, by emulating devices and aiding in r
 
 As UNIBUS and QBUS are quite similar, only one software project compiles for both devices.
 
-In-source differentiation is done via "#define UNIBUS" or "#define QBUS",
+In-source differentiation is done via "#define UNIBUS" or "#define QBUS".
 Source files special to only one bus are marked with suffix "_u" respective "_q".
 
-The "QBone" part of project "QUniBone is under heavy development.
+
+The "UNIBUS" part of project "QUniBone" is identical with  UniBunder heavy development.
+
+The "QBone" part of project "QUniBone" is under heavy development.
 
 See [project page at retrocmp.com](http://retrocmp.com/projects/unibone/).
