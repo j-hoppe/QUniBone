@@ -44,7 +44,7 @@ function get_config() {
 # param $1: selection number from switches
 n=$1
 case $n in
-3)
+1)
         config_info="Just memory"
         config_cmd="./memory.sh --leds $n"
         ;;
@@ -57,10 +57,14 @@ case $n in
         config_cmd="./rt11v5.5sj_dl1_34.sh --leds $n"
         ;;
 4)
+        config_info="11/34: RT11 5.5 FB on DU0:"
+        config_cmd="./rt11v5.5fb_du0_34.sh --leds $n"
+        ;;
+5)
         config_info="11/34: RSX11M4.8 on DU0:"
         config_cmd="./rsx11m4.8_du0+rl_34.sh --leds $n"
         ;;
-5)
+6)
         config_info="11/34: Unix V6 on RK05"
         config_cmd="./unixv6_dk0_34.sh --leds $n"
         ;;

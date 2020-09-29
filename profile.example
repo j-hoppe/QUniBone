@@ -22,12 +22,32 @@ export PINS=/sys/kernel/debug/pinctrl/44e10800.pinmux/pins
 #   in a real PDP-11 system.
 
 case `tty` in
+
 # Who on earth starts a session on "virtual tty" #1 ???
 # However, use it to autostart an application
-# Interactive ssh connections can attach to it with "screen -d -r"
 /dev/tty1)
+        # install "screen", if not yet there .. make take several minutes!
+        if [[ ! -x screen ]]
+        then
+           apt-get install --yes screen
+        fi
 	screen -dmS "QUniBone" ./autostart.sh
 ;;
+
+# ssh connection: check for background "screen" sessions, ask wether to connect
+/dev/pts*)
+        # background application? check for "QUniBone session"
+        hit=`screen -ls | grep --count QUniBone`
+        if [ $hit -ne 0 ]
+        then
+           read -p "Background QUniBone application running. Connect ? [y/n] " -r
+           if [[ $REPLY =~ ^[Yy]$ ]]
+           then
+             screen -d -r
+           fi
+        fi
+
+
 # Serial `tty` under Debian is like "/dev/ttyS1"
 #/dev/ttyS1)
 #	./rt11.sh
