@@ -31,6 +31,7 @@ case `tty` in
         then
            apt-get install --yes screen
         fi
+        chmod +x ./autostart.sh
 	screen -dmS "QUniBone" ./autostart.sh
 ;;
 
