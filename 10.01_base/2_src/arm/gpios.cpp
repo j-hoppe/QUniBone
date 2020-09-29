@@ -62,6 +62,8 @@ gpios_c *gpios; // Singleton
 
 gpios_c::gpios_c() {
 	log_label = "GPIOS";
+	
+	cmdline_leds = 0 ; // is set before init()
 }
 
 /* fill the 4 gpio_banks with values and
@@ -196,10 +198,6 @@ void gpios_c::init() {
 			banks[n].cur_dataout_val = *(banks[n].dataout_addr);
 
 	// set the 4 LEDs to OFF
-	for (n = 0; n < 4; n++)
-		GPIO_SETVAL(led[n], 1)
-		; // inverted drivers
-
 	// shared with LEDs
 	ARM_DEBUG_PIN0(0)
 	;
@@ -210,7 +208,18 @@ void gpios_c::init() {
 	ARM_DEBUG_PIN3(0)
 	;
 
+	set_leds(cmdline_leds) ;
 }
+
+// display a number on the 4 LEDs
+void gpios_c::set_leds(unsigned number) {
+	// inverted drivers
+	GPIO_SETVAL(led[0], !(number & 1)) ;
+	GPIO_SETVAL(led[1], !(number & 2)) ;
+	GPIO_SETVAL(led[2], !(number & 4)) ;
+	GPIO_SETVAL(led[3], !(number & 8)) ;
+}
+
 
 /*
  * Toggle in high speed, break with ^C

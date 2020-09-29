@@ -118,7 +118,10 @@ public:
 			*reg_addr[3], *reg_write, *reg_datin[8], *reg_datout[8], *collision_p9_41,
 			*collision_p9_42;
 
+	unsigned cmdline_leds ; // as set on call to application via cmdline options
+
 	void init(void);
+	void set_leds(unsigned number) ;
 	void test_toggle(gpio_config_t *gpio);
 	void test_loopback(void);
 };

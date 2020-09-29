@@ -246,6 +246,7 @@ void application_c::menu_main(void) {
 
 		n_fields = sscanf(s_choice, "%s %d", opcode, &numarg);
 		if (n_fields > 0) {
+			// gpios->set_leds(gpios->cmdline_leds) ; // signal user: operation started
 			if (!strcasecmp(opcode, "q")) {
 				ready = true;
 				// } else if (!strcasecmp(opcode, "a")) {
@@ -276,6 +277,8 @@ void application_c::menu_main(void) {
 				menu_masterslave("M", /*with_CPU*/true);
 			} else if (!strcasecmp(opcode, "i")) {
 				menu_info("I");
+			} else {
+				//gpios->set_leds(0) ; // remove signal quickly
 			}
 		}
 	} while (!ready);

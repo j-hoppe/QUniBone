@@ -1,0 +1,72 @@
+#!/bin/bash
+# Actions to start in "screen" session after boot
+
+GPIO_ROOT=/sys/class/gpio
+# read the 4 UniBone/QBone user switches
+# sw0 = bank1, pin 4 = gpio36
+# sw1 = bank1, pin 5 = gpio37
+# sw2 = bann1, pin 6 = gpio38
+# sw3 = bann1, pin 7 = gpio39
+function get_switches() {
+        # set up GPIOs every time
+        # enable gpios
+        echo 36 >$GPIO_ROOT/export 2>/dev/null
+        echo 37 >$GPIO_ROOT/export 2>/dev/null
+        echo 38 >$GPIO_ROOT/export 2>/dev/null
+        echo 39 >$GPIO_ROOT/export 2>/dev/null
+        # set as inputs
+        echo in >$GPIO_ROOT/gpio36/direction
+        echo in >$GPIO_ROOT/gpio37/direction
+        echo in >$GPIO_ROOT/gpio38/direction
+        echo in >$GPIO_ROOT/gpio39/direction
+
+        # read out
+        sw0=`cat $GPIO_ROOT/gpio36/value`
+        sw1=`cat $GPIO_ROOT/gpio37/value`
+        sw2=`cat $GPIO_ROOT/gpio38/value`
+        sw3=`cat $GPIO_ROOT/gpio39/value`
+
+        # return final value
+        switches_val=$(expr $sw0 + 2 \* $sw1 + 4 \* $sw2 + 8 \* $sw3)
+}
+
+# get_config() {
+# set up config_info and config_cmd for config "nr"
+function get_config() {
+case $1 in
+1)
+        config_info="Just memory"
+        config_cmd=memory.sh
+        ;;
+2)
+        config_info="XXDP on RL1"
+        config_cmd=xxdp2.5_dl1.sh
+        ;;
+3)
+        config_info="RT11 5.5 single on RL1"
+        config_cmd=rt11v5.5sj_dl1_34.sh
+        ;;
+4)
+        config_info="11/34: RSX11M4.8 on DU0:"
+        config_cmd=rsx11m4.8_du0+rl_34.sh
+        ;;
+5)
+        config_info="11/34: Unix V6 on RL05"
+        config_cmd="unixv6_dk0_34.sh"
+        ;;
+*)
+        config_info=
+        config_cmd=
+        ;;
+esac
+}
+
+get_switches
+
+echo Switches are $switches_val
+
+#
+get_config($switches_val)
+
+
+# ./demo.sh

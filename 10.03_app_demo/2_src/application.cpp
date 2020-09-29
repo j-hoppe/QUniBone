@@ -176,6 +176,9 @@ void application_c::parse_commandline(int argc, char **argv) {
 			"Force address width of QBUS: 16, 18, 22.\nUse if auto-probing not desired.", "",
 			"", "", "");
 #endif
+	getopt_parser.define("leds", "leds", "ledcode", "", "",
+			"Display decimal number 0..15 on 4 binary LEDs.", "",
+			"", "", "");
 	// test options
 
 	getopt_parser.define("t", "test", "iarg1,iarg2", "soptarg", "8 15",
@@ -207,6 +210,13 @@ void application_c::parse_commandline(int argc, char **argv) {
 			qunibus->set_addr_width(aw) ;
 			// now iopageregisters_init() possible
 #endif		
+		} else if (getopt_parser.isoption("leds")) {
+			unsigned n ;
+			if (getopt_parser.arg_u("ledcode", &n) < 0)
+				commandline_option_error(NULL);
+			if (n > 15)
+				commandline_option_error((char *)"4 LEDs can only display values 0..15");
+			gpios->cmdline_leds = n ;
 		} else if (getopt_parser.isoption("test")) {
 			int i1, i2;
 			string s;

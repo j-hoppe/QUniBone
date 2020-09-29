@@ -1,0 +1,36 @@
+# ~/.profile: executed by Bourne-compatible login shells.
+
+if [ "$BASH" ]; then
+  if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+  fi
+fi
+
+mesg n
+
+# Derek Molloy,, page 223
+# access to cape manager slots and pinmuxing
+export SLOTS=/sys/devices/platform/bone_capemgr/slots
+export PINS=/sys/kernel/debug/pinctrl/44e10800.pinmux/pins
+
+
+# echo "Pid=$$, tty=`tty`, date=`date`" >>.profile.log
+
+# Autostart an UniBone device emulation
+# - Execution only on one login session of physical UART.
+# - Hangs due to missing CPU arbitration if not run
+#   in a real PDP-11 system.
+
+case `tty` in
+# Who on earth starts a session on "virtual tty" #1 ???
+# However, use it to autostart an application
+# Interactive ssh connections can attach to it with "screen -d -r"
+/dev/tty1)
+	screen -dmS "QUniBone" ./autostart.sh
+;;
+# Serial `tty` under Debian is like "/dev/ttyS1"
+#/dev/ttyS1)
+#	./rt11.sh
+#;;
+esac
+
