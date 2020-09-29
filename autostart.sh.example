@@ -1,7 +1,12 @@
 #!/bin/bash
 # Actions to start in "screen" session after boot
 
+set -x
+
 GPIO_ROOT=/sys/class/gpio
+
+####################################################################
+# get_switches()
 # read the 4 UniBone/QBone user switches
 # sw0 = bank1, pin 4 = gpio36
 # sw1 = bank1, pin 5 = gpio37
@@ -30,29 +35,34 @@ function get_switches() {
         switches_val=$(expr $sw0 + 2 \* $sw1 + 4 \* $sw2 + 8 \* $sw3)
 }
 
+
+####################################################################
 # get_config() {
-# set up config_info and config_cmd for config "nr"
+# Set up "config_info" and "config_cmd" for config "n"
+# Called applications ("demo") should echo "n" onto the LEDs on start.
 function get_config() {
-case $1 in
-1)
+# param $1: selection number from switches
+n=$1
+case $n in
+3)
         config_info="Just memory"
-        config_cmd=memory.sh
+        config_cmd="./memory.sh --leds $n"
         ;;
 2)
         config_info="XXDP on RL1"
-        config_cmd=xxdp2.5_dl1.sh
+        config_cmd="./xxdp2.5_dl1.sh --leds $n"
         ;;
 3)
         config_info="RT11 5.5 single on RL1"
-        config_cmd=rt11v5.5sj_dl1_34.sh
+        config_cmd="./rt11v5.5sj_dl1_34.sh --leds $n"
         ;;
 4)
         config_info="11/34: RSX11M4.8 on DU0:"
-        config_cmd=rsx11m4.8_du0+rl_34.sh
+        config_cmd="./rsx11m4.8_du0+rl_34.sh --leds $n"
         ;;
 5)
-        config_info="11/34: Unix V6 on RL05"
-        config_cmd="unixv6_dk0_34.sh"
+        config_info="11/34: Unix V6 on RK05"
+        config_cmd="./unixv6_dk0_34.sh --leds $n"
         ;;
 *)
         config_info=
@@ -61,12 +71,23 @@ case $1 in
 esac
 }
 
+
+####################################################################
+# main()
+
+# read decimal number 0..15 into "switches_val"
 get_switches
 
-echo Switches are $switches_val
+# get info and command call for selected application
+get_config $switches_val
 
-#
-get_config($switches_val)
+if [ -z "$config_cmd" ]
+then
+        echo "Switch value $switches_val does not select an application!"
+else
+        echo "Switch value $switches_val selects \"$config_info\"."
+        $config_cmd
+ fi
 
 
 # ./demo.sh
