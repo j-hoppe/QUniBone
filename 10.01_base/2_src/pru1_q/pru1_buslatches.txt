@@ -10,9 +10,14 @@ WTBT,REF,BS7 have different meanings in ADDRESS and DATA phase
         and are transparent when SYNC = 0 OR when
         SYNC-latched signals are indicated by "*"
         Lacth state indicated by SYNClatch
-        Latches released by "Command"
+        Latches released by reg 3 "Command"
         Transparency necessary, else race condition inside CPLD
         could make SYNC asserted and * signals not yet latched.
+
+- some signals (BS7, IAKO) can be written over multiple registers.
+        PRUs register caches must be kept synchronous via program code
+        on write to one of these.
+
 
 Write on * signals always pass-through
 
@@ -85,16 +90,36 @@ Register 5: System
 
 
 
-Register 6: INTR/DMA REQUEST???
+Register 6: INTR/DMA REQUEST
+-----------------------------
 0       R/W     2       IRQ4
 1       R/W     2       IRQ5
 2       R/W     2       IRQ6
 3       R/W     2       IRQ7
 4       R/W     2       DMR
-5       R       2       IAKI
-5       W       2       IAKO
-6       R       2       DMGI
-6       W       2       DMGO
+5       R       2       RIAKI direct bus signal
+5       W       2       TIAKO  "
+6       R       2       RDMGI  "
+6       W       2       TDMGO  "
 7       R/W     2       SACK
 
-Register 7: INTR/DMA GRANT???
+Register 7: INTR/DMA UNIBUS GRANT
+---------------------------------
+Emulates UNIBUS GRANT: one GRANT per IRQ
+
+Read: RIAKI assigned to highest RIRQ<7:4>,
+        RIRQ<7:4> volatile, so latched on RIAKI 0->1, cleared on RIAKI 1->0
+Write: TIAKO normally operated over reg7, reg5 only used for direct QBUS signal test.
+        TIAKO = reg5<6> OR reg7<0:3> ; keep reg5<6> 1 all time.
+
+0       R       2       IAKI4 = RIAKI && RIRQ4 && ! RIRQ7 && ! RIRQ6 && ! RIRQ5
+1       R       2       IAKI5 = RIAKI && RIRQ5 && ! RIRQ7 && ! RIRQ6
+2       R       2       IAKI6 = RIAKI && RIRQ6 && ! RIRQ7
+3       R       2       IAKI7 = RIAKI && RIRQ7
+4       R       2       DMGI
+Write used to forward all IAKI<7:4> to IAKO<7:4>
+0       W       2       IAKO4 => TIAKO
+1       W       2       IAKO5 => TIAKO
+2       W       2       IAKO6 => TIAKO
+3       W       2       IAKO7 => TIAKO
+4       W       2       DMGO

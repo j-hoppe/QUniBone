@@ -123,13 +123,19 @@ static statemachine_state_func sm_dma_state_addr() {
 	buslatches_setbyte(2, (addr >> 16)); // BIT(7)= SYNClatch is read only, not changed)
 
 	// WTBT (Bit 4): early indicator of DATO
-    // BS7 (Bit 5): prev DATA BS7 is cached in reg4.cur_reg_val from prev DA%TA portion, set to ADDR BS7.
-    {
+	// assertion: BS7 in reg 4 always negated after din/dout_complete(), so write to reg 4 will not assert it silently
+  	if (QUNIBUS_CYCLE_IS_DATO(buscycle))
+		buslatches_setbits(4, BIT(4), BIT(4));
+
+	
+    // BS7 (Bit 5): prev DATA BS7 is cached in reg4.cur_reg_val from prev DATA portion, set to ADDR BS7.
+/*    {
     uint8_t tmp = (addr & QUNIBUS_IOPAGE_ADDR_BITMASK) ? BIT(5) : 0 ;
   	if (QUNIBUS_CYCLE_IS_DATO(buscycle))
         tmp |= BIT(4);
 	buslatches_setbits(4, BIT(4)+BIT(5), tmp);
     }
+*/    
 
 	// "The Bus Master asserts TSYNC 150 ns minimum after it gates
 	// TADDR, TBS7, and TWTBT onto the Bus; 300 ns minimum after the
@@ -413,11 +419,11 @@ static statemachine_state_func sm_dma_state_99() {
 		sm_dma.dataptr++;  // point to next word in buffer
 		sm_dma.words_left--;
 		if (sm_dma.words_left == 0) {
-			buslatches_setbits(4, BIT(0), 0); // negate SYNC
+			buslatches_setbits(4, BIT(0)+BIT(5), 0); // negate SYNC, BS7(block indicator)
 			final_dma_state = DMA_STATE_READY; // last word: stop
 		} else if (buslatches_getbyte(5) & BIT(0)) { // INIT stops transaction
 			// only bus master (=CPU?) can issue INIT
-			buslatches_setbits(4, BIT(0), 0); // negate SYNC
+			buslatches_setbits(4, BIT(0)+BIT(5), 0); // negate SYNC, BS7(block indicator)
 			final_dma_state = DMA_STATE_INITSTOP;
 			// negate SACK after INIT, independent of remaining word count
 		} else {
@@ -426,7 +432,7 @@ static statemachine_state_func sm_dma_state_99() {
 			mailbox.dma.cur_addr += 2; // signal progress to ARM, next addr to output
 			if (sm_dma.block_data_state_func)
 				return sm_dma.block_data_state_func; // Next data portion in DATBI or DATBO
-			buslatches_setbits(4, BIT(0), 0); // new transaction: negate SYNC
+			buslatches_setbits(4, BIT(0)+BIT(5), 0); // negate SYNC, BS7(block indicator)
 			return (statemachine_state_func) &sm_dma_state_addr; // reloop: output next address
 		}
 	}
