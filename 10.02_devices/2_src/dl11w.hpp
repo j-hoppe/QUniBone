@@ -1,4 +1,4 @@
-/* DL11W.hpp: sample UNIBUS controller with SLU & LTC logic
+/* DL11W.hpp: sample QBUS/UNIBUS controller with SLU & LTC logic
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

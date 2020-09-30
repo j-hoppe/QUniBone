@@ -51,7 +51,7 @@ struct Message
 #pragma pack(pop)
 
 /*
-  This implements the Transport layer for a Unibus MSCP controller.
+  This implements the Transport layer for a Qbus/Unibus MSCP controller.
 
   Logic for initialization, reset, and communcation with the MSCP Server
   is implemented here.

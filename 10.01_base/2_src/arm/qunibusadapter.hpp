@@ -1,4 +1,4 @@
-/* qqunibusadapter.hpp: connects multiple "unibusdevices" to the PRU UNIBUS interface
+/* qunibusadapter.hpp: connects multiple "qunibusdevices" to the PRU QBUS/UNIBUS interface
 
  Copyright (c) 2018-2020 Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -84,7 +84,7 @@ public:
 	// Lower index = "nearer to CPU" = higher priority
 	qunibusdevice_c *devices[MAX_DEVICE_HANDLE + 1];
 
-	volatile bool line_INIT; // current state of these UNIBUS signals
+	volatile bool line_INIT; // current state of these QUNIBUS signals
 	volatile bool line_DCLO;
 	volatile bool line_ACLO;
 

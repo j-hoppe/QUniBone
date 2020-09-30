@@ -102,7 +102,7 @@ typedef struct {
 #include "logsource.hpp"
 #include "timeout.hpp"
 
-// parameter and functions for low level UNIBUS control
+// parameter and functions for low level QBUS/UNIBUS control
 
 class dma_request_c;
 class intr_request_c;
@@ -118,7 +118,7 @@ private:
 
 	timeout_c timeout;
 
-	// false: no running CPU on UNIBUS (physical or emulated)
+	// false: no running CPU on QBUS/UNIBUS (physical or emulated)
 	// 	devices do DMA without NPR/NPG protocol
 	// true:  active CPU. devices perform Request/Grant/SACK protocoll
 	bool arbitrator_active;

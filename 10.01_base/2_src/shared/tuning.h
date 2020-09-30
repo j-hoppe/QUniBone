@@ -1,4 +1,4 @@
-/* tuning.h: Constants to adapt UNIBUS functions
+/* tuning.h: Constants to adapt QBUS/UNIBUS functions
 
  Copyright (c) 2019-2020, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

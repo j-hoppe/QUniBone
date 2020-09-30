@@ -1,4 +1,4 @@
-/* ddrmem.cpp - Control the shared DDR RAM - used for UNIBUS memory
+/* ddrmem.cpp - Control the shared DDR RAM - used for QBUS/UNIBUS memory
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -61,7 +61,7 @@ void ddrmem_c::info() {
 
 	INFO("  Virtual (ARM Linux-side) address: %p", base_virtual);
 	INFO("  Physical (PRU-side) address:%x", base_physical);
-	INFO("  %d bytes of UNIBUS memory allocated", sizeof(qunibus_memory_t));
+	INFO("  %d bytes of " QUNIBONE_NAME" memory allocated", sizeof(qunibus_memory_t));
 }
 
 // read/write ddr memory locally
@@ -80,9 +80,9 @@ bool ddrmem_c::exam(uint32_t addr, uint16_t *w) {
 	return true;
 }
 
-// if CPU accesses memory direct and not via UNIBUS
+// if CPU accesses memory direct and not via QBUS/UNIBUS
 // PMI = "Private Memory Interconnect" = local memory bus on 11/44,60,84 etc.
-// No UNIBUS range, always memory present at all addresses
+// No QBUS/UNIBUS range, always memory present at all addresses
 bool ddrmem_c::pmi_deposit(uint32_t addr, uint16_t w) {
 	assert((addr & 1) == 0); // must be even
 	assert(addr < qunibus->iopage_start_addr);
@@ -103,7 +103,7 @@ bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) {
 // THEN also PMI accesses must be redirected the same way.
 //
 // This is something not existent on real PDP11s with separate memory bus:
-// The M9312 in IO UNIBUs cannot manipulated addresses on the Memory BUS.
+// The M9312 in IO UNIBUS cannot manipulated addresses on the Memory BUS.
 void ddrmem_c::set_pmi_address_overlay(uint32_t address_overlay) {
 	this->pmi_address_overlay = address_overlay ;
 }
@@ -227,12 +227,12 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 	return !error;
 }
 
-// implement an UNIBUS memory card with DDR memory
+// implement an QBUS/UNIBUS memory card with DDR memory
 // PRU act as slave to qunibus master cycles
 void ddrmem_c::unibus_slave(uint32_t startaddr, uint32_t endaddr) {
 
 	char *s, buf[20]; // dummy
-	// this command starts UNIBUS slave logic in PRU
+	// this command starts QBUS/UNIBUS slave logic in PRU
 	set_range(startaddr, endaddr);
 	mailbox->arm2pru_req = ARM2PRU_DDR_SLAVE_MEMORY;
 	printf("Hit 'q' ENTER to end.\n");

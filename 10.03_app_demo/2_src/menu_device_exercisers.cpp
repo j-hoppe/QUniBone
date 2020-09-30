@@ -59,7 +59,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 	char s_opcode[256], s_param[2][256];
 
 //	iopageregisters_init();
-	// UNIBUS activity
+	// QBUS/UNIBUS activity
 	hardware_startup(pru_c::PRUCODE_EMULATION);
 	buslatches.output_enable(true);
 	qunibus->set_arbitrator_active(false) ;
@@ -77,7 +77,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 		if (show_help) {
 			show_help = false; // only once
 			printf("\n");
-			printf("*** Exercise (= work with) installed UNIBUS decives.\n");
+			printf("*** Exercise (= work with) installed " QUNIBUS_NAME " decives.\n");
 			print_arbitration_info("    ");
 			if (cur_exerciser) {
 				printf("    Current device is \"%s\" @ %s\n",
@@ -85,15 +85,15 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 			} else
 				printf("    No current device selected\n");
 			if (memory_installed) {
-				printf("    UNIBUS memory emulated from %s to %s.\n",
+				printf("    " QUNIBUS_NAME " memory emulated from %s to %s.\n",
 						qunibus->addr2text(emulated_memory_start_addr), qunibus->addr2text(emulated_memory_end_addr));
 			} else
-				printf("    NO UNIBUS memory installed ... device test limited!\n");
+				printf("    NO " QUNIBUS_NAME " memory installed ... device test limited!\n");
 			printf("\n");
-			printf("m i              Install (emulate) max UNIBUS memory\n");
+			printf("m i              Install (emulate) max " QUNIBUS_NAME " memory\n");
 			if (memory_installed) {
-				printf("m f [word]       Fill UNIBUS memory (with 0 or other octal value)\n");
-				printf("m d              Dump UNIBUS memory to disk\n");
+				printf("m f [word]       Fill " QUNIBUS_NAME " memory (with 0 or other octal value)\n");
+				printf("m d              Dump " QUNIBUS_NAME " memory to disk\n");
 			}
 			printf("le                   List all defined device exercisers\n");
 			printf("se <exer>            Select \"current device exerciser\"\n");
@@ -107,12 +107,16 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 			printf("d <regname> <val>    Deposit octal value into named device register\n");
 			printf("e <regname>          Examine single device register (regno decimal)\n");
 			printf("e                    Examine all device registers\n");
-			printf("d <addr> <val>       Deposit octal val into UNIBUS address.\n");
-			printf("e <addr>             Deposit octal val into UNIBUS address.\n");
+			printf("d <addr> <val>       Deposit octal val into " QUNIBUS_NAME " address.\n");
+			printf("e <addr>             Deposit octal val into " QUNIBUS_NAME " address.\n");
 			printf("dbg c|s|f            Debug log: Clear, Show on console, dump to File.\n");
 			printf("                       (file = %s)\n", logger->default_filepath.c_str());
-			printf("init                 Pulse UNIBUS INIT\n");
+			printf("init                 Pulse " QUNIBUS_NAME " INIT\n");
+#if defined(UNIBUS)			
 			printf("pwr                  Simulate UNIBUS power cycle (ACLO/DCLO)\n");
+#elif defined(QBUS)
+			printf("pwr                  Simulate QBUS power cycle (POK/DCOK)\n");
+#endif
 			printf("q                    Quit\n");
 		}
 		s_choice = getchoice(menu_code);
@@ -136,33 +140,33 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 					logger->dump(logger->default_filepath);
 			} else if (!strcasecmp(s_opcode, "m") && n_fields == 2
 					&& !strcasecmp(s_param[0], "i")) {
-				// install (emulate) max UNIBUS memory
+				// install (emulate) max QBUS/UNIBUS memory
 				memory_installed = emulate_memory();
 				show_help = true; // menu struct changed
 			} else if (memory_installed && !strcasecmp(s_opcode, "m") && n_fields >= 2
 					&& !strcasecmp(s_param[0], "f")) {
-				//  clear UNIBUS memory
+				//  clear QBUS/UNIBUS memory
 				bool timeout;
 				uint16_t fillword = 0;
 				if (n_fields == 3)
 					qunibus->parse_word(s_param[1], &fillword);
 				membuffer->set_addr_range(emulated_memory_start_addr, emulated_memory_end_addr);
 				membuffer->fill(fillword);
-				// write buffer-> UNIBUS
-				printf("Fill memory with %06o, writing UNIBUS memory[%s:%s]\n", fillword,
+				// write buffer-> QBUS/UNIBUS
+				printf("Fill memory with %06o, writing " QUNIBUS_NAME " memory[%s:%s]\n", fillword,
 						qunibus->addr2text(emulated_memory_start_addr), qunibus->addr2text(emulated_memory_end_addr));
 				qunibus->mem_write(membuffer->data.words,
 						emulated_memory_start_addr, emulated_memory_end_addr, &timeout);
 				if (timeout)
-					printf("Error writing UNIBUS memory!\n");
+					printf("Error writing " QUNIBUS_NAME " memory!\n");
 			} else if (memory_installed && !strcasecmp(s_opcode, "m") && n_fields == 2
 					&& !strcasecmp(s_param[0], "d")) {
-				// dump UNIBUS memory to disk
+				// dump QBUS/UNIBUS memory to disk
 				const char * filename = "memory.dump";
 				bool timeout;
-				// 1. read UNIBUS memory
+				// 1. read QBUS/UNIBUS memory
 				uint32_t end_addr = qunibus->test_sizer() - 2;
-				printf("Reading UNIBUS memory[0:%s] with DMA\n", qunibus->addr2text(end_addr));
+				printf("Reading " QUNIBUS_NAME " memory[0:%s] with DMA\n", qunibus->addr2text(end_addr));
 				//  clear memory buffer, to be sure content changed
 				membuffer->set_addr_range(0, end_addr);
 				membuffer->fill(0);
@@ -170,9 +174,9 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				qunibus->mem_read(membuffer->data.words, 0, end_addr,
 						&timeout);
 				if (timeout)
-					printf("Error reading UNIBUS memory!\n");
+					printf("Error reading " QUNIBUS_NAME " memory!\n");
 				else {
-					// 1. read UNIBUS memory
+					// 1. read QBUS/UNIBUS memory
 					printf("Saving to file \"%s\"\n", filename);
 					membuffer->save_binary(filename, end_addr + 2);
 				}
@@ -196,7 +200,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				else {
 					printf("Current exerciser is \"%s\" @ %s\n",
 							cur_exerciser->name.value.c_str(), qunibus->addr2text(cur_exerciser->base_addr.value));
-					// TODO: find base address of assoiated UNIBUS unibuscontroller
+					// TODO: find base address of assoiated QBUS/UNIBUS unibuscontroller
 					show_help = true;
 				}
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 1) {

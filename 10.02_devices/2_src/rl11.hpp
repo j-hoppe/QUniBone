@@ -40,7 +40,7 @@ private:
 	// which drive will communicate with the controeller via the drive bus.
 	volatile uint8_t selected_drive_unitno;
 
-	/*** internal register values, to be mapped to UNIBUS registers ***/
+	/*** internal register values, to be mapped to QBUS/UNIBUS registers ***/
 	volatile uint8_t function_code;
 
 	volatile bool interrupt_enable;
@@ -116,7 +116,7 @@ public:
 	RL0102_c *selected_drive(void);
 
 	// called by qunibusadapter after DATI/DATO access to active emulated register
-	// Runs at 100% RT priority, UNIBUS is stopped by SSYN while this is running.
+	// Runs at 100% RT priority, WBUS/UNIBUS is stopped by SSYN/RPLY while this is running.
 	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control)
 			override;
 

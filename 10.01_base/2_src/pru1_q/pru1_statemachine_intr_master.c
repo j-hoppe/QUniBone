@@ -97,7 +97,7 @@ static statemachine_state_func sm_intr_master_state_2() {
 
 	// negate BBSY
 	buslatches_setbits(1, BIT(6), 0);
-	// device cycle ended: now CPU may become UNIBUS master again
+	// device cycle ended: now CPU may become QBUS master again
 	// SACK already removed
 
 	// signal to ARM which INTR was completed

@@ -49,7 +49,7 @@ public:
 // abstract qunibus device
 // maybe mass storage controller, storage drive or other device
 // sets device register values depending on internal status,
-// reacts on register read/write over UNIBUS by evaluation of PRU events.
+// reacts on register read/write over QBUS/UNIBUS by evaluation of PRU events.
 class device_c: public logsource_c, public parameterized_c {
 public:
 enum signal_edge_enum {
@@ -115,12 +115,13 @@ public:
 	static device_c *find_by_name(char *name);
 
 	// a device can be powered down. use this to define power-up values
-	virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) = 0; // reset device, UNIBUS DC_LO
+	virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) = 0; 
+	// reset device, UNIBUS DC_LO, QBUS DCOK
 
 	// every device has a INIT signal, which can be active (asserted) or inactive
 	// set/release device from INIT state
 	volatile bool init_asserted;
-	virtual void on_init_changed(void) = 0; // reset device, like UNIBUS INIT
+	virtual void on_init_changed(void) = 0; // reset device, like QBUS/UNIBUS INIT
 
 	// worker threads: multiple instances of single worker() are running in parallel
 	// device must implement a worker(instance) {

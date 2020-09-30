@@ -245,13 +245,13 @@ void gpios_c::test_toggle(gpio_config_t *gpio) {
 
 /* visible loop back
  * Switches control LEDs
- * Button controls UNIBUS reg_enable
+ * Button controls QBUS/UNIBUS reg_enable
  */
 void gpios_c::test_loopback(void) {
 	timeout_c timeout;
 
 	INFO("Manual loopback test, stop with ^C");
-	INFO("Switch control LEDs, button controls \"UNIBUS enable\".");
+	INFO("Switch control LEDs, button controls \"" QUNIBONE_NAME " enable\".");
 
 	// Setup ^C catcher
 	SIGINTcatchnext();

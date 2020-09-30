@@ -24,13 +24,13 @@
  12-nov-2018  JH      entered beta phase
 
 
- - implements a 4 UNIBUS register interface, which are shared with PRU.
- - gets notified of UNIBUS register access on_after_register_access()
+ - implements a 4 QBUS/UNIBUS register interface, which are shared with PRU.
+ - gets notified of QBUS/UNIBUS register access on_after_register_access()
  - starts 4 RL01/02 drives
  on_after_register_access() is a high priority RT thread.
- It may ONLY update the settings of UNIBUS interface registers by swapping in
+ It may ONLY update the settings of QBUS/UNIBUS interface registers by swapping in
  several internal registers (status for each drive, MP multipuprpose for different
- Commands) to UNIBUS registers.
+ Commands) to QBUS/UNIBUS registers.
  - execution of commands, access to drives etc is made in worker()
  worker() is waked by a signal from  on_after_register_access()
 
@@ -150,7 +150,7 @@ RL11_c::RL11_c(void) :
 		storagedrives.push_back(drive);
 	}
 
-	// create UNIBUS registers
+	// create QBUS/UNIBUS registers
 	register_count = 4;
 
 	// Control Status: reg no = 0, offset +0
@@ -193,7 +193,7 @@ RL11_c::~RL11_c() {
 		delete storagedrives[i];
 }
 
-// called when "enabled" goes true, before registers plugged to UNIBUS
+// called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
 // result false: configuration error, do not install
 bool RL11_c::on_before_install() {
 	connect_to_panel();
@@ -342,11 +342,11 @@ void RL11_c::set_MP_dati_silo(const char *debug_info) {
 	set_register_dati_value(busreg_MP, mpr_silo[0], debug_info);
 }
 
-// Access to UNIBUS register interface
+// Access to QBUS/UNIBUS register interface
 // called with 100% CPU highest RT priority.
-// UNIBUS is stopped by SSYN while this is running.
+// QBUS/UNIBUS is stopped by SSYN/RPLY while this is running.
 // No loops! no drive, console, file or other operations!
-// UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
+// QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 		uint8_t unibus_control) {
@@ -385,7 +385,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 			// accept only command if controller ready
 			if (new_controller_ready) {
 				// GO not set
-				do_controller_status(false, __func__); // UNIBUS sees still "controller ready"
+				do_controller_status(false, __func__); // QBUS/UNIBUS sees still "controller ready"
 			} else {
 				RL0102_c *drive; // some funct need the selected drive
 				bool execute_function_delayed;
@@ -396,7 +396,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 // TODO: can these functions be executed when seek is pending?
 				// GO !
 				clear_errors();
-				// some function cause an interrupt immediately (in this UNIBUS cycle):
+				// some function cause an interrupt immediately (in this QBUS/UNIBUS cycle):
 				change_state(RL11_STATE_CONTROLLER_BUSY); // force BUSY->READY INTR
 				execute_function_delayed = false;
 				switch (function_code) {
@@ -441,7 +441,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 					// signal worker() with pthread condition variable
 					// transition from high priority "qunibusadapter thread" to
 					// standard "device thread".
-					do_controller_status(false, __func__); // UNIBUS sees now "controller not ready"
+					do_controller_status(false, __func__); // QBUS/UNIBUS sees now "controller not ready"
 					// wake up worker()
 					pthread_cond_signal(&on_after_register_access_cond);
 				}
@@ -477,7 +477,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 	// now SSYN goes inactive !
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void RL11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	// storagecontroller_c forwards to drives
 	storagecontroller_c::on_power_changed(aclo_edge, dclo_edge);
@@ -489,7 +489,7 @@ void RL11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_
 	}
 }
 
-// UNIBUS INIT: clear some registers, not all error conditions
+// QBUS/UNIBUS INIT: clear some registers, not all error conditions
 void RL11_c::on_init_changed(void) {
 	// storagecontroller_c forwards to drives
 	storagecontroller_c::on_init_changed();
@@ -596,7 +596,7 @@ void RL11_c::do_controller_status(bool do_intr, const char *debug_info) {
 		qunibusadapter->INTR(intr_request, busreg_CS, tmp);
 	} else
 		set_register_dati_value(busreg_CS, tmp, debug_info);
-	// now visible on UNIBUS
+	// now visible on QBUS/UNIBUS
 
 }
 
@@ -831,7 +831,7 @@ void RL11_c::state_readwrite() {
 	default:
 		ERROR("RL11:state_readwrite(): illegal state %d.", state);
 	}
-	// update visible state: local var to UNIBUS register
+	// update visible state: local var to QBUS/UNIBUS register
 //	update_unibus_address(unibus_address);
 }
 

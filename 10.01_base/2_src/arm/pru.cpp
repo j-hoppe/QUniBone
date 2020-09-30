@@ -30,10 +30,10 @@
  Partly copyright (c) 2014 dhenke@mythopoeic.org
 
  PRU progam code:
- For different QUniBone operation modes special program code is used for PRU0 nad PRU1 each.
+ For different QUniBone operation modes special program code is used for PRU0 and PRU1 each.
  One single omnipotent program code can not be used due to 2K code space limit.
  ARM code asu to reload appropriate PRU program code according to current function
- (PRU selftest, UNIBUS slave, UNIBUS master, logic analyzer, etc.)
+ (PRU selftest, QBUS/UNIBUS slave, QBUS/UNIBUS master, logic analyzer, etc.)
 
 
  ***/

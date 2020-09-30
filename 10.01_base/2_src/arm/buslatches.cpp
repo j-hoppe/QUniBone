@@ -36,7 +36,7 @@
 
 #include "buslatches.hpp"
 
-// search a register bit by UNIBUS signal name and direction
+// search a register bit by QUNIBUS signal name and direction
 buslatches_wire_info_t *buslatches_wire_info_get(const char *unibus_name, unsigned is_input) {
 	unsigned i;
 	buslatches_wire_info_t *wi;
@@ -70,7 +70,7 @@ static void buslatches_wire_info_print_path(buslatch_c *bl, unsigned mismatch_bi
 		}
 	}
 }
-// enable=1: activate UNIBUS drivers
+// enable=1: activate QBUS/UNIBUS drivers
 // activate AFTER RPU code started and reset bus latches values
 void buslatches_c::output_enable(bool enable) {
 	enable = !!enable;
@@ -132,7 +132,7 @@ void buslatches_c::set_pin_val(buslatches_wire_info_t *wi, unsigned val) {
 }
 
 // some pattern tests on a register latch
-// register is set, drives UNIBUS lines, and is
+// register is set, drives QBUS/UNIBUS lines, and is
 // immediately read back and compared.
 // pattern:
 // 1: count upwards
@@ -281,7 +281,7 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern) {
 		// 1 cycle = 8 bits of 8 registers
 		// some tests are no-op because of reduced bitwidth
 
-		// UNIBUS: all PRU latcjhes can be tested independetly of each other
+		// UNIBUS: all PRU latches can be tested independently of each other
 		// QBUS: ADDR latches 3,4,5 are SYNC-cpatured DAL lines.
 		// Setting 3,4,5 needs 0,1,2 to be changed temporarily
 		// PRU buslatches_setbits_mux_helper() handles this transparently

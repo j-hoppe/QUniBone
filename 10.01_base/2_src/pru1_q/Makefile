@@ -39,7 +39,7 @@ INCLUDE=--include_path=$(SUPPORTPACKAGE_DIR)/include --include_path=$(SUPPORTPAC
 STACK_SIZE=0x100
 HEAP_SIZE=0x100
 
-# fiddeling with the optimizer options does not really speed up UNIBUS cycle performance
+# fiddeling with the optimizer options does not really speed up QBUS/UNIBUS cycle performance
 # do not use -c_src_interlist: "negative effect on performance"? clpru v2.2
 #CFLAGS_OPTIMIZER=--opt_level=3 --auto_inline --optimizer_interlist --gen_opt_info=2
 CFLAGS_OPTIMIZER=--opt_level=3 --opt_for_speed=5 --auto_inline   --c_src_interlist --optimizer_interlist --gen_opt_info=2

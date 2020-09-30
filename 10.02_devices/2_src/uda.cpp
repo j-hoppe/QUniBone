@@ -6,7 +6,7 @@
 
     This provides logic for the UDA50's SA and IP registers, 
     the four-step initialization handshake, DMA transfers to and
-    from the Unibus, and the command/response ring protocols.
+    from the Qbus/Unibus, and the command/response ring protocols.
 
     While the name "UDA" is used here, this is not a strict emulation
     of a real UDA50 -- it is a general MSCP implementation and can be
@@ -810,7 +810,7 @@ uda_c::GetControllerClassModel()
 
 //
 // Interrupt():
-//  Invokes a Unibus interrupt if interrupts are enabled and the interrupt
+//  Invokes a Qbus/Unibus interrupt if interrupts are enabled and the interrupt
 //  vector is non-zero.  Updates SA to the specified value atomically.
 //
 void
@@ -828,7 +828,7 @@ uda_c::Interrupt(uint16_t sa_value)
 
 //
 // Interrupt():
-//  Invokes a Unibus interrupt if interrupts are enabled and the interrupt
+//  Invokes a Qbus/Unibus interrupt if interrupts are enabled and the interrupt
 //  vector is non-zero.
 //
 void
@@ -844,7 +844,7 @@ uda_c::Interrupt(void)
 // on_power_changed():
 //  Resets the controller and all attached drives.
 //
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void
 uda_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge)
 {
@@ -910,7 +910,7 @@ uda_c::GetResponseDescriptorAddress(
 
 //
 // DMAWriteWord():
-//  Writes a single word to Unibus memory.  Returns true 
+//  Writes a single word to Qbus/Unibus memory.  Returns true 
 //  on success; if false is returned this is due to an NXM condition.
 //
 bool
@@ -926,7 +926,7 @@ uda_c::DMAWriteWord(
 
 //
 // DMAReadWord():
-//  Read a single word from Unibus memory.  Returns the word read on success.
+//  Read a single word from Qbus/Unibus memory.  Returns the word read on success.
 //  the success field indicates the success or failure of the read.
 //
 uint16_t
@@ -956,7 +956,7 @@ uda_c::DMAReadWord(
 
 //
 // DMAWrite():
-//  Write data from the provided buffer to Unibus memory.  Returns true
+//  Write data from the provided buffer to Qbus/Unibus memory.  Returns true
 //  on success; if false is returned this is due to an NXM condition.
 //  The address specified in 'address' must be word-aligned and the
 //  length must be even.
@@ -982,7 +982,7 @@ uda_c::DMAWrite(
 
 //
 // DMARead():
-// Read data from Unibus memory into the returned buffer.
+// Read data from Qbus/Unibus memory into the returned buffer.
 // Buffer returned is nullptr if memory could not be read.
 // Caller is responsible for freeing the buffer when done.
 // The address specified in 'address' must be word-aligned

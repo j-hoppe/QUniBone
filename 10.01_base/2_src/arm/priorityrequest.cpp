@@ -82,7 +82,7 @@ dma_request_c::~dma_request_c() {
 // create invalid requests, is setup by qunibusadapter
 intr_request_c::intr_request_c(qunibusdevice_c *device) :
 		priority_request_c(device) {
-	// convert UNIBUS level 4,5,6,7 to internal priority, see REQUEST_INDEX_*
+	// convert QBUS/UNIBUS level 4,5,6,7 to internal priority, see REQUEST_INDEX_*
 	this->level_index = 0xff; // uninitialized, asserts() if used
 	this->vector = 0xffff; // uninitialized, asserts() if used
 	this->signal_level = 0;

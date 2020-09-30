@@ -254,7 +254,7 @@ void paneldriver_c::reset(void) {
 	enabled.set(true); // worker_start();
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void paneldriver_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	UNUSED(aclo_edge) ;
 	UNUSED(dclo_edge) ;

@@ -1,4 +1,4 @@
-/* pru1_main_unibus.c: main loop with mailbox cmd interface. UNIBUS devices with opt. phys. PDP-11 CPU.
+/* pru1_main_qbus.c: main loop with mailbox cmd interface. QBUS devices with opt. phys. PDP-11 CPU.
 
  Copyright (c) 2018-2019, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -24,7 +24,7 @@
  28-mar-2019  JH      split off from "all-function" main
  12-nov-2018  JH      entered beta phase
 
- Master and slave functionality for UNIBUS devices.
+ Master and slave functionality for QBUS devices.
  Assumes a physical PDP-11 CPU is working as Arbitrator for
  NPR/NG/SACK and BR/BG/SACK.
  Needed if QBone runs in a system running PDP-11 CPU
@@ -73,13 +73,13 @@
 
  1. "SLAVE":
  QBone monitoring BUS traffic as slave for DATI/DATO cycles
- Watch UNIBUS for CPU access to emulated memory/devices
+ Watch QBUS for CPU access to emulated memory/devices
  High speed not necessary: Bus master will wait with SYNCif QBone not responding.
  wathcin BG/BPG signals, catching requested GRANts and forwardinf
  other GRANTS
  - monitoring INIT and AC_LO/DC_LO
  - watching fpr AMR2PRU commands
- 2. "BBSYWAIT": QBone got PRIORITY GRAMT, has set SACK and released BR/NPR
+ 2. "BBSYWAIT": QBone got PRIORITY GRANT, has set SACK and released BR/NPR
  waits for current BUS master to relaeasy BBSY (ony DATI/DATO cycle max)
  - SACK active: no GRANT forward necessary, no arbitration necessary
  - INIT is monitored by DMA statemachine: no DC_LO/INIT monitoring necessary
@@ -172,7 +172,7 @@ PRU_DEBUG_PIN0(1);
 				if (emulate_cpu) {
 					// handle GRANT/SACK/BBSY for emulated devices
 					cpu_grant_mask = sm_arb_worker_cpu(); // GRANT device requests
-					// do not read GRANT signals from UNIBUS, BG/NPGOUT not visible for
+					// do not read GRANT signals from QBUS, IAKO/DMGO not visible for
 					// emulated devices
 //					sm_arb.device_forwarded_grant_mask = 0 ;
 				} // else GRANTEd by physical CPU, see above

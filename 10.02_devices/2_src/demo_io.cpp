@@ -1,4 +1,4 @@
-/* demo_io.cpp: sample UNIBUS controller with Linux GPIO logic
+/* demo_io.cpp: sample QBUS/UNIBUS controller with Linux GPIO logic
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -194,19 +194,19 @@ void demo_io_c::worker(unsigned instance) {
 		uint16_t register_bitmask, register_value = 0; // bit assembly
 
 		// 1. read the switch values from /sys/class/gpio<n>/value pseudo files
-		//    into UNIBUS register value bits
+		//    into QBUS/UNIBUS register value bits
 		for (i = 0; i < 5; i++) {
 			register_bitmask = (1 << i);
 			if (gpio_get_input(i) != 0)
 				register_value |= register_bitmask;
 		}
-		// update UNIBUS "display" registers
+		// update QBUS/UNIBUS "display" registers
 		set_register_dati_value(switch_reg, register_value, __func__);
 
-		// 2. write the LED values from UNIBUS register value bits
+		// 2. write the LED values from QBUS/UNIBUS register value bits
 		//    into /sys/class/gpio<n>/value pseudo files
 
-		// LED control from switches or UNIBUS "DR" register?
+		// LED control from switches or QBUS/UNIBUS "DR" register?
 		if (!switch_feedback.value)
 			register_value = get_register_dato_value(display_reg);
 		for (i = 0; i < 4; i++) {
@@ -217,11 +217,11 @@ void demo_io_c::worker(unsigned instance) {
 }
 
 // process DATI/DATO access to one of my "active" registers
-// !! called asynchronuously by PRU, with SSYN asserted and blocking UNIBUS.
+// !! called asynchronuously by PRU, with SSYN asserted and blocking QBUS/UNIBUS.
 // The time between PRU event and program flow into this callback
 // is determined by ARM Linux context switch
 //
-// UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
+// QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void demo_io_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 		uint8_t unibus_control) {
@@ -230,13 +230,13 @@ void demo_io_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 	UNUSED(unibus_control);
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO cycle
  void demo_io_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	UNUSED(aclo_edge) ;
 	UNUSED(dclo_edge) ;
 }
 
-// UNIBUS INIT: clear all registers
+// QBUS/UNIBUS INIT: clear all registers
 void demo_io_c::on_init_changed(void) {
 	// write all registers to "reset-values"
 	if (init_asserted) {

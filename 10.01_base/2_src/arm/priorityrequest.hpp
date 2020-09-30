@@ -49,7 +49,7 @@
 
 #include "logsource.hpp"
 
-// linear indexes for different UNIBUS arbitration levels
+// linear indexes for different QBUS/UNIBUS arbitration levels
 #define PRIORITY_LEVEL_INDEX_BR4	0 
 #define PRIORITY_LEVEL_INDEX_BR5	1 
 #define PRIORITY_LEVEL_INDEX_BR6	2 

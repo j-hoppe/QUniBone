@@ -221,14 +221,14 @@ void buslatches_setbits_mux_helper(uint32_t reg_sel, uint32_t bitmask, uint32_t 
 // set register signals to standard:
 // all outputs to "inactive"
 // init state
-// UNIBUS lines all H / only BR4567, NPR_OUT auf LOW
+// QBUS lines all H
 void buslatches_reset() {
 	// registers are all 8bit width, but not all input/outputs are
 	// connected to bidirectional terminated QBUS lines.
 	// see PCB schematic!
 
 	// init all outputs and register caches:
-	// UNIBUS lines now all H = inactive
+	// QBUS lines now all H = inactive
 	buslatches_setbyte(0, 0x00); // TDAL<7:0>
 	buslatches_setbyte(1, 0x00); // TDAL<15:8>
 	buslatches_setbits(2, 0xff, 0x00); // TDAL<21:16>,TBS7,TSYNC

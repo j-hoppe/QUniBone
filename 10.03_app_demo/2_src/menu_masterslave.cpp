@@ -132,7 +132,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
 #if defined(UNIBUS) 
             printf("pwr                         Simulate UNIBUS power cycle (ACLO/DCLO)\n");
 #elif defined(QBUS) 
-            printf("pwr                         Simulate QBUS power cycle (DCOK,POK)\n");
+            printf("pwr                         Simulate QBUS power cycle (DCOK/POK)\n");
 #endif
 
             printf("dbg c|s|f                   Debug log: Clear, Show on console, dump to File.\n");
@@ -378,7 +378,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
             else {
                 wordcount = membuffer->get_word_count();
                 membuffer->get_addr_range(&startaddr, &endaddr);
-                printf("Loaded %u words, writing UNIBUS memory[%s:%s].\n", wordcount, 
+                printf("Loaded %u words, writing " QUNIBUS_NAME " memory[%s:%s].\n", wordcount, 
                     qunibus->addr2text(startaddr), qunibus->addr2text(endaddr));
                 codelabels.print(stdout);
                 qunibus->mem_write(membuffer->data.words, startaddr, endaddr, &timeout);
@@ -388,7 +388,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
             bool timeout;
             uint32_t end_addr = qunibus->test_sizer() - 2;
 
-            printf("Reading UNIBUS memory[0:%s] with DMA.\n", qunibus->addr2text(end_addr));
+            printf("Reading " QUNIBUS_NAME " memory[0:%s] with DMA.\n", qunibus->addr2text(end_addr));
             qunibus->mem_read(membuffer->data.words, 0, end_addr, &timeout);
             printf("Saving to file %s\n", s_param[0]);
             membuffer->save_binary(s_param[0], end_addr + 2);
@@ -410,7 +410,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
     }
     if (with_cpu_arbitration && active) {
         printf("***\n");
-        printf("*** Stopping UNIBUS logic on PRU\n");
+        printf("*** Stopping " QUNIBUS_NAME " logic on PRU\n");
         printf("***\n");
         if (testcontroller_enabled) {
             testcontroller.enabled.set(false);

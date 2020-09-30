@@ -58,7 +58,7 @@ void application_c::menu_ddrmem_slave_only(const char *menu_code) {
 		if (show_help) {
 			show_help = false; // only once
 			printf("\n");
-			printf("*** Access Shared DDR memory = UNIBUS memory as BUS SLAVE.\n");
+			printf("*** Access Shared DDR memory = "  QUNIBUS_NAME " memory as BUS SLAVE.\n");
 			printf("\n");
 
 			printf("l <filename>     Load memory content from disk file\n");
@@ -67,7 +67,7 @@ void application_c::menu_ddrmem_slave_only(const char *menu_code) {
 			printf("f a              Fill memory with test pattern, with local ARM code\n");
 			printf(
 					"f p              Fill memory with test pattern, by mailbox command to PRU\n");
-			printf("u <start> <end>  Start acting as UNIBUS slave memory\n");
+			printf("u <start> <end>  Start acting as " QUNIBUS_NAME " slave memory\n");
 			printf(
 					"                 Responds to master cycles in octal address range <start..end>\n");
 			printf("i                Info\n");
@@ -101,8 +101,8 @@ void application_c::menu_ddrmem_slave_only(const char *menu_code) {
 			if (ddrmem->set_range(start_addr, end_addr)) {
 				emulated_memory_start_addr = start_addr;
 				emulated_memory_end_addr = end_addr;
-				printf("Implement an UNIBUS memory card with DDR memory:\n");
-				printf("  Monitoring UNIBUS master for accesses into memory,\n");
+				printf("Implement an " QUNIBUS_NAME " memory card with DDR memory:\n");
+				printf("  Monitoring " QUNIBUS_NAME " master for accesses into memory,\n");
 				printf("  responding to addresses in range %s..%s.\n",
 					qunibus->addr2text(emulated_memory_start_addr), qunibus->addr2text(emulated_memory_end_addr));
 				printf("  To test, start XXDP2.5 and run ZKMA?? with SW12 set.\n");

@@ -27,9 +27,9 @@
 
  abstract qunibus device
  maybe mass storage controller or other device implementing
- UNIBUS IOpage registers.
+ QBUS/UNIBUS IOpage registers.
  sets device register values depending on internal status,
- reacts on register read/write over UNIBUS by evaluation of PRU events.
+ reacts on register read/write over QBUS/UNIBUS by evaluation of PRU events.
  */
 //#include <string>
 //using namespace std;
@@ -44,7 +44,7 @@ qunibusdevice_c::qunibusdevice_c() :
 		device_c() {
 	handle = 0;
 	register_count = 0;
-	// device is not yet enabled, UNIBUS properties can be set
+	// device is not yet enabled, QBUS/UNIBUS properties can be set
 	base_addr.readonly = false;
 	priority_slot.readonly = false;
 	intr_vector.readonly = false;
@@ -67,12 +67,12 @@ bool qunibusdevice_c::on_param_changed(parameter_c *param) {
 		if (enabled.new_value) {
 			if (!on_before_install()) // possible callback to device
 				return false ; // device denied enable
-			// enable: lock UNIBUS config
+			// enable: lock QBUS/UNIBUS config
 			base_addr.readonly = true;
 			priority_slot.readonly = true;
 			intr_vector.readonly = true;
 			intr_level.readonly = true;
-			install(); // visible on QUNIBUS
+			install(); // visible on QBUS/UNIBUS
 		} else {
 			// disable
 			uninstall();
@@ -141,7 +141,7 @@ qunibusdevice_register_t *qunibusdevice_c::register_by_unibus_address(uint32_t a
 	return NULL;
 }
 
-// set value of UNIBUS register which can be read by DATI
+// set value of QBUS/UNIBUS register which can be read by DATI
 // passive register: simply set value in shared PRU RAM
 // active: set additionally "read" flipflops
 void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_reg,
@@ -155,17 +155,17 @@ void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_r
 	log_register_event(debug_info, device_reg);
 }
 /*
- // same as if UNIBUS DATO has written the register
+ // same as if QBUS/UNIBUS DATO has written the register
  void qunibusdevice_c::set_register_dato_value(qunibusdevice_register_t *device_reg,
  uint16_t value) {
  if (device_reg->active_on_dato) {
  device_reg->active_dato_flipflops = value;
- // do not change value seen with UNIBUS DATI
+ // do not change value seen with QBUS/UNIBUS DATI
  } else
  device_reg->shared_register->value = value;
  }
  */
-// get value of UNIBUS register which has been written by DATO
+// get value of QBUS/UNIBUS register which has been written by DATO
 uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *device_reg) {
 	if (device_reg->active_on_dato)
 		return device_reg->active_dato_flipflops;
@@ -173,7 +173,7 @@ uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *devi
 		return device_reg->shared_register->value;
 }
 
-// write the reset value into all registers (helper for UNIBUS INIT)
+// write the reset value into all registers (helper for QBUS/UNIBUS INIT)
 void qunibusdevice_c::reset_unibus_registers() {
 	unsigned i;
 	for (i = 0; i < register_count; i++) {

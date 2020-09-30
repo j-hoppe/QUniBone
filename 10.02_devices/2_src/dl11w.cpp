@@ -1,4 +1,4 @@
-/* DL11W.cpp: sample UNIBUS controller with SLU & LTC logic
+/* DL11W.cpp: sample QBUS/UNIBUS controller with SLU & LTC logic
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -113,7 +113,7 @@ slu_c::slu_c() :
 slu_c::~slu_c() {
 }
 
-// called when "enabled" goes true, before registers plugged to UNIBUS
+// called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
 // result false: configuration error, do not install
 bool slu_c::on_before_install(void) {
 	// enable SLU: setup COM serial port
@@ -263,11 +263,11 @@ void slu_c::eval_xbuf_dato_value(void) {
 }
 
 // process DATI/DATO access to one of my "active" registers
-// !! called asynchronuously by PRU, with SSYN asserted and blocking UNIBUS.
+// !! called asynchronuously by PRU, with SSYN asserted and blocking QBUS/UNIBUS.
 // The time between PRU event and program flow into this callback
 // is determined by ARM Linux context switch
 //
-// UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
+// QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void slu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 		uint8_t unibus_control) {
@@ -282,7 +282,7 @@ void slu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 
 	case slu_idx_rcsr:
 		if (unibus_control == QUNIBUS_CYCLE_DATO) { // bus write into RCSR
-			pthread_mutex_lock(&on_after_rcv_register_access_mutex); // signal changes atomic against UNIBUS accesses
+			pthread_mutex_lock(&on_after_rcv_register_access_mutex); // signal changes atomic against QBUS/UNIBUS accesses
 			eval_rcsr_dato_value(); // may generate INTR
 			set_rcsr_dati_value_and_INTR();
 			// ignore reader enable
@@ -322,13 +322,13 @@ void slu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void slu_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	UNUSED(aclo_edge);
 	UNUSED(dclo_edge);
 }
 
-// UNIBUS INIT: clear all registers
+// QBUS/UNIBUS INIT: clear all registers
 void slu_c::on_init_changed(void) {
 	// write all registers to "reset-values"
 	if (init_asserted) {
@@ -377,7 +377,7 @@ void slu_c::worker_rcv(void) {
 		/* read serial data, if any */
 		if (rs232adapter.rs232byte_rcv_poll(&rcv_byte)) {
 			DEBUG("rcv_byte=0x%02x", (unsigned)rcv_byte.c);
-			pthread_mutex_lock(&on_after_rcv_register_access_mutex); // signal changes atomic against UNIBUS accesses
+			pthread_mutex_lock(&on_after_rcv_register_access_mutex); // signal changes atomic against QBUS/UNIBUS accesses
 			rcv_or_err = rcv_fr_err = rcv_p_err = 0;
 			if (rcv_done) { // not yet cleared? overrun!
 				rcv_or_err = 1;
@@ -390,7 +390,7 @@ void slu_c::worker_rcv(void) {
 			rcv_active = 0;
 			set_rbuf_dati_value();
 			set_rcsr_dati_value_and_INTR(); // INTR!
-			pthread_mutex_unlock(&on_after_rcv_register_access_mutex); // signal changes atomic against UNIBUS accesses
+			pthread_mutex_unlock(&on_after_rcv_register_access_mutex); // signal changes atomic against QBUS/UNIBUS accesses
 		}
 	}
 }
@@ -549,13 +549,13 @@ void ltc_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void ltc_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	UNUSED(aclo_edge);
 	UNUSED(dclo_edge);
 }
 
-// UNIBUS INIT: clear all registers
+// QBUS/UNIBUS INIT: clear all registers
 void ltc_c::on_init_changed(void) {
 	// write all registers to "reset-values"
 	if (init_asserted) {

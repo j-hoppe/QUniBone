@@ -1,4 +1,4 @@
-/* pru1_ddrmem.c: Control the shared DDR RAM - used for UNIBUS memory
+/* pru1_ddrmem.c: Control the shared DDR RAM - used for QBUS memory
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

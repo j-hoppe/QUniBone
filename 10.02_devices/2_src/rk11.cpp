@@ -1,5 +1,5 @@
 /* 
-    rk11_cpp: RK11 UNIBUS controller 
+    rk11_cpp: RK11 QBUS/UNIBUS controller 
 
     Copyright Vulcan Inc. 2019 via Living Computers: Museum + Labs, Seattle, WA.
     Contributed under the BSD 2-clause license.
@@ -629,11 +629,11 @@ void rk11_c::increment_RKDA()
 
 //
 // process DATI/DATO access to the RK11's "active" registers.
-// !! called asynchronuously by PRU, with SSYN asserted and blocking UNIBUS.
+// !! called asynchronuously by PRU, with SSYN/RPLY asserted and blocking QBUS/UNIBUS.
 // The time between PRU event and program flow into this callback
 // is determined by ARM Linux context switch
 //
-// UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
+// QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void rk11_c::on_after_register_access(
     qunibusdevice_register_t *device_reg,
@@ -1048,7 +1048,7 @@ void rk11_c::reset_controller(void)
         "reset_controller");
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void rk11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
 {
     storagecontroller_c::on_power_changed(aclo_edge, dclo_edge);
@@ -1060,7 +1060,7 @@ void rk11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_
     }
 }
 
-// UNIBUS INIT: clear all registers
+// QBUS/UNIBUS INIT: clear all registers
 void rk11_c::on_init_changed(void) 
 {
     // write all registers to "reset-values"

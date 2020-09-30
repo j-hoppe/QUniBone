@@ -65,7 +65,7 @@ private:
 
 	//
 	// TODO: add a lot more drive types.
-	// Does it make sense to support drive types not native to Unibus machines (SCSI types, for example?)
+	// Does it make sense to support drive types not native to QBus/Unibus machines (SCSI types, for example?)
 	// Need to add a ClassID table entry in that eventuality...
 	// Also TODO: RCTSize parameters taken from SIMH rq source; how valid are these?
 	DriveInfo g_driveTable[21] {

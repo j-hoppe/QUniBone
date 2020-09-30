@@ -24,23 +24,23 @@
 
  12-nov-2018  JH      entered Beta phase
 
- Implementation of UNIBUS devices:
+ Implementation of QBUS/UNIBUS devices:
 
- A device is a piece of hardware with internal logic and a set of UNIBUS registers.
+ A device is a piece of hardware with internal logic and a set of QBUS/UNIBUS registers.
  Device logic is implemented by ARM code as Linux user process.
 
  Device registers are dual ported:
  - used by ARM device logic.
- - accessed over UNIBUS with DATI/DATO cycles.
+ - accessed over QBUS/UNIBUS with DATI/DATO cycles.
 
  Two types of registers:
  - Some "passive" registers are simply memory cells, DATI/DATO does not change device logic state.
  - "active" registers trigger logic state changes (Example "GO" and CMD bit in TM11).
 
- Problem: if UNIBUS accesses a  "hot" register
- - value must be read/written within 10us (UNIBUS timeout)
+ Problem: if QBUS/UNIBUS accesses a  "hot" register
+ - value must be read/written within 10us (QBUS/UNIBUS timeout)
  - a signal to ARM logic is generated. This causes Linux process context switch and further processing
- This must be completed before next UNIBUS access to same device, but can take
+ This must be completed before next QBUS/UNIBUS access to same device, but can take
  infinite time.
  Solution: MSYN-assert to SSYN-assert time must be fast, else timeout.
  At end of cycle MSYN-negate to SSYN-negate can be slow.
@@ -50,7 +50,7 @@
  PRU generated for certain register acccess an  event "afterread" or "afterwrite".
 
  In detail: if a iopage register is "hot":
- UNIBUS - READ (PRU)
+ QBUS/UNIBUS - READ (PRU)
  on SSYN assert: return "value" field, (fast and uncoditionally)
  raise "AfterDATI"
  wait until ARM clears event (ACK)
@@ -64,7 +64,7 @@
  - change controller state, write new values into register set.
  - perhaps schedule DMA and INTR
 
- UNIBUS-WRITE (PRU)
+ QBUS/UNIBUS-WRITE (PRU)
  MSYN asserted
  immediately copy value into register.value, assert SSYN
  raise "AFTER-DATO" event
@@ -126,14 +126,14 @@
 #define IOPAGEREGISTER_EVENT_FLAG_DATI	0x01
 #define IOPAGEREGISTER_EVENT_FLAG_DATO	0x02
 
-// register descriptor used by PRU for direct high-speed UNIBUS DATI/DATO access
+// register descriptor used by PRU for direct high-speed QBUS/UNIBUS DATI/DATO access
 typedef struct {
-	uint16_t value; // UNIBUS-visible register content
+	uint16_t value; // QBUS/UNIBUS-visible register content
 	// if "active" register with cmd/status bits (instead of pure memory);
 	// it must *always* contain the content for the next DATI without
 	// further state processing.
 
-	// UNIBUS DATO can be restricted to certain bits.
+	// QBUS/UNIBUS DATO can be restricted to certain bits.
 	// special cases:
 	// 0x0000: register is ROM/read only
 	// 0xffff: register is 16bits read/write

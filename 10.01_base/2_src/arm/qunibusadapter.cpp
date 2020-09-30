@@ -30,11 +30,11 @@
 
  - A thread waits for Register Interrupts and routes them to the
  correct controller
- ( UNIBUS -> Controllers)
+ ( QBUS/UNIBUS -> Controllers)
  - a scheduler accepts INTR and DMA request in a fifo
  and generates ordered cmds for the PRU
  (also simulates slot order)
- Controllers -> UNIBUS
+ Controllers -> QBUS/UNIBUS
  - allows controllers and memory to register and deregister
  in the deviceregister tables  (devices.h)
  Distrubutes INIT to all registered controllers.
@@ -113,7 +113,7 @@ bool qunibusadapter_c::on_param_changed(parameter_c *param) {
     return device_c::on_param_changed(param); // more actions (for enable)
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void qunibusadapter_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
     UNUSED(aclo_edge) ;
     UNUSED(dclo_edge) ;
@@ -126,7 +126,7 @@ void qunibusadapter_c::on_init_changed(void) {
     mailbox_execute(ARM2PRU_INTR_CANCEL);
 }
 
-// register_device ... "plug" the device into UNIBUs backplane
+// register_device ... "plug" the device into QBUS/UNIBUSs backplane
 // - assign handle
 // - setup register map for a device
 // uses device.handle, startaddress, "active" attribute of registers
@@ -217,8 +217,8 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
                 FATAL(
                     "register_device() Register configuration error for device %s, register idx %u:\n"
                     "A writable device register may not be passive on DATO and active on DATI.\n"
-                    "Passive DATO -> value written only saved in shared UNIBUS reg value\n"
-                    "Active DATI: shared UNIBUS reg value updated from flipflops -> DATO value overwritten\n"
+                    "Passive DATO -> value written only saved in shared " QUNIBUS_NAME " reg value\n"
+                    "Active DATI: shared " QUNIBUS_NAME " reg value updated from flipflops -> DATO value overwritten\n"
                     "make DATO active too -> datao value saved in DATO flipflops",
                     device.name.value.c_str(), i);
             }
@@ -250,7 +250,7 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
     return true;
 }
 
-// unregister_device ... "plugout" the device from UNIBUs backplane
+// unregister_device ... "plugout" the device from QBUS/UNIBUS backplane
 // - clear handle
 // - remove device registers from shared address maps
 void qunibusadapter_c::unregister_device(qunibusdevice_c& device) {
@@ -589,7 +589,7 @@ void qunibusadapter_c::request_active_complete(unsigned level_index, bool signal
 // Request a DMA cycle from Arbitrator.
 // unibus_control = QUNIBUS_CYCLE_DATI or _DATO
 // unibus_end_addr = last accessed address (success or timeout) and timeout condition
-// result: false on UNIBUS timeout
+// result: false on QBUS/UNIBUS timeout
 // Blocking == true: DMA() wait for request to complete
 // Blocking == false: return immediately, the device logic should
 //		 evaluate the request.complete flag or wait for the mutex
@@ -934,7 +934,7 @@ void qunibusadapter_c::worker_deviceregister_event() {
         unibus_control = QUNIBUS_CYCLE_DATI;
         // read access: dati-flipflops do not change
 
-        // signal: changed by UNIBUS
+        // signal: changed by QBUS/UNIBUS
         device->log_register_event("DATI", device_reg);
 
         device->on_after_register_access(device_reg, unibus_control);
@@ -950,11 +950,11 @@ void qunibusadapter_c::worker_deviceregister_event() {
             assert(evt_addr == device->base_addr.value + 2 * evt_idx);
             // clear unused bits, save written value
             device_reg->active_dato_flipflops = evt_data & device_reg->writable_bits;
-            // signal: changed by UNIBUS
+            // signal: changed by QBUS/UNIBUS
             device->log_register_event("DATO", device_reg);
             break;
         case QUNIBUS_CYCLE_DATOB:
-            // UNIBUS may access only 8bit half of register with DATOB.
+            // QBUS/UNIBUS may access only 8bit half of register with DATOB.
             // convert all active registers accesses to 16 bit
             evt_data &= device_reg->writable_bits; // clear unused bits
             // save written value
@@ -966,7 +966,7 @@ void qunibusadapter_c::worker_deviceregister_event() {
                 device_reg->active_dato_flipflops = (device_reg->active_dato_flipflops & 0xff00)
                                                     | (evt_data & 0x00ff);
             unibus_control = QUNIBUS_CYCLE_DATO; // simulate 16 bit access
-            // signal: changed by UNIBUS
+            // signal: changed by QBUS/UNIBUS
             device->log_register_event("DATOB", device_reg);
             break;
         }
@@ -1001,7 +1001,7 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     assert(!dmareq->is_cpu_access || dmareq->wordcount == 1); // CPU accesses only single words
     if (QUNIBUS_CYCLE_IS_DATI(mailbox->dma.buscycle)) {
         // guard against buffer overrun
-        // PRU read chunk data from UNIBUS into mailbox
+        // PRU read chunk data from QBUS/UNIBUS into mailbox
         // copy result cur_DMA_wordcount from mailbox->DMA buffer to cur_DMA_buffer
         memcpy(dmareq->chunk_buffer_start(), (void *) mailbox->dma.words,
                2 * mailbox->dma.wordcount);
@@ -1242,7 +1242,7 @@ void qunibusadapter_c::worker(unsigned instance) {
             if (init_raising_edge) // INIT deasserted -> negated. DATI/DATO cycle only possible before that.
                 worker_init_event();
         }
-        // Signal to PRU: continue UNIBUS cycles now with SSYN negated
+        // Signal to PRU: continue QBUS/UNIBUS cycles now with SSYN negated
     }
 }
 

@@ -39,15 +39,15 @@ storagecontroller_c::storagecontroller_c() :
 storagecontroller_c::~storagecontroller_c() {
 }
 
-// called when "enabled" goes true, before registers plugged to UNIBUS
+// called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
 // result false: configuration error, do not install
 bool storagecontroller_c::on_before_install(void) {
 	return true ;
 }
 
 void storagecontroller_c::on_after_uninstall(void) {
-	// power/up/down attached drives, then plug to UNIBUS
-	// if disable, disable also the drives ("controller plugged from UNIBUS)")
+	// power/up/down attached drives, then plug to QBUS/UNIBUS
+	// if disable, disable also the drives ("controller plugged from QBUS/UNIBUS)")
 	// on enable, leave them disabled (user may decide which to use)
 	for (unsigned i = 0; i < drivecount; i++)
 		storagedrives[i]->enabled.set(false);
@@ -62,7 +62,7 @@ bool storagecontroller_c::on_param_changed(parameter_c *param) {
 // forward BUS events to connected storage drives
 
 // drives are powered if controller is powered
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void storagecontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	vector<storagedrive_c*>::iterator it;
 	for (it = storagedrives.begin(); it != storagedrives.end(); it++) {

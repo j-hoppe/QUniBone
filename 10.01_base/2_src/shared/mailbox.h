@@ -49,7 +49,7 @@
 #define ARM2PRU_INTR_CANCEL		15               // clear INTR which has been requested
 #define ARM2PRU_CPU_ENABLE		16	// switch CPU master side functions ON/OFF
 #define ARM2PRU_DDR_FILL_PATTERN	17	// fill DDR with test pattern
-#define ARM2PRU_DDR_SLAVE_MEMORY	18	// use DDR as UNIBUS slave memory
+#define ARM2PRU_DDR_SLAVE_MEMORY	18	// use DDR as QBUS/UNIBUS slave memory
 #define ARM2PRU_ARB_GRANT_INTR_REQUESTS	19 // emulated CPU answers device requests
 #define ARM2PRU_CPU_BUS_ACTIVITY 20 // prohibit any activity of CPU on QBUS
 
@@ -77,7 +77,7 @@
 #define DMA_STATE_READY	0        	// idle
 #define DMA_STATE_ARBITRATING	1	// in NPR/NPG/SACK arbitration
 #define DMA_STATE_RUNNING	2	// transfering data
-#define DMA_STATE_TIMEOUTSTOP	3	// stop because of UNIBUS timeout
+#define DMA_STATE_TIMEOUTSTOP	3	// stop because of QBUS/UNIBUS timeout
 #define DMA_STATE_INITSTOP	4	// stop because INIT signal sensed
 
 // Bit masks BR*/NPR and BG*/NPG in buslatch 0 and 1
@@ -239,7 +239,7 @@ typedef struct {
 	 After ARM2PRU_INTR, one of BR4/5/6/7 NP was requested,
 	 granted, and the deviceregister.data transfer was handled as bus master.
 	 */
-	uint8_t signaled; // PRU->ARM, one of BR4,5,6,7 vector on UNIBUS
+	uint8_t signaled; // PRU->ARM, one of BR/IRQ4,5,6,7 vector on QBUS/UNIBUS
 	uint8_t acked; // ARM->PRU
 	//uint8_t level_index; // 0..3 -> BR4..BR7
 	uint8_t _dummy[2];
@@ -247,7 +247,7 @@ typedef struct {
 
 // INTR received by CPU
 typedef struct {
-	uint8_t signaled; // PRU->ARM, one of BR4,5,6,7 vector on UNIBUS
+	uint8_t signaled; // PRU->ARM, one of BR4/IRQ,5,6,7 vector on QBUS/UNIBUS
 	uint8_t acked; // ARM->PRU
 	uint16_t vector; // received vector
 } mailbox_event_intr_slave_t;
@@ -277,7 +277,7 @@ typedef struct {
 
 	mailbox_event_intr_slave_t intr_slave;
 
-	/*** INIT or Power cycle seen on UNIBUS ***/
+	/*** INIT or Power cycle seen on QBUS/UNIBUS ***/
 	mailbox_event_init_t init;
 	mailbox_event_power_t power;
 

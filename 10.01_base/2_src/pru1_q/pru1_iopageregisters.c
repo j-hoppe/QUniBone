@@ -1,4 +1,4 @@
-/* pru1_iopageregisters.c: handle UNIBUS behaviour of emulated devices
+/* pru1_iopageregisters.c: handle QBUS behaviour of emulated devices
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

@@ -18,7 +18,7 @@
 #endif
 
 typedef struct {
-	// DDR mem is only used to emulate UNIBUS memory
+	// DDR mem is only used to emulate QBUS/UNIBUS memory
 	// This slow DDR RAM is not used otherwise
 	qunibus_memory_t memory;
 } ddrmem_t;

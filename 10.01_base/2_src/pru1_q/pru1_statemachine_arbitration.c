@@ -38,7 +38,7 @@
  2. PRU sets BR4567|NPR lines according to open requests
  3. PRU monitors IN GRANT lines BG4567,NPG.
  IN state of idle requests is forwarded to BG|NPG OUT liens,
- to be processed by other UNIBUS cards.
+ to be processed by other QBUS cards.
  BG*|NPG IN state line of active request cleares BR*|NPR line,
  sets SACK, and starts INTR or DMA state machine.
  4. INTR or DMA sent a signal on compelte to PRU.
@@ -176,7 +176,7 @@ return 0 ;
 			// CPU memory access delayed until device requests processed/completed
 		}
 	}
-	// Always update UNIBUS BR/NPR lines, are ORed with requests from other devices.
+	// Always update QBUS IRQ/DMR lines, are ORed with requests from other devices.
 	buslatches_setbits(1, PRIORITY_ARBITRATION_BIT_MASK, sm_arb.device_request_mask)
 	;
 	// now relevant for GRANt forwarding
@@ -202,7 +202,7 @@ return 0 ;
 
 			// clear granted requests internally
 			sm_arb.device_request_mask &= ~device_grant_mask;
-			// UNIBUS DATA section is indepedent: MSYN, SSYN, BBSY may still be active.
+			// QBUS DATA section is indepedent: MSYN, SSYN, BBSY may still be active.
 			// -> DMA and INTR statemachine must wait for BBSY.
 
 			// Arbitrator should remove GRANT now. Data section on Bus still BBSY
@@ -234,9 +234,9 @@ return 0 ;
  BR/NPR are set in device request, as in worker_client()
 
  Grant highest of requests, if SACK negated.
- Execute UNIBUS priority algorithm:
+ Execute QBUS priority algorithm:
  - Grant DMA request, if present
- - GRANT BR* in descending priority, when CPU execution level allows .
+ - GRANT IRQ* in descending priority, when CPU execution level allows .
  - Cancel GRANT, if no device responds with SACK within timeout period
  */
 uint8_t sm_arb_worker_cpu() {
@@ -251,7 +251,7 @@ uint8_t sm_arb_worker_cpu() {
 		// priority arbitration disabled, remove GRANT.
 		sm_arb.arbitrator_grant_mask = 0;
 
-		// CPU looses now access to UNIBUS after current cycle
+		// CPU looses now access to QBUS after current cycle
 		// DATA section to be used by device now, for DMA or INTR
 
 	} else if (latch1val & PRIORITY_ARBITRATION_BIT_NP) {

@@ -185,13 +185,13 @@ void main(void) {
 			mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 			break;
 		case ARM2PRU_DDR_SLAVE_MEMORY:
-			// respond to UNIBUS cycles as slave and
-			// access DDR as UNIBUS memory.
+			// respond to QBUS cycles as slave and
+			// access DDR as QBUS memory.
 
 			// only debugging: all signals negated
 			buslatches_reset();
 
-			// do UNIBUS slave cycles, until ARM abort this by
+			// do QBUS slave cycles, until ARM abort this by
 			// writing into mailbox.arm2pru_req
 			while (mailbox.arm2pru_req == ARM2PRU_DDR_SLAVE_MEMORY) {
 				statemachine_data_slave_t sm_slave ;

@@ -1,4 +1,4 @@
-/* rom.hpp - emulate a ROM in UNIBUS IO page
+/* rom.hpp - emulate a ROM in QBUS/UNIBUS IO page
 
  Copyright (c) 2020, Joerg Hoppe, j_hoppe@t-online.de, www.retrocmp.com
 
@@ -48,7 +48,7 @@ private:
 public:
 	string name; // identifier for user
 
-	uint32_t baseaddress; // start of code in UNIBUS address space
+	uint32_t baseaddress; // start of code in QBUS/UNIBUS address space
 	uint32_t wordcount; // length in 16 bit words
 
 	vector<uint16_t> cells; // data
@@ -64,8 +64,8 @@ public:
 	uint16_t get_data(uint32_t addr); // get a cell, or exception
 	void set_data(uint32_t addr, uint16_t value); // set a cell
 	void relocate(uint32_t new_base_addr);
-	void install(void); // implemement on UNIBUS
-	void uninstall(void); // remove from UNIBUS
+	void install(void); // implemement on QBUS/UNIBUS
+	void uninstall(void); // remove from QBUS/UNIBUS
 
 	void dump(FILE *f);
 };

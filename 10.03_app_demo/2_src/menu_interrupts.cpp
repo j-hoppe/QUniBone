@@ -78,7 +78,7 @@ void application_c::menu_interrupts(const char *menu_code) {
 						qunibus->addr2text(emulated_memory_start_addr), qunibus->addr2text(emulated_memory_end_addr));
 			if (!active) {
 				printf("***\n");
-				printf("*** Starting full UNIBUS master/slave logic on PRU\n");
+				printf("*** Starting full " QUNIBUS_NAME " master/slave logic on PRU\n");
 				printf("***\n");
 				qunibusadapter->enabled.set(true);
 				active = true;
@@ -112,7 +112,11 @@ void application_c::menu_interrupts(const char *menu_code) {
 						(unsigned) test_controller->dma_channel_count);
 			}
 			printf("dbg c|s|f            Debug log: Clear, Show on console, dump to File.\n");
+#if defined(UNIBUS)			
 			printf("pwr                  Simulate UNIBUS power cycle (ACLO/DCLO)\n");
+#elif defined(QBUS)
+			printf("pwr                  Simulate QBUS power cycle (POK/DCOK)\n");
+#endif
 			printf("q                    Quit\n");
 		}
 		s_choice = getchoice(menu_code);
@@ -158,11 +162,11 @@ void application_c::menu_interrupts(const char *menu_code) {
 				continue;
 			}
 			membuffer->get_addr_range(&start_addr, &end_addr);
-			printf("Loaded %u words, writing UNIBUS memory[%s:%s].\n",
+			printf("Loaded %u words, writing " QUNIBUS_NAME " memory[%s:%s].\n",
 					membuffer->get_word_count(), qunibus->addr2text(start_addr), qunibus->addr2text(end_addr));
 			qunibus->mem_write(membuffer->data.words, start_addr, end_addr, &timeout);
 			if (timeout)
-				printf("Memory write failed with UNIBUS timeout, aborting.\n");
+				printf("Memory write failed with " QUNIBUS_NAME " timeout, aborting.\n");
 			else {
 				if (codelabels.is_defined("start"))
 					printf("Start program manually on PDP-11 console, entry address is %s.\n",
@@ -238,7 +242,7 @@ void application_c::menu_interrupts(const char *menu_code) {
 } // while(!ready) ;
 if (active) {
 	printf("***\n");
-	printf("*** Stopping UNIBUS logic on PRU\n");
+	printf("*** Stopping " QUNIBUS_NAME " logic on PRU\n");
 	printf("***\n");
 	qunibusadapter->enabled.set(false);
 	active = false;

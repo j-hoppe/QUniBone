@@ -23,10 +23,10 @@
 
  12-nov-2018  JH      entered beta phase
 
- Abstract device, with or without UNIBUS registers.
- maybe mass storage controller, storage drive or other UNIBUS device
+ Abstract device, with or without QBUS/UNIBUS registers.
+ maybe mass storage controller, storage drive or other QBUS/UNIBUS device
  sets device register values depending on internal status,
- reacts on register read/write over UNIBUS by evaluation of PRU events.
+ reacts on register read/write over QBUS/UNIBUS by evaluation of PRU events.
 
  A device
  - has a worker()

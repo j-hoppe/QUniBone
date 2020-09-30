@@ -87,7 +87,7 @@ char *application_c::getchoice(const char *menu_code) {
 	return s_choice;
 }
 
-// scan UNIBUS address range and emulate missing memory
+// scan QBUS/UNIBUS address range and emulate missing memory
 // result: false, if nothing emulated
 bool application_c::emulate_memory() {
 	bool result = false;
@@ -104,7 +104,7 @@ bool application_c::emulate_memory() {
 		if (ddrmem->set_range(first_invalid_addr,  qunibus->iopage_start_addr-2)) {
 			emulated_memory_start_addr = first_invalid_addr;
 			emulated_memory_end_addr =  qunibus->iopage_start_addr-2;
-			printf("Now emulating UNIBUS memory in range %s..%s with DDR memory.\n",
+			printf("Now emulating " QUNIBONE_NAME " memory in range %s..%s with DDR memory.\n",
 					qunibus->addr2text(emulated_memory_start_addr), qunibus->addr2text(emulated_memory_end_addr));
 			result = true;
 		}
@@ -237,7 +237,7 @@ void application_c::menu_main(void) {
 		printf("ti          Test Interrupts (needs physical PDP-11 CPU)\n");
 		printf("d           Emulate devices, with PDP-11 CPU arbitration\n");
 		printf("dc          Emulate devices and CPU, PDP-11 must be disabled.\n");
-		// printf("de          Device Exerciser: work with devices on the UNIBUS without PDP-11 CPU arbitration\n");
+		// printf("de          Device Exerciser: work with devices on the " QUNIBUS_NAME " without PDP-11 CPU arbitration\n");
 		printf(
 				"m           Full memory slave emulation with DMA bus master functions by PDP-11 CPU.\n");
 		printf("i           Info, help\n");

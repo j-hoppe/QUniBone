@@ -1,4 +1,4 @@
-/* demo_io.hpp: sample UNIBUS controller with Linux GPIO logic
+/* demo_io.hpp: sample QBUS/UNIBUS controller with Linux GPIO logic
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

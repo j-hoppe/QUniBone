@@ -34,7 +34,7 @@
 typedef struct {
 	uint8_t cur_reg_val[8]; // content of output latches
 
-	// # of bits in each register connected bidirectionally to UNIBUS
+	// # of bits in each register connected bidirectionally to QBUS
 	// ( for example, LTC ignored)
 	uint8_t bitwidth[8]; // # of bits in each
 //	uint32_t 	bitmask[8] ; // mask with valid bits

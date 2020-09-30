@@ -1,5 +1,5 @@
 /* 
-    rk11.hpp: RK11 UNIBUS controller
+    rk11.hpp: RK11 QBUS/UNIBUS controller
 
     Copyright Vulcan Inc. 2019 via Living Computers: Museum + Labs, Seattle, WA.
     Contributed under the BSD 2-clause license.

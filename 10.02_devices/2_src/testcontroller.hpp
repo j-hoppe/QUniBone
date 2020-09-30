@@ -1,4 +1,4 @@
-/* testcontroller.hpp: sample UNIBUS controller with selftest logic
+/* testcontroller.hpp: sample QBUS/UNIBUS controller with selftest logic
 
  Copyright (c) 2018-2019, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com

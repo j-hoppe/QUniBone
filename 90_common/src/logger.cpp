@@ -196,23 +196,6 @@ const char * logger_c::level_text(unsigned level) {
 		return "ILLEGAL_LEVEL";
 	}
 }
-/*
- string logger_c::channelmask_text(unsigned logchannel) {
- static string buffer;
- buffer = "";
- if (logchannel == LC_ANY)
- buffer = "ANY";
- else {
- if (logchannel & LC_UIO)
- buffer = "UIO ";
- if (logchannel & LC_UNIBUS)
- buffer = "UNIBUS ";
- if (logchannel & LC_RL)
- buffer = "RL ";
- }
- return buffer;
- }
- */
 
 // is output with verbosity "level" active for logsource?
 bool logger_c::ignored(logsource_c *logsource, unsigned msglevel) {

@@ -1,4 +1,4 @@
-/* rom.cpp - emulate a ROM in UNIBUS IO page
+/* rom.cpp - emulate a ROM in QBUS/UNIBUS IO page
 
  Copyright (c) 2020, Joerg Hoppe, j_hoppe@t-online.de, www.retrocmp.com
 
@@ -40,7 +40,7 @@
  Code in a ROM can be loaded from a disk file (MACRO11 listing),
  a map with code labels is managed.
  A loaded ROM can be relocated (neeed for M9312 boot ROMS, which are all 173000)
- A loaded ROM can be installed to UNIBUS (by setting PRU maps)
+ A loaded ROM can be installed to QBUS/UNIBUS (by setting PRU maps)
  */
 
 #include "logger.hpp"
@@ -130,7 +130,7 @@ void rom_c::set_data(uint32_t addr, uint16_t value) {
 }
 
 // move base address, correct code label map
-// must not be installed on UNIBUS !
+// must not be installed on QBUS/UNIBUS !
 void rom_c::relocate(uint32_t new_base_addr) {
 	if (new_base_addr + 2 * wordcount > qunibus->addr_space_byte_count) {
 		ERROR("Relocation to %s would exceed addressrange at %06o", qunibus->addr2text(new_base_addr), qunibus->addr_space_byte_count);
@@ -142,11 +142,11 @@ void rom_c::relocate(uint32_t new_base_addr) {
 	codelabels.relocate(delta);
 }
 
-// implemement on UNIBUS
+// implemement on QBUS/UNIBUS
 void rom_c::install(void) {
 	// check whether all cells are in IOpage
 
-	// register onto UNIBUS IOpage
+	// register onto QBUS/UNIBUS IOpage
 	// if a IOpage address is already marked as "devcie register"
 	// that address is silently NOT defined to be a ROM
 	// so ROM ranges may be superseded with registers 
@@ -156,13 +156,13 @@ void rom_c::install(void) {
 		// set value of ROM cell in background DDR RAM
 		if (!ddrmem->iopage_deposit(addr, cells[i]))
 			FATAL("setting IOpage background DDR RAM failed");
-		// set UNIBUS address as "ROM", to access DDR mem cell
+		// set QBUS/UNIBUS address as "ROM", to access DDR mem cell
 		if (!qunibusadapter->register_rom(addr))
 			break; // error
 	}
 }
 
-// remove from UNIBUS
+// remove from QBUS/UNIBUS
 void rom_c::uninstall(void) {
 	for (unsigned i = 0; i < wordcount; i++) {
 		uint32_t addr = baseaddress + 2 * i;

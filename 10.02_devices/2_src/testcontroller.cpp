@@ -1,4 +1,4 @@
-/* testcontroller.cpp: sample UNIBUS controller with selftest logic
+/* testcontroller.cpp: sample QBUS/UNIBUS controller with selftest logic
 
  Copyright (c) 2018-2019, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -31,7 +31,7 @@
  32 registers @ 0760200.. 0760276
  all registers are marked as "active":
  DATI and DATO are routed via events into the controller logic
- UNIBUS is stopped with long SSYN
+ QBUS/UNIBUS is stopped with long SSYN/RPLY
 
  +0 = CSR: write command, read = status
 
@@ -153,11 +153,11 @@ bool testcontroller_c::on_param_changed(parameter_c *param) {
 }
 
 // process DATI/DATO access to one of my "active" registers
-// !! called asynchronuously by PRU, with SSYN asserted and blocking UNIBUS.
+// !! called asynchronuously by PRU, with SSYN/RPLY asserted and blocking QBUS/UNIBUS.
 // The time between PRU event and program flow into this callback
 // is determined by ARM Linux context switch
 //
-// UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
+// QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void testcontroller_c::on_after_register_access(qunibusdevice_register_t *device_reg,
         uint8_t unibus_control) {
@@ -181,13 +181,13 @@ void testcontroller_c::on_after_register_access(qunibusdevice_register_t *device
     //		device_reg->addr, qunibus_c::control2text(unibus_control));
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void testcontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
     UNUSED(aclo_edge) ;
     UNUSED(dclo_edge) ;
 }
 
-// UNIBUS INIT: clear all registers
+// QBUS/UNIBUS INIT: clear all registers
 void testcontroller_c::on_init_changed(void) {
     // write all registers to "reset-values"
     if (init_asserted) {

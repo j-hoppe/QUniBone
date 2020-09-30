@@ -110,7 +110,7 @@ uint16_t RL0102_c::calc_crc(const int wc, const uint16_t *data) {
 	return (uint16_t) crc;
 }
 
-// after UNIBUS install, device is reset by DCLO cycle
+// after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
 void RL0102_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
 	UNUSED(aclo_edge) ;
 	// called at high priority.

@@ -43,11 +43,6 @@
  * connected to UNIBUS or QBUS
  * */
 
-/* Test UNIBUS wires in order of UniProbe LEDS
- * slow moving zero
- */
-
-
 #if defined(UNIBUS)
 static void buslatches_m9302_sack_test() {
 #define GRANT_LINE_COUNT	5

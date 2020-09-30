@@ -40,10 +40,10 @@
 
 /**********************************************
  * test a single or multiple 8bit (or less) register latches
- * connected to UNIBUS
+ * connected to QBUS/UNIBUS
  * */
 
-/* Test UNIBUS wires in order of UniProbe LEDS
+/* Test QBUS/UNIBUS wires in order of UniProbe/QProbe) LEDS
  * slow moving zero
  */
 
@@ -115,7 +115,7 @@ void application_c::menu_qunibus_signals(const char *menu_code) {
 			// parse o 0|1
 			unsigned param = strtol(s_param, NULL, 10);
 			buslatches.output_enable(param);
-			printf("UNIBUS drivers now %s.\n",
+			printf(QUNIBUS_NAME " drivers now %s.\n",
 					buslatches.cur_output_enable ? "enabled" : "disabled");
 		} else if (n_fields == 1 && strchr("0123456789", s_opcode[0])) {
 			// parse <id>

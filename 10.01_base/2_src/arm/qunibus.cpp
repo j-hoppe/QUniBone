@@ -1,4 +1,4 @@
-/* qunibus.cpp: utilities to handle UNIBUS functions
+/* qunibus.cpp: utilities to handle QBUS/UNIBUS functions
 
  Copyright (c) 2018, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -450,7 +450,7 @@ bool qunibus_c::dma(bool blocking, uint8_t qunibus_cycle, uint32_t startaddr, ui
 	qunibusadapter->DMA(*dma_request, blocking, qunibus_cycle, startaddr, buffer, wordcount);
 
 	dmatime_ns = timeout.elapsed_ns();
-	// wait before next transaction, to reduce Unibus bandwidth
+	// wait before next transaction, to reduce QBUS/UNIBUS bandwidth
 	// calc required total time for DMA time + wait
 	// 100% -> total = dma
 	// 50% -> total = 2*dma
@@ -465,8 +465,8 @@ bool qunibus_c::dma(bool blocking, uint8_t qunibus_cycle, uint32_t startaddr, ui
 /* scan qunibus addresses ascending from 0.
  * Stop on error, return first invalid address
  * return 0: no memory found at all
- * arbitration_active: if 1, perform NPR/NPG/SACK arbitration before mem accesses
- * words[]: buffer for whole UNIBUS address range, is filled with data
+ * arbitration_active: if 1, perform NPR/NPG/SACK resp. DMR/DMG/SACK arbitration before mem accesses
+ * words[]: buffer for whole QBUS/UNIBUS address range, is filled with data
  */
 uint32_t qunibus_c::test_sizer(void) {
 	// tests chunks of 128 word
@@ -483,7 +483,7 @@ uint32_t qunibus_c::test_sizer(void) {
  * mode = 1: fill every word with its address, then check endlessly,
  */
 
-// write a subset of words[] with UNIBUS DMA:
+// write a subset of words[] with QBUS/UNIBUS DMA:
 // all words from start_addr to including end_addr
 //
 // DMA blocksize can be choosen arbitrarily
@@ -499,10 +499,10 @@ bool *timeout) {
 	}
 }
 
-// Read a subset of words[] with UNIBUS DMA
+// Read a subset of words[] with QBUS/UNIBUS DMA
 // all words from start_addr to including end_addr
 // DMA blocksize can be choosen arbitrarily
-// arbitration_active: if 1, perform NPR/NPG/SACK arbitration before mem accesses
+// arbitration_active: if 1, perform NPR/NPG/SACK resp. DMR/DMG/SACK arbitration before mem accesses
 void qunibus_c::mem_read(uint16_t *words, uint32_t unibus_start_addr, uint32_t unibus_end_addr,
 bool *timeout) {
 	unsigned wordcount = (unibus_end_addr - unibus_start_addr) / 2 + 1;
