@@ -1,7 +1,7 @@
 #!/bin/bash
 # Actions to start in "screen" session after boot
 
-set -x
+# set -x
 
 GPIO_ROOT=/sys/class/gpio
 
