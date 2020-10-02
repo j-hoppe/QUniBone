@@ -94,11 +94,11 @@ void main(void) {
 	// state function pointer for different state machines
 	statemachine_state_func sm_data_master_state = NULL;
 	// these are function pointers: could be 16bit on PRU?
-	statemachine_arb_worker_func sm_device_arb_worker = &sm_arb_worker_device;
+	sm_arb.state = state_arbitration_grant_check ;
 #ifdef TODO	
 	statemachine_state_func sm_intr_slave_state = NULL;
 #endif
-	sm_data_slave.state = sm_data_slave_state_stop ;
+	sm_data_slave.state = state_data_slave_stop ;
 
 	bool emulate_cpu = false;
 
@@ -118,9 +118,7 @@ void main(void) {
 	 mailbox.events.initialization_signals_prev = 0;
 	 mailbox.events.initialization_signals_cur = 0;
 	 */
-#ifdef TODO
 	sm_arb_reset();
-#endif
 
 	while (true) {
 		uint8_t arm2pru_req_cached;
@@ -143,26 +141,25 @@ PRU_DEBUG_PIN0(1);
 				// Acess to internal registers may issue ARM2PRU opcode, so exit loop then
 				;// execute complete slave cycle, then check NPR/INTR
 				}
-#ifdef TODO // NO GRANT FORWARD so far
 			// signal INT or PWR FAIL to ARM
-			// before arb_worker(), so BR/NPR requests are canceled on INIT
+			// before sm_arb_worker(), so BR/NPR requests are canceled on INIT
+#ifdef TODO
 			do_event_initializationsignals();
+#endif
 			if (!emulate_cpu) {
 				// Fast forward device requests GRANTed by physical CPU.
-				// (On 11/84 possible SACK timeout when blocked by device register event?)
-				// Only one GRANT at a time may be active, else arbitrator malfunction.
+				// Only one GRANT at a time may be active, else arbitrator/CPLD2 malfunction.
 				// Arbitrator asserts SACK is inactive
-				// latch[0]: BG signals are inverted, "get" is non-inverting:  bit = active signal.
-				// "set" is inverting!
-				cpu_grant_mask = buslatches_getbyte(0) & PRIORITY_ARBITRATION_BIT_MASK; // read GRANT IN
+				// Single QBUS IAKI is split onto IAKI4..7 by CPLD2
+				cpu_grant_mask = buslatches_getbyte(7) & PRIORITY_ARBITRATION_BIT_MASK; // read GRANT IN
 				// forward un-requested IOAKI/DMGI to IOAKO/DMGO for other cards on neighbor slots
 				sm_arb.device_forwarded_grant_mask = cpu_grant_mask
 						& ~sm_arb.device_request_signalled_mask;
-				buslatches_setbits(0, PRIORITY_ARBITRATION_BIT_MASK, ~sm_arb.device_forwarded_grant_mask)
+				// Any write to IAKO4..7 setzs QBUS IAKO
+				buslatches_setbits(7, PRIORITY_ARBITRATION_BIT_MASK, sm_arb.device_forwarded_grant_mask)
 				;
 				// "A device may not accept a grant (assert SACK) after it passes the grant"
 			}
-#endif
 			// Priority Arbitration
 			// Delay INTR or DMA while BUS halted via SSYN.
 			// ARM may start DMA within deviceregister event!
@@ -175,21 +172,22 @@ PRU_DEBUG_PIN0(1);
 					// do not read GRANT signals from QBUS, IAKO/DMGO not visible for
 					// emulated devices
 //					sm_arb.device_forwarded_grant_mask = 0 ;
-				} // else GRANTEd by physical CPU, see above
-				uint8_t granted_request = sm_device_arb_worker(cpu_grant_mask); // devices process GRANT
-//TODO: sm_device_arb_worker is "nonE2, returns always NP/DMA grant
-				// sm_device_arb_worker()s include State 2 "BBSYWAIT".
+				} // else GRANTed by physical CPU, see above
+				uint8_t granted_request = sm_arb_worker_device(cpu_grant_mask); 
+				// devices process GRANT from CPU
+//TODO: sm_device_arb_worker is "noop", returns always NP/DMA grant
+				// sm_device_arb_worker()s include State 2 "RPLYSNYCWAIT".
 				// So now SACK maybe set, even if grant_mask is still 0
 
-				if (granted_request & PRIORITY_ARBITRATION_BIT_NP) {
+				if (granted_request & PRIORITY_ARBITRATION_BIT_NP) { //DMA
 					sm_data_master_state = (statemachine_state_func) &sm_dma_start;
-					// can data_master_state  be overwritten in the midst of a running data_master_state ?
+					// can data_master_state be overwritten in the midst of a running data_master_state ?
 					// no: when running, SACK is set, no new GRANTs
 #ifdef TODO
 				} else if (granted_request & PRIORITY_ARBITRATION_INTR_MASK) {
-					// convert bit in grant_mask to INTR index
+					// convert IAK4..7 bit in grant_mask to INTR index
 					uint8_t idx = PRIORITY_ARBITRATION_INTR_BIT2IDX(granted_request);
-					// now transfer INTR vector for interupt of GRANted level.
+					// now transfer INTR vector for interupt of GRANTed level.
 					// vector and ARM context have been setup by ARM before ARM2PRU_INTR already
 					sm_intr_master.vector = mailbox.intr.vector[idx];
 					sm_intr_master.level_index = idx; // to be returned to ARM on complete
@@ -250,7 +248,7 @@ PRU_DEBUG_PIN0(1);
 				// start one INTR cycle. May be raised in midst of slave cycle
 				// by ARM, if access to "active" register triggers INTR.
 				sm_arb.device_request_mask |= mailbox.intr.priority_arbitration_bit;
-				// sm_device_arb_worker() evaluates this, extern Arbitrator raises Grant,
+				// sm_arb_worker_device() evaluates this, extern Arbitrator raises Grant,
 				// vector of GRANted level is transfered with statemachine sm_intr_master
 
 				// Atomically change state in a device's associates interrupt register.
@@ -327,12 +325,12 @@ PRU_DEBUG_PIN0(1);
 				break;
 			case ARM2PRU_ARB_MODE_NONE: // ignore SACK condition
 				// from now on, ignore INTR requests and allow DMA request immediately
-				sm_device_arb_worker = &sm_arb_worker_none;
+				sm_arb.state = state_arbitration_noop;
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
 			case ARM2PRU_ARB_MODE_CLIENT:
 				// request DMA from external Arbitrator
-				sm_device_arb_worker = &sm_arb_worker_device;
+				sm_arb.state = state_arbitration_grant_check; // now executes DMA/IRQ GRANT protocols
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
 			case ARM2PRU_CPU_BUS_ACTIVITY:

@@ -67,11 +67,13 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
     // These test need active PRUs
     hardware_startup(pru_c::PRUCODE_EMULATION);
     buslatches.output_enable(true);
-    if (!with_cpu_arbitration)
-        qunibus->set_cpu_bus_activity(0); // QBUS: even HALTed CPU does ODT traffic, stop it
+	
+//  if (!with_cpu_arbitration)
+//      qunibus->set_cpu_bus_activity(0); // QBUS: even HALTed CPU does ODT traffic, stop it
+	
 // development: allow set of mem range only for running CPU        
-    qunibus->set_arbitrator_active(false);
-//    qunibus->set_arbitrator_active(with_cpu_arbitration);
+//    qunibus->set_arbitrator_active(false);
+    qunibus->set_arbitrator_active(with_cpu_arbitration);
 
     // PRUCODE_UNIBUS can raise events (INIT,ACLO,DCLO) 
     // handle & clear these

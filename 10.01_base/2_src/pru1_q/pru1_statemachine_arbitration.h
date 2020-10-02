@@ -32,36 +32,48 @@
 // SACK within this period.
 #define ARB_MASTER_SACK_TIMOUT_MS	10
 
+
+// states (switch() test order)
+enum sm_arbitration_states_enum {
+	// device DMA/IRQ
+    state_arbitration_grant_check,
+    state_arbitration_intr,
+    state_arbitration_dma_grant_rply_sync_wait,
+    // no arbitration, steady state
+    state_arbitration_noop 
+} ;
+
+
 // a priority-arbitration-worker returns a bit mask with the GRANT signal he recognized
 
-typedef uint8_t (*statemachine_arb_worker_func)(uint8_t grant_mask);
-
 typedef struct {
-	// There are 5 request/grant signals (BR4,5,6,7 and NPR).
-	// These are encoded as bitmask fitting the buslatch[0] or[1]
-	// BR/NPR lines = set of _PRIORITY_ARBITRATION_BIT_*
-	uint8_t device_request_mask;
+    enum sm_arbitration_states_enum state;
 
-	// device_request_mask when actually on BR/NR lines
-	uint8_t device_request_signalled_mask;
+    // There are 5 request/grant signals (BR4,5,6,7 and NPR).
+    // These are encoded as bitmask fitting the buslatch[0] or[1]
+    // BR/NPR lines = set of _PRIORITY_ARBITRATION_BIT_*
+    uint8_t device_request_mask;
 
-	// forwarded to GRANT OUT, not accepted as response to device_request_signalled_mask 
-	uint8_t device_forwarded_grant_mask;
+    // device_request_mask when actually on BR/NR lines
+    uint8_t device_request_signalled_mask;
 
-	// sm_arb has 2 states: State 1 "Wait for GRANT" and State 2 "wait for BBSY"
-	// When arbitrator GRANts a request, we set SACK, GRAMT is cleared and we wait
-	// for BBSY clear. 
-	// 0: not waitong for BBSY.
-	// != saves GRANTed request and indicates BBSY wait state
-	uint8_t grant_bbsy_ssyn_wait_grant_mask;
+    // forwarded to GRANT OUT, not accepted as response to device_request_signalled_mask
+    uint8_t device_forwarded_grant_mask;
 
-	/*** master ****/
-	// CPU is requesting memory access via PRU2ARM_DMA/mailbox.dma
-	uint8_t cpu_request;
+    // sm_arb has 2 states: State 1 "Wait for GRANT" and State 2 "wait for BBSY"
+    // When arbitrator GRANts a request, we set SACK, GRAMT is cleared and we wait
+    // for BBSY clear.
+    // 0: not waitong for BBSY.
+    // != saves GRANTed request and indicates BBSY wait state
+    uint8_t grant_rply_sync_wait_grant_mask;
 
-	uint8_t arbitrator_grant_mask; // single GRANT line set by master
+    /*** master ****/
+    // CPU is requesting memory access via PRU2ARM_DMA/mailbox.dma
+    uint8_t cpu_request;
 
-	uint8_t dummy[2]; // make it dword-sized
+    uint8_t arbitrator_grant_mask; // single GRANT line set by master
+
+    uint8_t dummy[2]; // make it dword-sized
 
 } statemachine_arbitration_t;
 
@@ -78,8 +90,7 @@ typedef struct {
 extern statemachine_arbitration_t sm_arb;
 
 void sm_arb_reset(void);
-uint8_t sm_arb_worker_none(uint8_t grant_mask);
-uint8_t sm_arb_worker_device(uint8_t grant_mask);
+uint8_t sm_arb_worker_device(uint8_t granted_requests_mask);
 uint8_t sm_arb_worker_cpu(void);
 
 #endif

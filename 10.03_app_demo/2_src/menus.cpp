@@ -46,8 +46,9 @@ using namespace std;
 
 
 void application_c::print_arbitration_info(const char *indent) {
+#if defined(UNIBUS)
 	if (qunibus->get_arbitrator_active()) {
-		printf("%s" QUNIBONE_NAME " devices are clients to PDP-11 CPU doing NPR/INTR Arbitrator\n",
+		printf("%s UNIBUS devices are clients to PDP-11 CPU acting as NPR/INTR Arbitrator\n",
 				indent);
 		printf("%s(CPU active, console processor inactive).\n", indent);
 		printf("%sCPU is physical or emulated.\n", indent);
@@ -57,10 +58,27 @@ void application_c::print_arbitration_info(const char *indent) {
 				"%s\"BR/BG and NPR/NPG Arbitration INACTIVE\": Expects no PDP-11 CPU doing NPR/INTR arbitration\n",
 				indent);
 		printf("%s(CPU not plugged in, or console processor active).\n", indent);
-		printf("%sOnly " QUNIBUS_NAME " data transfers can be tested.\n", indent);
+		printf("%sOnly UNIBUS data transfers can be tested.\n", indent);
 		printf("%sUnconditional memory access as Bus Master without NPR/NPG/SACK handshake.\n",
 				indent);
 	}
+#elif defined(QBUS)
+	if (qunibus->get_arbitrator_active()) {
+		printf("%s QBUS devices are clients to PDP-11 CPU acting asg DMR/IRQ Arbitrator\n",
+				indent);
+		printf("%s(CPU active: running or HALTed executing microcode ODT).\n", indent);
+		printf("%sCPU is physical or emulated.\n", indent);
+		printf("%sMemory access as Bus Master with DMR/DMG/SACK handshake.\n", indent);
+	} else {
+		printf(
+				"%s\"IRQ/IAK and DMR/DNG/SACK Arbitration INACTIVE\": no PDP-11 CPU is doing arbitration\n",
+				indent);
+		printf("%s(CPU not plugged in. Caution: even HALTed CPU runs ODT and polls the SLU).\n", indent);
+		printf("%sOnly QBUS data transfers can be tested.\n", indent);
+		printf("%sUnconditional memory access as Bus Master without DMR/DMG/SACK handshake.\n",
+				indent);
+	}
+#endif
 }
 
 /*

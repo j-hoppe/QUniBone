@@ -92,6 +92,3 @@ else
         echo "Switch value $switches_val selects \"$config_info\"."
         $config_cmd
  fi
-
-
-# ./demo.sh

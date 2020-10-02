@@ -195,7 +195,7 @@ void main(void) {
 			// writing into mailbox.arm2pru_req
 			while (mailbox.arm2pru_req == ARM2PRU_DDR_SLAVE_MEMORY) {
 				statemachine_data_slave_t sm_slave ;
-				sm_slave.state = sm_data_slave_state_stop ;
+				sm_slave.state = state_data_slave_stop ;
 				// do all states of an access, start when MSYN found.
 				while (sm_slave.state = sm_data_slave_func(sm_slave.state))
 					;

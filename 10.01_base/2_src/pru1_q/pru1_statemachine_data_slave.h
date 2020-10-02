@@ -31,26 +31,26 @@
 #include <stdint.h>
 #include "pru1_utils.h"	// statemachine_state_func
 
-// states
-enum sm_data_slave_states_enum {
-    sm_data_slave_state_stop = 0, // all work done
-    sm_data_slave_state_start,
-    sm_data_slave_state_dindout_start,
-    sm_data_slave_state_din_complete,
-    sm_data_slave_state_dout_complete,
-    sm_data_slave_state_din_end,
-    sm_data_slave_state_dout_end
+// states (switch() test order)
+enum states_data_slave_enum {
+    state_data_slave_stop = 0, // all work done
+    state_data_slave_start,
+    state_data_slave_dindout_start,
+    state_data_slave_din_complete,
+    state_data_slave_dout_complete,
+    state_data_slave_din_end,
+    state_data_slave_dout_end
 } ;
 
 // Transfers a block of worst as data cycles
 typedef struct {
-    enum sm_data_slave_states_enum state;
+    enum states_data_slave_enum state;
     uint16_t        val;                            // prefetched memory content
     uint32_t        addr;                           // latched address
 } statemachine_data_slave_t;
 
 
 extern statemachine_data_slave_t sm_data_slave;
-enum sm_data_slave_states_enum  sm_data_slave_func(enum sm_data_slave_states_enum  /**/ state) ;
+enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**/ state) ;
 #endif
 
