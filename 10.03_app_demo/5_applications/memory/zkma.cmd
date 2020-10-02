@@ -10,7 +10,9 @@ lp zkma.ptap    # load into memory
 .print *************************************************************
 .print Now start ZKMA on PDP-11.
 .print On M9312: "L 200" , "S"
+.print On LSI-11: "200G"
 .print ZKMA should only test 0-157776
+.print To test full 18bit memory, DEPOSIT 176 10000
 .print
 
 .input
