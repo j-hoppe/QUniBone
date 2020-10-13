@@ -50,7 +50,7 @@ pwr
 .print "Serial echo" program loaded at memory 1000.
 .print Serial I/O on simulated DL11 at 177650, RS232 port is UART2.
 .print RL drives ready.
-.print Emulated PDP-11/20 CPU will booted into M93412 console emulator.
+.print Emulated PDP-11/20 CPU will booted into M9312 console emulator.
 .print Make sure physical CPU is disabled.
 .print Start "Serial echo" with "@L 1000", "@S"
 .print Boot from RL0 into XXDP with "@DL0"
