@@ -476,9 +476,14 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         dmareq->chunk_words = std::min(dmareq->chunk_max_words, wordcount_remaining);
 
         assert(dmareq->chunk_words); // if complete, the dmareq should not be active anymore
-        if (dmareq->chunk_unibus_start_addr >= qunibus->iopage_start_addr)
+        if (dmareq->chunk_unibus_start_addr >= qunibus->iopage_start_addr) {
+#if defined(UNIBUS)
+			// UniBone PRU doesn't handle IOpage addresses marked with IOpage bit 22 
+			mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
+#elif defined(QBUS)			
             mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr | QUNIBUS_IOPAGE_ADDR_BITMASK ;
-        else
+#endif			
+        } else
             mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
         mailbox->dma.buscycle = dmareq->unibus_control;
         mailbox->dma.wordcount = dmareq->chunk_words;
