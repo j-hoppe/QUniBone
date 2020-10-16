@@ -31,6 +31,7 @@ struct KA11
 	volatile word external_intrvec;	// associated vector
 
 	word sw;
+	int swab_vbit;
 };
 
 

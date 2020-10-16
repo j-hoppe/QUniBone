@@ -66,8 +66,14 @@ public:
 	parameter_bool_c direct_memory = parameter_bool_c(this, "pmi", "pmi",/*readonly*/
 	false, "Private Memory Interconnect: CPU accesses memory internally, not over UNIBUS.");
 
+	parameter_bool_c swab_vbit = parameter_bool_c(this, "swab_vbit", "swab",/*readonly*/
+	false, "SWAB instruction does not(=0) or does(=1) modify psw v-bit (=0 is standard 11/20 behavior)");
+
 	parameter_unsigned_c pc = parameter_unsigned_c(this, "PC", "pc",/*readonly*/
 	false, "", "%06o", "program counter helper register.", 16, 8);
+
+	parameter_unsigned_c swreg = parameter_unsigned_c(this, "switch_reg", "swr",/*readonly*/
+	false, "", "%06o", "Console switch register.", 16, 8);
 
 	parameter_unsigned_c cycle_count = parameter_unsigned_c(this, "cycle_count", "cc",/*readonly*/
 	true, "", "%u", "CPU opcodes executed since last HALT (32bit roll around).", 32, 10);

@@ -20,6 +20,7 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+ 16-oct-2020  JH     merged VBIT changes by github jks-prv 
  23-nov-2018  JH      created
 
  In worker() Angelos 11/05 CPU is  running.
@@ -212,6 +213,7 @@ cpu_c::cpu_c() :
 	// current CPU does not publish registers to the bus
 	// must be qunibusdevice_c then!
 	register_count = 0;
+	swab_vbit.value = false;
 
 	memset(&bus, 0, sizeof(bus));
 	memset(&ka11, 0, sizeof(ka11));
@@ -343,6 +345,7 @@ void cpu_c::worker(unsigned instance) {
 		if (!runmode.value && start_switch.value) {
 			// START, or HALT+START: reset system
 			ka11.r[7] = pc.value & 0xffff;
+            ka11.sw = swreg.value & 0xffff;
 			qunibus->init(50);
 			ka11_reset(&ka11);
 			if (!halt_switch.value) {
@@ -409,6 +412,8 @@ void cpu_c::worker(unsigned instance) {
 			// HALT position inside instructions !!!
 			stop("CPU HALT by switch", true);
 		}
+
+		ka11.swab_vbit = (swab_vbit.value == true);
 
 	}
 }

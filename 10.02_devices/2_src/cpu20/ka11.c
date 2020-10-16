@@ -138,9 +138,11 @@ dati(KA11 *cpu, int b)
 		case 0170: case 0171:
 			cpu->bus->data = cpu->sw;
 			goto ok;
-		case 0376: case 0377:
+		case 0376:
 			cpu->bus->data = cpu->psw;
 			goto ok;
+		case 0377:
+		    goto be;
 
 		/* respond but don't return real data */
 		case 0147:
@@ -175,12 +177,14 @@ trace("%s [%06o] <= %06o\n", b? "DATOB":"DATO", cpu->ba, cpu->bus->data);
 		case 0170: case 0171:
 			/* can't write switches */
 			goto ok;
-		case 0376: case 0377:
+		case 0376:
 			/* writes 0 for the odd byte.
 			   I think this is correct. */
 			cpu->psw = cpu->bus->data;
 			levelchange(cpu->psw);
 			goto ok;
+		case 0377:
+		    goto be;
 		}
 	}
 
@@ -349,6 +353,9 @@ step(KA11 *cpu)
 #define SEC	cpu->psw |= PSW_C
 #define C	if(b & 0200000) SEC
 #define NC	if((b & 0200000) == 0) SEC
+#define CLNZ	cpu->psw &= ~(PSW_N|PSW_Z)
+#define SEN	cpu->psw |= PSW_N
+#define SEZ	cpu->psw |= PSW_Z
 #define BXT	if(by) b = sxt(b)
 #define BR	PC += br
 #define CBR(c)	if(((c)>>(cpu->psw&017)) & 1) BR
@@ -359,6 +366,8 @@ step(KA11 *cpu)
 #define INA(a,d)	cpu->ba = a; if(dati(cpu, 0)) goto be; d = cpu->bus->data
 #define TR(m)	trace("EXEC [%06o] "#m"\n", PC-2)
 #define TRB(m)	trace("EXEC [%06o] "#m"%s\n", PC-2, by ? "B" : "")
+
+	inhov = 0;
 
 	{
 		// external interrupt from parallel threads?
@@ -389,7 +398,6 @@ step(KA11 *cpu)
 	if(by)	mask = M8, sign = B7;
 	else	mask = M16, sign = B15;
 
-	inhov = 0;
 	/* Binary */
 	switch(cpu->ir & 0170000){
 	case 0110000: case 0010000:	TRB(MOV);
@@ -473,23 +481,23 @@ step(KA11 *cpu)
 	case 0006000:	TRB(ROR);
 		RD_U; c = ISSET(PSW_C); CLCV;
 		b = (SR&mask) >> 1; if(c) b |= sign; if(SR & 1) SEC; BXT;
-		if((PSW>>3^PSW)&1) SEV;
-		NZ; WR; SVC;
+		NZ; if((PSW>>3^PSW)&1) SEV;
+		WR; SVC;
 	case 0006100:	TRB(ROL);
 		RD_U; c = ISSET(PSW_C); CLCV;
 		b = (SR<<1) & mask; if(c) b |= 1; if(SR & B15) SEC; BXT;
-		if((PSW>>3^PSW)&1) SEV;
-		NZ; WR; SVC;
+		NZ; if((PSW>>3^PSW)&1) SEV;
+		WR; SVC;
 	case 0006200:	TRB(ASR);
 		RD_U; c = ISSET(PSW_C); CLCV;
 		b = W(SR>>1) | SR&B15; if(SR & 1) SEC; BXT;
-		if((PSW>>3^PSW)&1) SEV;
-		NZ; WR; SVC;
+		NZ; if((PSW>>3^PSW)&1) SEV;
+		WR; SVC;
 	case 0006300:	TRB(ASL);
 		RD_U; CLCV;
 		b = W(SR<<1); if(SR & B15) SEC; BXT;
-		if((PSW>>3^PSW)&1) SEV;
-		NZ; WR; SVC;
+		NZ; if((PSW>>3^PSW)&1) SEV;
+		WR; SVC;
 
 	case 0006400:
 	case 0006500:
@@ -513,54 +521,59 @@ step(KA11 *cpu)
 	}
 
 	/* Branches */
-	switch(cpu->ir & 0103400){
-	case 0000400:	TR(BR); BR; SVC;
-	case 0001000:	TR(BNE); CBR(0x0F0F); SVC;
-	case 0001400:	TR(BEQ); CBR(0xF0F0); SVC;
-	case 0002000:	TR(BGE); CBR(0xCC33); SVC;
-	case 0002400:	TR(BLT); CBR(0x33CC); SVC;
-	case 0003000:	TR(BGT); CBR(0x0C03); SVC;
-	case 0003400:	TR(BLE); CBR(0xF3FC); SVC;
-	case 0100000:	TR(BPL); CBR(0x00FF); SVC;
-	case 0100400:	TR(BMI); CBR(0xFF00); SVC;
-	case 0101000:	TR(BHI); CBR(0x0505); SVC;
-	case 0101400:	TR(BLOS); CBR(0xFAFA); SVC;
-	case 0102000:	TR(BVC); CBR(0x3333); SVC;
-	case 0102400:	TR(BVS); CBR(0xCCCC); SVC;
-	case 0103000:	TR(BCC); CBR(0x5555); SVC;
-	case 0103400:	TR(BCS); CBR(0xAAAA); SVC;
-	}
-
-	// Hope we caught all instructions we meant to
-	assert((cpu->ir & 0177400) == 0);
+    // ! 000 0!! !xx xxx xxx    (! = at least one is non-zero)
+    if((cpu->ir & 074000) == 0 && (cpu->ir & 0103400) != 0)
+        switch(cpu->ir & 0103400){
+        case 0000400:	TR(BR); BR; SVC;
+        case 0001000:	TR(BNE); CBR(0x0F0F); SVC;
+        case 0001400:	TR(BEQ); CBR(0xF0F0); SVC;
+        case 0002000:	TR(BGE); CBR(0xCC33); SVC;
+        case 0002400:	TR(BLT); CBR(0x33CC); SVC;
+        case 0003000:	TR(BGT); CBR(0x0C03); SVC;
+        case 0003400:	TR(BLE); CBR(0xF3FC); SVC;
+        case 0100000:	TR(BPL); CBR(0x00FF); SVC;
+        case 0100400:	TR(BMI); CBR(0xFF00); SVC;
+        case 0101000:	TR(BHI); CBR(0x0505); SVC;
+        case 0101400:	TR(BLOS); CBR(0xFAFA); SVC;
+        case 0102000:	TR(BVC); CBR(0x3333); SVC;
+        case 0102400:	TR(BVS); CBR(0xCCCC); SVC;
+        case 0103000:	TR(BCC); CBR(0x5555); SVC;
+        case 0103400:	TR(BCS); CBR(0xAAAA); SVC;
+        }
 
 	/* Misc */
-	switch(cpu->ir & 0300){
+	switch(cpu->ir & 0777300){
 	case 0100:	TR(JMP);
 		if(dm == 0) goto ill;
 		if(addrop(cpu, dst, 0)) goto be;
 		PC = cpu->b;
 		SVC;
 	case 0200:
-	switch(cpu->ir&070){
-	case 000:	TR(RTS);
-		BA = SP; POP;
-		PC = cpu->r[df];
-		IN(cpu->r[df]);
-		SVC;
-	case 010: case 020: case 030:
-		goto ri;
-	case 040: case 050:	TR(CCC); PSW &= ~(cpu->ir&017); SVC;
-	case 060: case 070:	TR(SEC); PSW |= cpu->ir&017; SVC;
-	}
+        switch(cpu->ir&070){
+        case 000:	TR(RTS);
+            BA = SP; POP;
+            PC = cpu->r[df];
+            IN(cpu->r[df]);
+            SVC;
+        case 010: case 020: case 030:
+            goto ri;
+        case 040: case 050:	TR(CCC); PSW &= ~(cpu->ir&017); SVC;
+        case 060: case 070:	TR(SEC); PSW |= cpu->ir&017; SVC;
+        }
 	case 0300:	TR(SWAB);
-		RD_U; CLC;
+		RD_U;
+		if(cpu->swab_vbit) {
+		    CLCV;   // v-bit cleared, ZQKC compatible
+		} else {
+		    CLC;    // v-bit unchanged, actual 11/20 behavior
+		}
 		b = WD(DR & 0377, (DR>>8) & 0377);
-		NZ; WR; SVC;
+		CLNZ; if(b & B7) SEN; if((b & M8) == 0) SEZ;
+		WR; SVC;
 	}
 
 	/* Operate */
-	switch(cpu->ir & 7){
+	switch(cpu->ir){
 	case 0:	TR(HALT); cpu->state = KA11_STATE_HALTED; return;
 	case 1:	TR(WAIT); /*ARM_DEBUG_PIN0(1); */cpu->state = KA11_STATE_WAITING; return ; // no traps
 	case 2:	TR(RTI);
@@ -631,7 +644,7 @@ service:
 }
 
 // to be called from parallel threads to signal async intr
-// (qunibusadapter worker thread)
+// (unibusadapter worker thread)
 void
 ka11_setintr(KA11 *cpu, unsigned vec)
 {
@@ -655,7 +668,7 @@ ka11_pwrfail_trap(KA11 *cpu)
 }
 
 // only to be called from ka11_condstep() thread
-// if locked, will lock DATI and qunibus adapter()!
+// if locked, will lock DATI and unibus adapter()!
 void
 ka11_pwrup_vector_fetch(KA11 *cpu)
 {

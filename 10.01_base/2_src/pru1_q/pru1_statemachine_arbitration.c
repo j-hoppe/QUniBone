@@ -118,6 +118,7 @@ void sm_arb_reset() {
 
 /* worker_device():
  Issue request to extern or emulated Arbitrator (PDP-11 CPU).
+ CPLD2 decodes IAKI + IRQ to IAKI4..7, IOAKO4..7 are all IAKO
  Watch for IAKI4..7/DMG on the bus signal lines, then raise SACK for DMG.
  Wait for current bus master to release bus => Wait for SYNC and RPLY clear.
  Then return GRANTed request.
