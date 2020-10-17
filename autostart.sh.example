@@ -40,6 +40,7 @@ function get_switches() {
 # get_config() {
 # Set up "config_info" and "config_cmd" for config "n"
 # Called applications ("demo") should echo "n" onto the LEDs on start.
+# Adapt to your own needs!
 function get_config() {
 # param $1: selection number from switches
 n=$1
