@@ -145,7 +145,7 @@ public:
 		bool parse_vector(char *txt, uint16_t max_vector,	uint16_t *vector);
 		bool parse_slot(char *txt, uint8_t *priority_slot);
 
-	void init(unsigned pulsewidth_ms);
+	void init(void);
 
 	void set_cpu_bus_activity(bool active) ;
 	void set_arbitrator_active(bool active);

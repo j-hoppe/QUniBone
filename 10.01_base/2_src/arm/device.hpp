@@ -53,7 +53,7 @@ public:
 class device_c: public logsource_c, public parameterized_c {
 public:
 enum signal_edge_enum {
-	SIGNAL_EDGE_NONE, SIGNAL_EDGE_RAISING, SIGNAL_EDGE_FALLING
+	SIGNAL_EDGE_NONE=0, SIGNAL_EDGE_RAISING=1, SIGNAL_EDGE_FALLING=2
 };
 
 
@@ -109,13 +109,23 @@ public:
 	virtual ~device_c(); // class with virtual functions should have virtual destructors
 	void set_workers_count(unsigned workers_count);
 
+    const char *signal_edge_text(enum signal_edge_enum edge) {
+    switch(edge) {
+	case SIGNAL_EDGE_NONE: return "NONE" ;
+    case SIGNAL_EDGE_RAISING: return "RAISING";
+    case SIGNAL_EDGE_FALLING: return "FALLING";
+    default: return "???" ;
+    }
+    }
+
+
 	virtual bool on_param_changed(parameter_c *param);
 
 	// search in mydevices
 	static device_c *find_by_name(char *name);
 
 	// a device can be powered down. use this to define power-up values
-	virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) = 0; 
+	virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) = 0;
 	// reset device, UNIBUS DC_LO, QBUS DCOK
 
 	// every device has a INIT signal, which can be active (asserted) or inactive

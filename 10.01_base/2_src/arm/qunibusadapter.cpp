@@ -263,7 +263,7 @@ void qunibusadapter_c::unregister_device(qunibusdevice_c& device) {
     // if its a CPU, disable PRU to "with_CPU"
     unibuscpu_c *cpu = dynamic_cast<unibuscpu_c*>(&device);
     if (cpu) {
-        mailbox->cpu_enable = 0;
+        mailbox->param = 0;
         mailbox_execute(ARM2PRU_CPU_ENABLE);
         registered_cpu = NULL;
     }
@@ -478,11 +478,11 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         assert(dmareq->chunk_words); // if complete, the dmareq should not be active anymore
         if (dmareq->chunk_unibus_start_addr >= qunibus->iopage_start_addr) {
 #if defined(UNIBUS)
-			// UniBone PRU doesn't handle IOpage addresses marked with IOpage bit 22 
-			mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
-#elif defined(QBUS)			
+            // UniBone PRU doesn't handle IOpage addresses marked with IOpage bit 22
+            mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
+#elif defined(QBUS)
             mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr | QUNIBUS_IOPAGE_ADDR_BITMASK ;
-#endif			
+#endif
         } else
             mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
         mailbox->dma.buscycle = dmareq->unibus_control;
@@ -544,13 +544,14 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         // assert(mailbox->events.event_intr == 0) would trigger
         mailbox_execute(ARM2PRU_INTR);
         intrreq->executing_on_PRU = true; // waiting for GRANT
+        
         // PRU now changes state
     }
 
     /* when PRU is finished, the worker() gets a signal,
      then worker_device_dma_chunk_complete_event() or worker_intr_complete_event() is called.
      On INTR or last DMA chunk, the request is completed.
-     It is removed from the slot schedule table and request->compelte_conmd is signaled
+     It is removed from the slot schedule table and request->complete_conmd is signaled
      to DMA() or INTR()
      */
 }
@@ -728,7 +729,7 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
     assert(intr_request.level_index <= 3);
     assert((intr_request.vector & 3) == 0); // multiple of 2 words
 
-    // ignore calls if INIT cndition
+    // ignore calls if INIT condition
     if (line_INIT) {
         intr_request.complete = true;
         return;
@@ -883,7 +884,13 @@ void qunibusadapter_c::worker_power_event(signal_edge_enum aclo_edge, signal_edg
     unsigned device_handle;
     qunibusdevice_c *device;
     // notify device on change of ACLO/DCLO lines
-    DEBUG("worker_power_event(aclo_edge=%d, dclo_edge=%d)", (int)aclo_edge, (int)dclo_edge);
+#if defined(UNIBUS)
+    DEBUG("worker_power_event(aclo_edge=%d=%s, dclo_edge=%d=s)",
+          (int)aclo_edge, signal_edge_text(aclo_edge), (int)dclo_edge,signal_edge_text(dclo_edge));
+#elif defined(QBUS)
+    DEBUG("worker_power_event(aclo_edge=%d=%s (ACLO=NOT POK), dclo_edge=%d=%s (DCLO=NOT DCOK)",
+          (int)aclo_edge, signal_edge_text(aclo_edge), (int)dclo_edge,signal_edge_text(dclo_edge));
+#endif
     for (device_handle = 0; device_handle <= MAX_DEVICE_HANDLE; device_handle++)
         if ((device = devices[device_handle])) {
             device->on_power_changed(aclo_edge, dclo_edge);
@@ -1137,13 +1144,16 @@ void qunibusadapter_c::worker(unsigned instance) {
             // processing order: INIT_NEGATE, DATI/O, INIT_ASSERT, DCLO/ACLO
             signal_edge_enum aclo_edge = SIGNAL_EDGE_NONE ;
             signal_edge_enum dclo_edge = SIGNAL_EDGE_NONE ;
+#if defined(UNIBUS)
             bool init_raising_edge = false;
             bool init_falling_edge = false;
+#endif			
             if (!EVENT_IS_ACKED(*mailbox, init)) {
                 any_event = true;
-                // robust: any change in ACLO/DCL=INIT updates state of all 3.
-                // Initial DCLO-cycle to PDP_11 initialize these states
-                if (mailbox->events.init_signals_cur & INITIALIZATIONSIGNAL_INIT) {
+                // QBUS: bus blocked by DMR until EVENT_ACK for raising edge
+//              printf("mailbox->events.init_signals_cur 0x%x\n", (unsigned)mailbox->events.init_signal_cur) ;
+#if defined(UNIBUS)
+                if (mailbox->events.init_signal_cur) {
                     if (!line_INIT)
                         init_raising_edge = true;
                     line_INIT = true;
@@ -1152,16 +1162,35 @@ void qunibusadapter_c::worker(unsigned instance) {
                         init_falling_edge = true;
                     line_INIT = false;
                 }
-                EVENT_ACK(*mailbox, init); // PRU may re-raise and change mailbox now
+				if (!init_raising_edge && !init_falling_edge) {
+					// clear stray event
+	                EVENT_ACK(*mailbox, init);
+				} else if (init_falling_edge) { // INIT asserted -> negated.  DATI/DATO cycle only possible after that.
+	                // raising edge below ?!
+                    worker_init_event();
+	                EVENT_ACK(*mailbox, init); // PRU may re-raise and change mailbox now
+                	}
+                DEBUG(
+                    "EVENT_INIT: init_signal_cur=0x%x, init_raise=%d, init_fall=%d",
+                    mailbox->events.init_signal_cur, init_raising_edge, init_falling_edge) ;
+#elif defined(QBUS)
+			// QBUS: INIT is 10us pulse (not a state)
+			line_INIT = true;
+			worker_init_event();
+			line_INIT = false;
+			worker_init_event();
+			DEBUG("EVENT_INIT") ;
+			EVENT_ACK(*mailbox, init); // PRU releases DMR line now, CPU continues, event may re-raise and change mailbox now
+#endif
             }
             if (!EVENT_IS_ACKED(*mailbox, power)) {
 #if defined(UNIBUS)
-                bool	dclo_event = mailbox->events.init_signals_cur & INITIALIZATIONSIGNAL_DCLO ;
-                bool aclo_event = mailbox->events.init_signals_cur & INITIALIZATIONSIGNAL_ACLO ;
+                bool	dclo_event = mailbox->events.power_signals_cur & INITIALIZATIONSIGNAL_DCLO ;
+                bool aclo_event = mailbox->events.power_signals_cur & INITIALIZATIONSIGNAL_ACLO ;
 #elif defined(QBUS)
                 // power states encoded with UNIBUS ACLO/DCLO
-                bool	dclo_event = ! (mailbox->events.init_signals_cur & INITIALIZATIONSIGNAL_DCOK) ;
-                bool aclo_event = ! (mailbox->events.init_signals_cur & INITIALIZATIONSIGNAL_POK) ;
+                bool	dclo_event = ! (mailbox->events.power_signals_cur & INITIALIZATIONSIGNAL_DCOK) ;
+                bool aclo_event = ! (mailbox->events.power_signals_cur & INITIALIZATIONSIGNAL_POK) ;
 #endif
                 any_event = true;
                 if (dclo_event) {
@@ -1182,17 +1211,15 @@ void qunibusadapter_c::worker(unsigned instance) {
                         aclo_edge = SIGNAL_EDGE_FALLING;
                     line_ACLO = false;
                 }
-                EVENT_ACK(*mailbox, power); // PRU may re-raise and change mailbox now
                 DEBUG(
-                    "EVENT_INITIALIZATIONSIGNALS: (sigprev=0x%x,) cur=0x%x, init_raise=%d, init_fall=%d, aclo_edge=%d, dclo_edge=%d",
-                    mailbox->events.init_signals_prev, mailbox->events.init_signals_cur,
-                    init_raising_edge, init_falling_edge, (int)aclo_edge, (int)dclo_edge) ;
+                    "EVENT_POWER: power_signals_prev=0x%x, power_signals_cur=0x%x, aclo_edge=%d, dclo_edge=%d",
+                    mailbox->events.power_signals_prev, mailbox->events.power_signals_cur, (int)aclo_edge, (int)dclo_edge) ;
+                if (aclo_edge != SIGNAL_EDGE_NONE || dclo_edge != SIGNAL_EDGE_NONE)
+                    worker_power_event(aclo_edge, dclo_edge) ;
+                EVENT_ACK(*mailbox, power); // PRU may re-raise and change mailbox now
 
             }
-            if (aclo_edge != SIGNAL_EDGE_NONE || dclo_edge != SIGNAL_EDGE_NONE)
-                worker_power_event(aclo_edge, dclo_edge) ;
-            if (init_falling_edge) // INIT asserted -> negated.  DATI/DATO cycle only possible after that.
-                worker_init_event();
+
             if (!EVENT_IS_ACKED(*mailbox, deviceregister)) {
                 any_event = true;
 
@@ -1243,9 +1270,13 @@ void qunibusadapter_c::worker(unsigned instance) {
 
                 // PRU may re-raise and change mailbox now
             }
-
-            if (init_raising_edge) // INIT deasserted -> negated. DATI/DATO cycle only possible before that.
+#if defined(UNIBUS)
+            if (init_raising_edge) { // INIT deasserted -> negated. DATI/DATO cycle only possible before that.
+                // QBUS: bus blocked by DMR until EVENT_ACK for raising edge
                 worker_init_event();
+				EVENT_ACK(*mailbox, init);
+			}
+#endif			
         }
         // Signal to PRU: continue QBUS/UNIBUS cycles now with SSYN negated
     }

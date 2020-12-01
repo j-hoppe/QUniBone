@@ -35,7 +35,8 @@ typedef struct {
 	uint8_t state_timeout; // timeout occured?
 	uint16_t *dataptr; // points to current word in mailbox.words[] ;
 	uint16_t words_left; // # of words left to transfer
-	uint16_t block_words_left ; // # of words left to transfer in DATBI/BO block
+	uint32_t block_end_addr	; // last address of a DATBI/DATBO transfer.
+//	uint16_t block_words_left ; // # of words left to transfer in DATBI/BO block
 	statemachine_state_func block_data_state_func ;
 	bool 	first_data_portion ; // signal to DIN/DOUT: remove ADDR,BS7, from DAL
 } statemachine_dma_t;

@@ -35,23 +35,30 @@
 
 // states (switch() test order)
 enum sm_arbitration_states_enum {
-	// device DMA/IRQ
+    // device DMA/IRQ
     state_arbitration_grant_check,
-    state_arbitration_intr,
     state_arbitration_dma_grant_rply_sync_wait,
+    state_arbitration_intr_vector,
+    state_arbitration_intr_complete,
     // no arbitration, steady state
-    state_arbitration_noop 
+    state_arbitration_noop
 } ;
 
 
 // a priority-arbitration-worker returns a bit mask with the GRANT signal he recognized
 
+	// reasons to inhibit QBUS access of LSI11 CPU via DMR
+#define ARB_CPU_BUS_INHIBIT_DMR_ARM 0x01 // via ARM2PRU_CPU_BUS_ACCESS
+#define ARB_CPU_BUS_INHIBIT_DMR_INIT 0x02 // elongate INIT 
+
+
 typedef struct {
     enum sm_arbitration_states_enum state;
 
-    // There are 5 request/grant signals (BR4,5,6,7 and NPR).
-    // These are encoded as bitmask fitting the buslatch[0] or[1]
-    // BR/NPR lines = set of _PRIORITY_ARBITRATION_BIT_*
+    // There are 5 request/grant signals (INTR,5,6,7 and NPR).
+    // INTR/DMR lines = set of _PRIORITY_ARBITRATION_BIT_*
+    // corresponding GRANt signals are constructed by CPLD2
+    // INTR<4,5,6,7> are NOT directly output to BIRQ<4:7>, but generate combinations of these
     uint8_t device_request_mask;
 
     // device_request_mask when actually on BR/NR lines
@@ -60,12 +67,11 @@ typedef struct {
     // forwarded to GRANT OUT, not accepted as response to device_request_signalled_mask
     uint8_t device_forwarded_grant_mask;
 
-    // sm_arb has 2 states: State 1 "Wait for GRANT" and State 2 "wait for BBSY"
-    // When arbitrator GRANts a request, we set SACK, GRAMT is cleared and we wait
-    // for BBSY clear.
-    // 0: not waitong for BBSY.
-    // != saves GRANTed request and indicates BBSY wait state
-    uint8_t grant_rply_sync_wait_grant_mask;
+    uint8_t device_grant_mask ; // single bit grant processed in state machine
+
+    // sm_arb has several states: for DMA and INTR ACK.
+    // On INTR completion the ARM event for one of INTR4,5,6,7 must be signaled, save its idx.
+    uint8_t intr_level_index ;
 
     /*** master ****/
     // CPU is requesting memory access via PRU2ARM_DMA/mailbox.dma
@@ -73,14 +79,19 @@ typedef struct {
 
     uint8_t arbitrator_grant_mask; // single GRANT line set by master
 
-    uint8_t dummy[2]; // make it dword-sized
+	/*** CPU blocking via DMR ***/
+	// several reasons to set DMR, which inhibits LSI11 CPU from bus accesses
+
+	uint8_t cpu_bus_inhibit_dmr_mask ; // OR of ARB_CPU_BUS_INHIBIT_DMR_*
+
+//    uint8_t dummy[1]; // make it dword-sized
 
 } statemachine_arbitration_t;
 
 /* receives a grant_mask with 1 bit set and returns the index of that bit
- when interpreted as intr odma request
- BR4->0, BR5->1,BR6->2, BR7->3,NPR->4
- grant_mask as value from buslatch 0: BR4 at bit 0
+ when interpreted as intr or dma request
+ INTR4->0, INTR5->1, INTR6->2, INTR7->3, DMR->4
+ grant_mask as value from buslatch 6/7: INTR4 at bit 0
  Undefined result if grant_mask empty or > 0x10
  */
 #define PRIORITY_ARBITRATION_INTR_BIT2IDX(grant_mask)	\

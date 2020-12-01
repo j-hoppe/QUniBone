@@ -67,10 +67,10 @@ statemachine_dma_t sm_dma;
 /********** Master DATA cycles **************/
 // forwards ;
 static statemachine_state_func sm_dma_state_addr(void);
-static statemachine_state_func sm_dma_state_dinstart(void);
-static statemachine_state_func sm_dma_state_dincomplete(void);
-static statemachine_state_func sm_dma_state_doutstart(void);
-static statemachine_state_func sm_dma_state_doutcomplete(void);
+static statemachine_state_func sm_dma_state_din_start(void);
+static statemachine_state_func sm_dma_state_din_complete(void);
+static statemachine_state_func sm_dma_state_dout_start(void);
+static statemachine_state_func sm_dma_state_dout_complete(void);
 static statemachine_state_func sm_dma_state_99(void);
 
 // dma mailbox setup with
@@ -123,19 +123,16 @@ static statemachine_state_func sm_dma_state_addr() {
     buslatches_setbyte(2, (addr >> 16)); // BIT(7)= SYNClatch is read only, not changed)
 
     // WTBT (Bit 4): early indicator of DATO
-    // assertion: BS7 in reg 4 always negated after din/dout_complete(), so write to reg 4 will not assert it silently
-    if (QUNIBUS_CYCLE_IS_DATO(buscycle))
-        buslatches_setbits(4, BIT(4), BIT(4));
-
-
+//    // assertion: BS7 in reg 4 always negated after din/dout_complete(), so write to reg 4 will not assert it silently
+//    if (QUNIBUS_CYCLE_IS_DATO(buscycle))
+//        buslatches_setbits(4, BIT(4), BIT(4));
     // BS7 (Bit 5): prev DATA BS7 is cached in reg4.cur_reg_val from prev DATA portion, set to ADDR BS7.
-    /*    {
+    {
         uint8_t tmp = (addr & QUNIBUS_IOPAGE_ADDR_BITMASK) ? BIT(5) : 0 ;
-      	if (QUNIBUS_CYCLE_IS_DATO(buscycle))
+        if (QUNIBUS_CYCLE_IS_DATO(buscycle))
             tmp |= BIT(4);
-    	buslatches_setbits(4, BIT(4)+BIT(5), tmp);
-        }
-    */
+        buslatches_setbits(4, BIT(4)+BIT(5), tmp);
+    }
 
     // "The Bus Master asserts TSYNC 150 ns minimum after it gates
     // TADDR, TBS7, and TWTBT onto the Bus; 300 ns minimum after the
@@ -149,25 +146,44 @@ static statemachine_state_func sm_dma_state_addr() {
 //	__delay_cycles(NANOSECS(100-50)) ; PRU runtime longer
 
     // how many word can be transferred in DATBI/BO block cycle?
+    // "Block Mode bus masters that do not monitor RDMR are
+    // limited to eight transfers per acquisition.
+    // Block Mode bus masters that do monitor RDMR may, if RDMR
+    // is not asserted after the seventh transfer, continue ^ntil
+    // the bus slave fails tc assert BREP (16 transfers maximum).
+    // Otherwise, they stop after eight transfers.
+    // Block Mode bus slaves must not cross 16-w0rd boundaries.
+    // This limitation facilitates cache design."
+
     // "The Bus Master must limit itself to not more than eight transfers unless it
     // monitors RDMR. If it monitors RDMR, it may continue with blocks of eight so long
     // as RDMR is not asserted at the end of each seventh transfer."
-    sm_dma.block_words_left = (sm_dma.words_left > 8) ? 8 : sm_dma.words_left;
+
+//	if (sm_dma.words_left == 1) // fast path. worth the test?
+//		sm_dma.block_end_addr = addr ;
+//	else {
+    // block: not more then 8 words, do not cross 16 word (32 byte) boundary
+    uint32_t block_end_addr_1 = addr + 2* (MIN(sm_dma.words_left, 8)-1); // limit block len to 8 words, add 7
+    uint32_t block_end_addr_2 = addr | 0x1e ; // limit by even/odd 32 byte boundary
+    // has to work for single odd "DATOB" addresses too. 
+    sm_dma.block_end_addr = MIN(block_end_addr_1,block_end_addr_2) ;
+//	}
+//    sm_dma.block_words_left = (sm_dma.words_left > 8) ? 8 : sm_dma.words_left;
     sm_dma.first_data_portion = true ; // remove ADDR before DIN/DOUT
     buslatches_setbits(4, BIT(0), BIT(0)); // assert SYNC, as late as possible. DAL self-latched
 
     // addr portion ready, SYNC asserted. ADDR remains on DAL
     if (QUNIBUS_CYCLE_IS_DATO(buscycle)) {
-        sm_dma.block_data_state_func = (statemachine_state_func) &sm_dma_state_doutstart;
-        return (statemachine_state_func) &sm_dma_state_doutstart;
+        sm_dma.block_data_state_func = (statemachine_state_func) &sm_dma_state_dout_start;
+        return (statemachine_state_func) &sm_dma_state_dout_start;
     } else {
-        sm_dma.block_data_state_func = (statemachine_state_func) &sm_dma_state_dinstart;
-        return (statemachine_state_func) &sm_dma_state_dinstart;
+        sm_dma.block_data_state_func = (statemachine_state_func) &sm_dma_state_din_start;
+        return (statemachine_state_func) &sm_dma_state_din_start;
     }
 }
 
 // initiate a DIN
-statemachine_state_func sm_dma_state_dinstart() {
+statemachine_state_func sm_dma_state_din_start() {
     uint32_t addr = mailbox.dma.cur_addr; // non-volatile snapshot, BS7 encoded
     uint16_t data;
 
@@ -177,7 +193,8 @@ statemachine_state_func sm_dma_state_dinstart() {
     // after the assertion of TDIN for the last time. In each case,
     // TBS7 can be asserted or negated as soon	as the conditions for
     // asserting TDIN are met."
-    if (sm_dma.block_words_left > 1) // not on last TDIN of block
+//    if (sm_dma.block_words_left > 1) // not on last TDIN of block
+    if (addr != sm_dma.block_end_addr) // not on last TDIN of block
         buslatches_setbits(4, BIT(5)+BIT(1), 0xff); // assert DIN,BS7
     else
         buslatches_setbits(4, BIT(5)+BIT(1), BIT(1)); // assert DIN, negate BS7
@@ -213,8 +230,9 @@ statemachine_state_func sm_dma_state_dinstart() {
         // "The Bus Slave continues to gate TDATA onto the bus for 0 ns minimum and 100 ns maximum after negating TRPLY".
         buslatches_setbyte(3, 0x02) ; // cmd code "clr DAL"
 
-        sm_dma.block_words_left--;
-        if (sm_dma.block_words_left == 0) {
+        if (addr == sm_dma.block_end_addr) {// last TDIN of block
+//        sm_dma.block_words_left--;
+//        if (sm_dma.block_words_left == 0) {
             sm_dma.block_data_state_func = NULL;	// signal to state 99: "end of block""
         }
 
@@ -227,12 +245,12 @@ statemachine_state_func sm_dma_state_dinstart() {
         // DATI to external slave
         // wait for a slave SSYN
         TIMEOUT_SET(TIMEOUT_DMA, MICROSECS(QUNIBUS_TIMEOUT_PERIOD_US)); // runs 90 ns
-        return (statemachine_state_func) &sm_dma_state_dincomplete; // wait RPLY DATI
+        return (statemachine_state_func) &sm_dma_state_din_complete; // wait RPLY DATI
     }
 }
 
 // initiate a DOUT
-statemachine_state_func sm_dma_state_doutstart() {
+statemachine_state_func sm_dma_state_dout_start() {
     uint32_t addr = mailbox.dma.cur_addr; // non-volatile snapshot, BS7 encoded
     uint8_t buscycle = mailbox.dma.buscycle;
     uint16_t data;
@@ -283,8 +301,9 @@ statemachine_state_func sm_dma_state_doutstart() {
 //			buslatches_setbits(4, BIT(0), 0); SYNC???
         buslatches_setbits(4, BIT(3), 0); // slave negates RPLY
 
-        sm_dma.block_words_left--;
-        if (sm_dma.block_words_left == 0) {
+        if (addr == sm_dma.block_end_addr) { // last TDOT of block
+//        sm_dma.block_words_left--;
+//        if (sm_dma.block_words_left == 0) {
             sm_dma.block_data_state_func = NULL;	// signal to state 99: "end of block""
         }
 
@@ -301,13 +320,15 @@ statemachine_state_func sm_dma_state_doutstart() {
         // "The Bus Slave asserts TRPLY 0 ns minimum (8000 ns maximum to
         // avoid Bus Timeout) after the assertion of RDOUT."
         TIMEOUT_SET(TIMEOUT_DMA, MICROSECS(QUNIBUS_TIMEOUT_PERIOD_US)); // runs 280 ns !!!
-        return (statemachine_state_func) &sm_dma_state_doutcomplete; // wait RPLY DATAO
+        return (statemachine_state_func) &sm_dma_state_dout_complete; // wait RPLY DATAO
     }
 }
 
 // DATI to external slave: DIN set, wait for RPLY or timeout
-static statemachine_state_func sm_dma_state_dincomplete() {
+static statemachine_state_func sm_dma_state_din_complete() {
     uint16_t tmpval;
+    uint32_t addr = mailbox.dma.cur_addr; // non-volatile snapshot, BS7 encoded
+
 
     // "The slave asserts TRPLY 0ns minimum (8000 ns maximum to avoid bus timeouts)
     // after assertion of RDIN."
@@ -315,7 +336,7 @@ static statemachine_state_func sm_dma_state_dincomplete() {
         // No RPLY yet, check timeout
         TIMEOUT_REACHED(TIMEOUT_DMA, sm_dma.state_timeout); // 110 ns
         if (!sm_dma.state_timeout)
-            return (statemachine_state_func) &sm_dma_state_dincomplete; // no RPLY yet: wait
+            return (statemachine_state_func) &sm_dma_state_din_complete; // no RPLY yet: wait
         // on timeout: proceed to end cycle
     }
 
@@ -336,8 +357,9 @@ static statemachine_state_func sm_dma_state_dincomplete() {
 
     // "The Bus Slave asserts TREF concurrent with TRPLY if, and only if, it is a
     // block mode device which can support another RDIN after the current RDIN""
-    sm_dma.block_words_left--;
-    if (sm_dma.block_words_left == 0 || (buslatches_getbyte(4) & BIT(6)) == 0) {
+    if (addr == sm_dma.block_end_addr || (buslatches_getbyte(4) & BIT(6)) == 0) {
+//    sm_dma.block_words_left--;
+//    if (sm_dma.block_words_left == 0 || (buslatches_getbyte(4) & BIT(6)) == 0) {
         // stop block mode data portions
         sm_dma.block_data_state_func = NULL;	// signal to state 99: "end of block""
     }
@@ -357,7 +379,9 @@ static statemachine_state_func sm_dma_state_dincomplete() {
 }
 
 // DATO to external slave: DOUT set, wait for RPLY or timeout
-static statemachine_state_func sm_dma_state_doutcomplete() {
+static statemachine_state_func sm_dma_state_dout_complete() {
+    uint32_t addr = mailbox.dma.cur_addr; // non-volatile snapshot, BS7 encoded
+
     // "The Bus Slave receives stable RDATA and RWTBT from 25 ns
     // minimum before the assertion of RCOUT until 25 ns minimum
     // after the negation of RDOUT."
@@ -367,7 +391,7 @@ static statemachine_state_func sm_dma_state_doutcomplete() {
         // No RPLY yet, check timeout
         TIMEOUT_REACHED(TIMEOUT_DMA, sm_dma.state_timeout);
         if (!sm_dma.state_timeout)
-            return (statemachine_state_func) &sm_dma_state_doutcomplete; // no RPLY yet: wait
+            return (statemachine_state_func) &sm_dma_state_dout_complete; // no RPLY yet: wait
         // on timeout: proceed to end cycle
     }
     // RPLY set by slave (or timeout): negate DOUT, remove DATA from bus
@@ -383,8 +407,9 @@ static statemachine_state_func sm_dma_state_doutcomplete() {
 
     // "The Bus Slave asserts TREF concurrent with TRPLY if, and only if, it is a
     // block mode device which can support another RDOUT after the current RDOUT"
-    sm_dma.block_words_left--;
-    if (sm_dma.block_words_left == 0 || (buslatches_getbyte(4) & BIT(6)) == 0) {
+//    sm_dma.block_words_left--;
+//    if (sm_dma.block_words_left == 0 || (buslatches_getbyte(4) & BIT(6)) == 0) {
+    if (addr == sm_dma.block_end_addr || (buslatches_getbyte(4) & BIT(6)) == 0) {
         // master or slave stop block mode data portions
         sm_dma.block_data_state_func = NULL;	// signal to state 99: "end of block""
         buslatches_setbyte(3, 0x2); // "clr DAL, remove data

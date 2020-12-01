@@ -1,0 +1,105 @@
+	.title	M9312 'DL' BOOT prom for RL11 controller, disables CPU cache
+
+	; This source code is a modified copy of the DEC M9312 23-751A9 boot PROM.
+	; This boot PROM is for the RL11 controller with RL01/RL02 drives.
+	; Multiple units and/or CSR addresses are supported via different entry points.
+	;
+        ; CPU cache must be disabled to trace XXDP diags via bus-attached logic analyzers.
+
+rlcsr	=174400 			; std RL11 csrbase
+ccsr	=177746 			; KDJ11,11/44 cache control
+
+rlcs	=+0				; control/status
+rlba	=+2				; bus address
+rlda	=+4				; disk address
+rlmp	=+6				; multipurpose
+
+cmstat	=2*2				; get status
+cmseek	=3*2				; seek
+cmrdhd	=4*2				; read header
+cmrdda	=6*2				; read data
+
+	.asect
+	; ---- Simple boot drive 0 from 0
+	. = 0
+	jmp	@#start0
+
+	; ---- Reboot drive 0 on power event
+	. = 24				; Power ON/OFF
+	.word	     start0		; PC
+	.word	     340		; PSW priority level 7
+
+
+	; ----- Main boot addresses
+	.=10000 			;  arbitrary position > 3000
+
+start:
+	; 4 unit numbers => 4 entry addresses
+start0:
+	mov	#0,r0
+	br	dlnr
+	nop
+start1:
+	mov	#1,r0
+	br	dlnr
+	nop
+start2:
+	mov	#2,r0
+	br	dlnr
+	nop
+start3:
+	mov	#3,r0
+
+dlnr:
+	; on KDJ11 CPU, disable cache
+	; set bit 9 "cache bypasse" in cache control register (KDJ11, 11/44)
+	; set bits 2,3 is force miss high/low (KDJ11,44,70)
+	mov	#1014,@#ccsr
+
+	mov	#rlcsr,r1		; boot std csr, unit <R0>
+
+	; --------------------------------------------------
+
+	mov	r0,r3			; save unit number
+	swab	r3			; unit number in upper byte
+	mov	r3,(r1) 		; set unit, NOP cmd
+
+	mov	#013,rlda(r1)		; subcmd reset+getstatus
+	bis	#cmstat,r3		; get status cmd (r3lo is 0)
+	mov	r3,(r1) 		; execute
+1$:	tstb	(r1)			; test for ready
+	bpl	1$			; wait
+
+	clrb	r3			; unit number in upper byte
+	bis	#cmrdhd,r3		; read header cmd
+	mov	r3,(r1) 		; execute
+2$:	tstb	(r1)			; test for ready
+	bpl	2$			; wait
+
+	mov	rlmp(r1),r2		; retrieve cyl/head/sector
+	bic	#77,r2			; set sector to zero
+	inc	r2			; set head 0, seek to cyl 0
+	mov	r2,rlda(r1)		; into da for seek
+	clrb	r3			; unit number in upper byte
+	bis	#cmseek,r3		; seek cmd
+	mov	r3,(r1) 		; execute
+3$:	tstb	(r1)			; test for ready
+	bpl	3$			; wait
+
+	clr	rlda(r1)		; select cyl0/head0/sector0
+	mov	#-512.,rlmp(r1) 	; set word count
+	clrb	r3			; unit number in upper byte
+	bis	#cmrdda,r3		; read data cmd
+	mov	r3,(r1) 		; execute
+4$:	tstb	(r1)			; test for ready
+	bpl	4$			; wait
+
+	tst	(r1)			; test for error
+	bpl	5$			; br if ok
+	reset				; ERROR - reset the world
+	br     dlnr			; retry. r0 unchanged
+
+5$:	bic	#377,(r1)		; execute nop cmd
+	clr	pc			; jump to bootstrap at zero
+
+	.end

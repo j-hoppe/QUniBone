@@ -49,6 +49,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
     while(1) {
         // normally process states in high speed loop.
         // some long states return so main() can process other SMs
+        // MUST return to mian() if !EVENT_IS_ACKED, so PRU checks for AMR2PPRU opcodes on devcie register access!
         switch(state) {
         case state_data_slave_stop:
         case state_data_slave_start:
@@ -93,7 +94,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 // fast return of present value, then long delay
                 // until ARM is ready when event acked
                 uint16_t val;
-				uint8_t emulated_addr_res = emulated_addr_read(sm_data_slave.addr, &val) ;
+                uint8_t emulated_addr_res = emulated_addr_read(sm_data_slave.addr, &val) ;
 
                 if (!emulated_addr_res) { // read val from iopage register
                     return state_data_slave_stop; // non existing address
@@ -107,12 +108,12 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 // RPLY asserted while ARM processes iopage register event, else timeout
                 // from now on, "Abort" must clear REF: 		buslatches_setbits(4, BIT(6), 0) ; // clear REF: allow Block mode
                 if (emulated_addr_res == 1)
-					state = state_data_slave_din_complete ; // mem access: no need to wait for ARM EVENT_ACK
-				else 
-                return state_data_slave_din_complete; // main(): check for ARM EVENT_ACK
+                    state = state_data_slave_din_single_complete ; // mem access: no need to wait for ARM EVENT_ACK
+                else
+                    return state_data_slave_din_single_complete; // main(): check for ARM EVENT_ACK
             } else if (latch4val & BIT(2)) {  // DOUT ?
                 uint32_t addr = sm_data_slave.addr;
-				uint8_t emulated_addr_res ;
+                uint8_t emulated_addr_res ;
                 // access to DAL in latches[0,1,2] transparent
                 buslatches_setbyte(3, BIT(0)) ; // unlatch DAL
                 if (latch4val & BIT(4)) { // WTBT? byte access!
@@ -139,9 +140,9 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 // RPLY asserted while ARM processes iopage register event, else timeout
                 // from now on, "Abort" must clear REF: 		buslatches_setbits(4, BIT(6), 0) ; // clear REF: allow Block mode
                 if (emulated_addr_res == 1)
-					state = state_data_slave_dout_complete ; // mem access: no need to wait for ARM EVENT_ACK
-					else 
-                return state_data_slave_dout_complete; // main(): check for ARM EVENT_ACK
+                    state = state_data_slave_dout_single_complete ; // mem access: no need to wait for ARM EVENT_ACK
+                else
+                    return state_data_slave_dout_single_complete; // main(): check for ARM EVENT_ACK
             }
             else {
                 // wait for DIN or DOUT
@@ -149,7 +150,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
             }
         }
         break ;
-        case state_data_slave_din_complete:
+        case state_data_slave_din_single_complete:
         {
             uint8_t latch4val = buslatches_getbyte(4) ;
 
@@ -162,20 +163,21 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
 
             // wait for master to negate DIN or DOUT
             if (latch4val  & BIT(1)) { // DIN?
-                state = state_data_slave_din_complete; // wait for master to negate DIN
+                state = state_data_slave_din_single_complete; // wait for master to negate DIN
             } else if (!EVENT_IS_ACKED(mailbox, deviceregister)) {
-                state = state_data_slave_din_complete; // wait for ARM to process device register access
+				return state_data_slave_din_single_complete; //  main(): check for ARM EVENT_ACK			 
+//                state = state_data_slave_din_single_complete; // wait for ARM to process device register access
             } else {
                 buslatches_setbits(4, BIT(3)+BIT(6), 0); // RPLY=0, ARM-elongated cycle finished.  REF=0, cleanup
                 // "The Bus slave continues to gate TDATA onto the Bus for 0 ns
                 // minimum and 100 ns maximum after negating TRPLY"
                 buslatches_setbyte(3, BIT(1));	// "clr DAL", remove data from DAL lines
 
-                state = state_data_slave_din_end;
+                state = state_data_slave_din_block_complete;
             }
         }
         break ;
-        case state_data_slave_dout_complete:
+        case state_data_slave_dout_single_complete:
         {
             uint8_t latch4val = buslatches_getbyte(4) ;
             /* done in dout_end
@@ -186,16 +188,17 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
             */
 
             if (latch4val & BIT(2)) { // DOUT?
-                state = state_data_slave_dout_complete; // wait for master to negate DOUT
+                state = state_data_slave_dout_single_complete; // wait for master to negate DOUT
             } else if (!EVENT_IS_ACKED(mailbox, deviceregister)) {
-                state = state_data_slave_dout_complete; // wait for ARM to process device register access
+  				  return state_data_slave_dout_single_complete; //  main(): check for ARM EVENT_ACK            
+//                state = state_data_slave_dout_single_complete; // wait for ARM to process device register access
             } else {
                 buslatches_setbits(4, BIT(3)+BIT(6), 0); // RPLY=0, ARM-elongated cycle finished.  REF=0, cleanup
-                state = state_data_slave_dout_end;
+                state = state_data_slave_dout_block_complete;
             }
         }
         break ;
-        case state_data_slave_din_end:
+        case state_data_slave_din_block_complete:
             // another cycle after DIN+RPLY?
         {
             uint8_t latch4val = buslatches_getbyte(4) ;
@@ -216,11 +219,11 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 state = state_data_slave_dindout_start; // process DIN
             }
             else
-                state = state_data_slave_din_end; // wait for SYNC,DIN or DOUT
+                state = state_data_slave_din_block_complete; // wait for SYNC,DIN or DOUT
         }
         break ;
 
-        case state_data_slave_dout_end:
+        case state_data_slave_dout_block_complete:
             // another cycle after DOUT+RPLY?
         {
             uint8_t latch4val = buslatches_getbyte(4) ;
@@ -236,7 +239,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 sm_data_slave.addr += 2;
                 state = state_data_slave_dindout_start;
             } else
-                state = state_data_slave_dout_end; // wait for SYNC or DOUT
+                state = state_data_slave_dout_block_complete; // wait for SYNC or DOUT
         }
         break ;
         } // switch(state)

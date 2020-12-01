@@ -70,13 +70,15 @@ OBJECTS_COMMON= \
     $(OBJ_DIR)/pru1_ddrmem.object  \
     $(OBJ_DIR)/pru1_iopageregisters.object  \
     $(OBJ_DIR)/pru1_pru_mailbox.object  \
+    $(OBJ_DIR)/pru1_statemachine_initialization.object  \
     $(OBJ_DIR)/pru1_statemachine_arbitration.object  \
     $(OBJ_DIR)/pru1_statemachine_dma.object  \
     $(OBJ_DIR)/pru1_statemachine_data_slave.object  \
-    $(OBJ_DIR)/pru1_statemachine_intr_master.object  \
-    $(OBJ_DIR)/pru1_statemachine_intr_slave.object  \
     $(OBJ_DIR)/pru1_timeouts.object	\
     $(OBJ_DIR)/pru1_utils.object
+
+#    $(OBJ_DIR)/pru1_statemachine_intr_master.object  \
+#    $(OBJ_DIR)/pru1_statemachine_intr_slave.object  \
 
 
 # rule to print a variable.

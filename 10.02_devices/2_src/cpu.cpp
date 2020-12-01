@@ -185,8 +185,8 @@ void unibone_prioritylevelchange(uint8_t level) {
 }
 
 // CPU executes RESET opcode -> pulses INIT line
-void unibone_bus_init(unsigned pulsewidth_ms) {
-	qunibus->init(pulsewidth_ms);
+void unibone_bus_init() {
+	qunibus->init();
 }
 
 cpu_c::cpu_c() :
@@ -262,7 +262,7 @@ bool cpu_c::on_param_changed(parameter_c *param) {
 // start CPU logic on PRU and switch arbitration mode
 void cpu_c::start() {
 	runmode.value = true;
-	mailbox->cpu_enable = 1;
+	mailbox->param = 1;
 	mailbox_execute(ARM2PRU_CPU_ENABLE);
 	qunibus->set_arbitrator_active(true);
 	pc.readonly = true; // can only be set on stopped CPU
@@ -290,7 +290,7 @@ void cpu_c::stop(const char * info, bool print_pc) {
 	pc.value = ka11.r[7]; // update for editing
 
 	runmode.value = false;
-	mailbox->cpu_enable = 0;
+	mailbox->param = 0;
 	mailbox_execute(ARM2PRU_CPU_ENABLE);
 	qunibus->set_arbitrator_active(false);
 
@@ -346,7 +346,7 @@ void cpu_c::worker(unsigned instance) {
 			// START, or HALT+START: reset system
 			ka11.r[7] = pc.value & 0xffff;
             ka11.sw = swreg.value & 0xffff;
-			qunibus->init(50);
+			qunibus->init();
 			ka11_reset(&ka11);
 			if (!halt_switch.value) {
 				// START without HALT
@@ -394,7 +394,7 @@ void cpu_c::worker(unsigned instance) {
 //			if (!halt_switch.value) {
 			stop("ACLO", true);
 			// execute this with real-world time, else lock (CPU not step() ing here)
-			qunibus->init(50);		// reset devices
+			qunibus->init();		// reset devices
 			start();		// start CPU logic on PRU, is bus master now
 			INFO("ACLO inactive: fetch vector");
 			ka11_reset(&unibone_cpu->ka11);

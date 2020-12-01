@@ -149,7 +149,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 
 	// without PDP-11 CPU no INIT after power ON was generated.
 	// Devices may trash the bus lines.
-	qunibus->init(50);
+	qunibus->init();
 
 	qunibusadapter->enabled.set(true);
 
@@ -279,7 +279,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 			if (!strcasecmp(s_opcode, "q")) {
 				ready = true;
 			} else if (!strcasecmp(s_opcode, "init")) {
-				qunibus->init(50);
+				qunibus->init();
 			} else if (!strcasecmp(s_opcode, "pwr")) {
 				qunibus->powercycle() ;
 			} else if (!strcasecmp(s_opcode, "dbg") && n_fields == 2) {

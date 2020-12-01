@@ -53,7 +53,7 @@
 #include "pru1_buslatches.h"
 #include "pru1_statemachine_arbitration.h"
 #include "pru1_statemachine_dma.h"
-#include "pru1_statemachine_intr_master.h"
+//#include "pru1_statemachine_intr_master.h"
 #include "pru1_statemachine_data_slave.h"
 
 // Supress warnings about using void * as function pointers

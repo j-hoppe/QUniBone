@@ -108,8 +108,9 @@ uint8_t emulated_addr_write_w(uint32_t addr, uint16_t w) {
 			iopageregister_t *reg = (iopageregister_t *) &(deviceregisters.registers[reghandle]); // alias
 			uint16_t reg_val = (reg->value & ~reg->writable_bits) | (w & reg->writable_bits);
 			reg->value = reg_val;
-			if (reg->event_flags & IOPAGEREGISTER_EVENT_FLAG_DATO)
+			if (reg->event_flags & IOPAGEREGISTER_EVENT_FLAG_DATO) {
 				DO_EVENT_DEVICEREGISTER(reg, QUNIBUS_CYCLE_DATO, addr, reg_val);
+				}
 			return 2;
 		}
 	} else

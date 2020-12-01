@@ -297,8 +297,8 @@ void main(void) {
 				break;
 			case ARM2PRU_CPU_ENABLE:
 				// bool flag much faster to access than shared mailbox member.
-				if (emulate_cpu != mailbox.cpu_enable) {
-					emulate_cpu = mailbox.cpu_enable;
+				if (emulate_cpu != mailbox.param) {
+					emulate_cpu = mailbox.param;
 					sm_arb_reset(); // new arbitration algorithms
 				}
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done

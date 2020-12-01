@@ -117,6 +117,9 @@ Write: TIAKO normally operated over reg7, reg5 only used for direct QBUS signal 
 2       R       2       IAKI6 = RIAKI && RIRQ6 && ! RIRQ7
 3       R       2       IAKI7 = RIAKI && RIRQ7
 4       R       2       DMGI
+5		R		2		0
+6		R		2		0
+7		R		2		0
 Write used to forward all IAKI<7:4> to IAKO<7:4>
 0       W       2       IAKO4 => TIAKO
 1       W       2       IAKO5 => TIAKO

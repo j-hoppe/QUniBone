@@ -1,0 +1,107 @@
+       1                                	.title	M9312 'DL' BOOT prom for RL11 controller, disables CPU cache
+       2                                
+       3                                	; This source code is a modified copy of the DEC M9312 23-751A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for the RL11 controller with RL01/RL02 drives.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                
+      10 174400                         rlcsr	=174400 			; std RL11 csrbase
+      11 177746                         ccsr	=177746 			; KDJ11,11/44 cache control
+      12                                
+      13 000000                         rlcs	=+0				; control/status
+      14 000002                         rlba	=+2				; bus address
+      15 000004                         rlda	=+4				; disk address
+      16 000006                         rlmp	=+6				; multipurpose
+      17                                
+      18 000004                         cmstat	=2*2				; get status
+      19 000006                         cmseek	=3*2				; seek
+      20 000010                         cmrdhd	=4*2				; read header
+      21 000014                         cmrdda	=6*2				; read data
+      22                                
+      23                                	.asect
+      24                                	; ---- Simple boot drive 0 from 0
+      25 000000                         	. = 0
+      26 000000 000137  010000          	jmp	@#start0
+      27                                
+      28                                	; ---- Reboot drive 0 on power event
+      29 000024                         	. = 24				; Power ON/OFF
+      30 000024 010000                  	.word	     start0		; PC
+      31 000026 000340                  	.word	     340		; PSW priority level 7
+      32                                
+      33                                
+      34                                	; ----- Main boot addresses
+      35 010000                         	.=10000 			;  arbitrary position > 3000
+      36                                
+      37                                start:
+      38                                	; 4 unit numbers => 4 entry addresses
+      39                                start0:
+      40 010000 012700  000000          	mov	#0,r0
+      41 010004 000413                  	br	dlnr
+      42 010006 000240                  	nop
+      43                                start1:
+      44 010010 012700  000001          	mov	#1,r0
+      45 010014 000407                  	br	dlnr
+      46 010016 000240                  	nop
+      47                                start2:
+      48 010020 012700  000002          	mov	#2,r0
+      49 010024 000403                  	br	dlnr
+      50 010026 000240                  	nop
+      51                                start3:
+      52 010030 012700  000003          	mov	#3,r0
+      53                                
+      54                                dlnr:
+      55                                	; on KDJ11 CPU, disable cache
+      56                                	; set bit 9 "cache bypasse" in cache control register (KDJ11, 11/44)
+      57                                	; set bits 2,3 is force miss high/low (KDJ11,44,70)
+      58 010034 012737  001014  177746  	mov	#1014,@#ccsr
+      59                                
+      60 010042 012701  174400          	mov	#rlcsr,r1		; boot std csr, unit <R0>
+      61                                
+      62                                	; --------------------------------------------------
+      63                                
+      64 010046 010003                  	mov	r0,r3			; save unit number
+      65 010050 000303                  	swab	r3			; unit number in upper byte
+      66 010052 010311                  	mov	r3,(r1) 		; set unit, NOP cmd
+      67                                
+      68 010054 012761  000013  000004  	mov	#013,rlda(r1)		; subcmd reset+getstatus
+      69 010062 052703  000004          	bis	#cmstat,r3		; get status cmd (r3lo is 0)
+      70 010066 010311                  	mov	r3,(r1) 		; execute
+      71 010070 105711                  1$:	tstb	(r1)			; test for ready
+      72 010072 100376                  	bpl	1$			; wait
+      73                                
+      74 010074 105003                  	clrb	r3			; unit number in upper byte
+      75 010076 052703  000010          	bis	#cmrdhd,r3		; read header cmd
+      76 010102 010311                  	mov	r3,(r1) 		; execute
+      77 010104 105711                  2$:	tstb	(r1)			; test for ready
+      78 010106 100376                  	bpl	2$			; wait
+      79                                
+      80 010110 016102  000006          	mov	rlmp(r1),r2		; retrieve cyl/head/sector
+      81 010114 042702  000077          	bic	#77,r2			; set sector to zero
+      82 010120 005202                  	inc	r2			; set head 0, seek to cyl 0
+      83 010122 010261  000004          	mov	r2,rlda(r1)		; into da for seek
+      84 010126 105003                  	clrb	r3			; unit number in upper byte
+      85 010130 052703  000006          	bis	#cmseek,r3		; seek cmd
+      86 010134 010311                  	mov	r3,(r1) 		; execute
+      87 010136 105711                  3$:	tstb	(r1)			; test for ready
+      88 010140 100376                  	bpl	3$			; wait
+      89                                
+      90 010142 005061  000004          	clr	rlda(r1)		; select cyl0/head0/sector0
+      91 010146 012761  177000  000006  	mov	#-512.,rlmp(r1) 	; set word count
+      92 010154 105003                  	clrb	r3			; unit number in upper byte
+      93 010156 052703  000014          	bis	#cmrdda,r3		; read data cmd
+      94 010162 010311                  	mov	r3,(r1) 		; execute
+      95 010164 105711                  4$:	tstb	(r1)			; test for ready
+      96 010166 100376                  	bpl	4$			; wait
+      97                                
+      98 010170 005711                  	tst	(r1)			; test for error
+      99 010172 100002                  	bpl	5$			; br if ok
+     100 010174 000005                  	reset				; ERROR - reset the world
+     101 010176 000716                  	br     dlnr			; retry. r0 unchanged
+     102                                
+     103 010200 042711  000377          5$:	bic	#377,(r1)		; execute nop cmd
+     104 010204 005007                  	clr	pc			; jump to bootstrap at zero
+     105                                
+     106                                	.end
+     106                                

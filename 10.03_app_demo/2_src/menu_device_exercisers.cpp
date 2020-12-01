@@ -127,7 +127,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 			if (!strcasecmp(s_opcode, "q")) {
 				ready = true;
 			} else if (!strcasecmp(s_opcode, "init")) {
-				qunibus->init(50);
+				qunibus->init();
 			} else if (!strcasecmp(s_opcode, "pwr")) {
 				qunibus->powercycle();
 			} else if (!strcasecmp(s_opcode, "dbg") && n_fields == 2) {

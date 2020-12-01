@@ -53,12 +53,13 @@ typedef struct {
 } timeout_controlblock_t;
 
 // predefined timeouts
-#define TIMEOUT_COUNT	3
+#define TIMEOUT_COUNT	4
 
 // fixed indices
 #define TIMEOUT_DMA	0
 #define TIMEOUT_SACK 	1
-#define TIMEOUT_TEST 	2
+#define TIMEOUT_QBUS_INIT 	2
+#define TIMEOUT_TEST 	3
 
 // cycle end count for each active timeout.
 extern timeout_controlblock_t timeout_controlblock[TIMEOUT_COUNT];

@@ -36,10 +36,10 @@ enum states_data_slave_enum {
     state_data_slave_stop = 0, // all work done
     state_data_slave_start,
     state_data_slave_dindout_start,
-    state_data_slave_din_complete,
-    state_data_slave_dout_complete,
-    state_data_slave_din_end,
-    state_data_slave_dout_end
+    state_data_slave_din_single_complete,
+    state_data_slave_dout_single_complete,
+    state_data_slave_din_block_complete,
+    state_data_slave_dout_block_complete
 } ;
 
 // Transfers a block of worst as data cycles

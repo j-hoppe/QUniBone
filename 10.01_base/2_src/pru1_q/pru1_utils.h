@@ -35,6 +35,11 @@
 volatile register uint32_t __R30;
 volatile register uint32_t __R31;
 
+
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
+
 // execution of a state. return : next state; or NULL if statemachine stopped
 // return type is void *, but should be statemachine_state_func_ptr recursively
 // typedef	statemachine_state_func * (*statemachine_state_func)(void);
@@ -136,8 +141,6 @@ typedef void * (*statemachine_state_func)(void);
 	/* is Interrupt "level" or "edge"??? */					\
 	__R31 = PRU2ARM_INTERRUPT_PRU0_R31_VEC_VALID |PRU2ARM_INTERRUPT_SIGNUM ; /* 35 */ \
 	} while(0)
-
-void do_event_initializationsignals(void) ;
 
 
 #endif

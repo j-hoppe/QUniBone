@@ -26,44 +26,4 @@
 
 #define _PRU1_UTILS_C_
 
-#include <stdint.h>
-#include <stdbool.h>
-
-#include "mailbox.h"
-#include "pru1_buslatches.h"
-#include "pru1_statemachine_arbitration.h"
-#include "pru1_utils.h"
-
-
-// detect signal change of INIT,DCLO,ACLO and sent event
-// history initialized (among others) by powercycle
-// Assume this events come so slow, no one gets raised until
-// prev event processed.
-void do_event_initializationsignals() {
-	uint8_t mb_cur = mailbox.events.init_signals_cur; // as saved
-	uint8_t bus_cur = buslatches_getbyte(6) & INITIALIZATIONSIGNAL_ANY; // now sampled
-	
-	if (bus_cur & INITIALIZATIONSIGNAL_INIT) {
-	sm_arb.device_request_mask = 0 ; // INIT clears all PRIORITY request signals
-		// SACK cleared later on end of INTR/DMA transaction
-	}
-		
-	if (bus_cur != mb_cur) {
-		// save old state, so ARM can detect what changed
-		mailbox.events.init_signals_prev = mb_cur;
-		mailbox.events.init_signals_cur = bus_cur;
-		// trigger the correct event: power and/or INIT
-		if ((mb_cur ^ bus_cur) & (INITIALIZATIONSIGNAL_DCOK | INITIALIZATIONSIGNAL_POK)) {
-			// DCOK or POK changed
-			EVENT_SIGNAL(mailbox,power) ;
-		}
-		if ((mb_cur ^ bus_cur) & INITIALIZATIONSIGNAL_INIT) {
-			// INIT changed
-			EVENT_SIGNAL(mailbox,init);
-		}
-		PRU2ARM_INTERRUPT
-		;
-	}
-}
-
 

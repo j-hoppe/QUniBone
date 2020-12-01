@@ -41,7 +41,7 @@
  d) signal EVENT0
  e) goto a
  */
-
+ 
 #include <stdint.h>
 #include <stdbool.h>
 #include <pru_cfg.h>
@@ -56,11 +56,12 @@
 #include "iopageregister.h"
 
 #include "pru1_buslatches.h"
+#include "pru1_statemachine_initialization.h"
 #include "pru1_statemachine_arbitration.h"
 #include "pru1_statemachine_dma.h"
 #include "pru1_statemachine_data_slave.h"
-#include "pru1_statemachine_intr_master.h"
-#include "pru1_statemachine_intr_slave.h"
+//#include "pru1_statemachine_intr_master.h"
+//#include "pru1_statemachine_intr_slave.h"
 
 // supress warnigns about using void * as function pointers
 //	sm_slave_state = (statemachine_state_func)&sm_data_slave_start;
@@ -112,6 +113,8 @@ void main(void) {
 
 	buslatches_reset(); // all signals negated, caches cleared
 
+	sm_initialization_reset();
+
 	/* ARM must init mailbox, especially:
 	 mailbox.arm2pru_req = ARM2PRU_NONE;
 	 mailbox.events.eventmask = 0;
@@ -132,20 +135,17 @@ void main(void) {
 			// DATA or INTR for CPU?
 //TODO: dummy slave: always NULL
 			// fast: a complete slave data cycle
-PRU_DEBUG_PIN0(1);					
 			// execute slave states until _stop or return because of signal to PRU
 			while ((sm_data_slave.state = sm_data_slave_func(sm_data_slave.state)) /* ! stopped*/
 					&& EVENT_IS_ACKED(mailbox, deviceregister)) {
-PRU_DEBUG_PIN0(1);					
 				// throws signals to ARM,
 				// Acess to internal registers may issue ARM2PRU opcode, so exit loop then
 				;// execute complete slave cycle, then check NPR/INTR
 				}
 			// signal INT or PWR FAIL to ARM
-			// before sm_arb_worker(), so BR/NPR requests are canceled on INIT
-#ifdef TODO
-			do_event_initializationsignals();
-#endif
+			// before sm_arb_worker(), so INTR/DMR requests are canceled on INIT
+			sm_initialization_func();
+					
 			if (!emulate_cpu) {
 				// Fast forward device requests GRANTed by physical CPU.
 				// Only one GRANT at a time may be active, else arbitrator/CPLD2 malfunction.
@@ -183,18 +183,9 @@ PRU_DEBUG_PIN0(1);
 					sm_data_master_state = (statemachine_state_func) &sm_dma_start;
 					// can data_master_state be overwritten in the midst of a running data_master_state ?
 					// no: when running, SACK is set, no new GRANTs
-#ifdef TODO
-				} else if (granted_request & PRIORITY_ARBITRATION_INTR_MASK) {
-					// convert IAK4..7 bit in grant_mask to INTR index
-					uint8_t idx = PRIORITY_ARBITRATION_INTR_BIT2IDX(granted_request);
-					// now transfer INTR vector for interupt of GRANTed level.
-					// vector and ARM context have been setup by ARM before ARM2PRU_INTR already
-					sm_intr_master.vector = mailbox.intr.vector[idx];
-					sm_intr_master.level_index = idx; // to be returned to ARM on complete
-
-					sm_data_master_state = (statemachine_state_func) &sm_intr_master_start;
-#endif					
 				}
+				// else if (granted_request & PRIORITY_ARBITRATION_INTR_MASK) {
+				// No separate state machone for device side of INTR, handled in sm_arb 
 			}
 			
 		} else {
@@ -242,14 +233,13 @@ PRU_DEBUG_PIN0(1);
 				// request not put on bus for CPU memory access
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
-#ifdef TODO				
 			case ARM2PRU_INTR:
 				// request INTR, arbitrator must've been selected with ARM2PRU_ARB_MODE_*
 				// start one INTR cycle. May be raised in midst of slave cycle
 				// by ARM, if access to "active" register triggers INTR.
 				sm_arb.device_request_mask |= mailbox.intr.priority_arbitration_bit;
-				// sm_arb_worker_device() evaluates this, extern Arbitrator raises Grant,
-				// vector of GRANted level is transfered with statemachine sm_intr_master
+				// sm_arb evaluates this, extern Arbitrator raises Grant/performs INTR protocol,
+				// vector of GRANted level is transfered to ARM
 
 				// Atomically change state in a device's associates interrupt register.
 				// The Interupt Register is set immediately. No wait for INTR GRANT,
@@ -274,7 +264,6 @@ PRU_DEBUG_PIN0(1);
 				}
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
-#endif				
 			case ARM2PRU_INITALIZATIONSIGNAL_SET:
 				switch (mailbox.initializationsignal.id) {
 				case INITIALIZATIONSIGNAL_POK:
@@ -295,8 +284,8 @@ PRU_DEBUG_PIN0(1);
 #ifdef TODO				
 			case ARM2PRU_CPU_ENABLE:
 				// bool flag much faster to access than shared mailbox member.
-				if (emulate_cpu != mailbox.cpu_enable) {
-					emulate_cpu = mailbox.cpu_enable;
+				if (emulate_cpu != mailbox.param) {
+					emulate_cpu = mailbox.param;
 					sm_arb_reset(); // new arbitration algorithms
 				}
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
@@ -333,13 +322,15 @@ PRU_DEBUG_PIN0(1);
 				sm_arb.state = state_arbitration_grant_check; // now executes DMA/IRQ GRANT protocols
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
-			case ARM2PRU_CPU_BUS_ACTIVITY:
+			case ARM2PRU_CPU_BUS_ACCESS:
 				// Halted CPU does ODT polling for SLU, this causes bus traffic
-				if (!mailbox.cpu_enable) {
+				if (!mailbox.param) {
 					// set DMR, this stops BUS activity
-					buslatches_setbits(7, BIT(4), BIT(4)) ;
+					sm_arb.cpu_bus_inhibit_dmr_mask |= ARB_CPU_BUS_INHIBIT_DMR_ARM ;
+//					buslatches_setbits(7, BIT(4), BIT(4)) ;
 				} else {// Clear DMR: generates SACK timeout and restart
-					buslatches_setbits(7, BIT(4), 0) ;
+					sm_arb.cpu_bus_inhibit_dmr_mask &=  ~ARB_CPU_BUS_INHIBIT_DMR_ARM ;
+//					buslatches_setbits(7, BIT(4), 0) ;
 				}
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break ;

@@ -40,30 +40,49 @@
 // Assume this events come so slow, no one gets raised until
 // prev event processed.
 void do_event_initializationsignals() {
-	uint8_t mb_cur = mailbox.events.init_signals_cur; // as saved
-	uint8_t bus_cur = buslatches_getbyte(7) & 0x38; // now sampled
+	uint8_t bussignals_cur = buslatches_getbyte(7) & 0x38; // now sampled
 	
-	if (bus_cur & INITIALIZATIONSIGNAL_INIT) {
+	if (bussignals_cur & INITIALIZATIONSIGNAL_INIT) {
 	sm_arb.device_request_mask = 0 ; // INIT clears all PRIORITY request signals
 		// SACK cleared later on end of INTR/DMA transaction
 	}
-		
-	if (bus_cur != mb_cur) {
+
+	    // Power event
+    uint8_t powersignals_prev = mailbox.events.power_signals_cur; // as ARM knows
+    if ((powersignals_prev ^ bussignals_cur) & (INITIALIZATIONSIGNAL_DCLO | INITIALIZATIONSIGNAL_ACLO)) {
+        // ACLO or DCLO changed
+        mailbox.events.power_signals_prev = powersignals_prev;
+        mailbox.events.power_signals_cur = bussignals_cur & (INITIALIZATIONSIGNAL_DCLO | INITIALIZATIONSIGNAL_ACLO);
+        EVENT_SIGNAL(mailbox,power) ;
+        PRU2ARM_INTERRUPT;
+    }
+    uint8_t initsignal_prev = mailbox.events.init_signal_cur; // as ARM knows
+    if ((initsignal_prev ^ bussignals_cur) & INITIALIZATIONSIGNAL_INIT) {
+        // INIT changed
+        mailbox.events.init_signal_cur = bussignals_cur & INITIALIZATIONSIGNAL_INIT;
+        EVENT_SIGNAL(mailbox,init) ;
+        PRU2ARM_INTERRUPT;
+    }
+
+	
+/*		
+	if (bussignals_cur != mb_cur) {
 		// save old state, so ARM can detect what changed
 		mailbox.events.init_signals_prev = mb_cur;
-		mailbox.events.init_signals_cur = bus_cur;
+		mailbox.events.init_signals_cur = bussignals_cur;
 		// trigger the correct event: power and/or INIT
-		if ((mb_cur ^ bus_cur) & (INITIALIZATIONSIGNAL_DCLO | INITIALIZATIONSIGNAL_ACLO)) {
+		if ((mb_cur ^ bussignals_cur) & (INITIALIZATIONSIGNAL_DCLO | INITIALIZATIONSIGNAL_ACLO)) {
 			// AC_LO or DC_LO changed
 			EVENT_SIGNAL(mailbox,power) ;
 		}
-		if ((mb_cur ^ bus_cur) & INITIALIZATIONSIGNAL_INIT) {
+		if ((mb_cur ^ bussignals_cur) & INITIALIZATIONSIGNAL_INIT) {
 			// INIT changed
 			EVENT_SIGNAL(mailbox,init);
 		}
 		PRU2ARM_INTERRUPT
 		;
 	}
+	*/
 }
 
 

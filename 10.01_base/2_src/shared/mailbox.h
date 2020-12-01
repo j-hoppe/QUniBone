@@ -51,7 +51,7 @@
 #define ARM2PRU_DDR_FILL_PATTERN	17	// fill DDR with test pattern
 #define ARM2PRU_DDR_SLAVE_MEMORY	18	// use DDR as QBUS/UNIBUS slave memory
 #define ARM2PRU_ARB_GRANT_INTR_REQUESTS	19 // emulated CPU answers device requests
-#define ARM2PRU_CPU_BUS_ACTIVITY 20 // prohibit any activity of CPU on QBUS
+#define ARM2PRU_CPU_BUS_ACCESS 20 // prohibit any activity of CPU on QBUS
 
 
 
@@ -281,10 +281,13 @@ typedef struct {
 	mailbox_event_init_t init;
 	mailbox_event_power_t power;
 
-	uint8_t init_signals_prev; // on event: a signal changed from this ...
-	uint8_t init_signals_cur; // ... to this
+	uint8_t power_signals_prev; // on event: a signal changed from this ...
+	uint8_t power_signals_cur; // ... to this
 
-	uint8_t _dummy9[2]; // make record multiple of dword !!!
+//	uint8_t init_signal_prev; // on event: a signal changed from this ...
+	uint8_t init_signal_cur; // ... to this
+
+	uint8_t _dummy9[1]; // make record multiple of dword !!!
 } mailbox_events_t;
 
 typedef struct {
@@ -313,7 +316,7 @@ typedef struct {
 		mailbox_buslatch_test_t buslatch_test;
 		mailbox_buslatch_exerciser_t buslatch_exerciser;
 		mailbox_initializationsignal_t initializationsignal;
-		uint32_t cpu_enable;
+		uint32_t	param ; // generic parameter for ARM2PRU commands
 	};
 
     // possibly not aligned to 32 bit here

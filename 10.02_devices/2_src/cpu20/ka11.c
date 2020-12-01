@@ -8,7 +8,7 @@ int unibone_dato(unsigned addr, unsigned data);
 int unibone_datob(unsigned addr, unsigned data);
 int unibone_dati(unsigned addr, unsigned *data);
 void unibone_prioritylevelchange(uint8_t level);
-void unibone_bus_init(unsigned pulsewidth_ms) ;
+void unibone_bus_init() ;
 
 
 int
@@ -583,7 +583,7 @@ step(KA11 *cpu)
 		SVC;
 	case 3:	TR(BPT); TRAP(014);
 	case 4:	TR(IOT); TRAP(020);
-	case 5:	TR(RESET); ka11_reset(cpu); unibone_bus_init(10) ; SVC;
+	case 5:	TR(RESET); ka11_reset(cpu); unibone_bus_init() ; SVC;
 	}
 
 	// All other instructions should be reserved now

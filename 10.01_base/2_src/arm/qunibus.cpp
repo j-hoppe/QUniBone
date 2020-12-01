@@ -227,11 +227,15 @@ bool qunibus_c::parse_slot(char *txt, uint8_t *priority_slot) {
 
 /* pulse INIT cycle for some milliseconds
  */
-void qunibus_c::init(unsigned pulsewidth_ms) {
+void qunibus_c::init() {
 	mailbox->initializationsignal.id = INITIALIZATIONSIGNAL_INIT;
 	mailbox->initializationsignal.val = 1;
 	mailbox_execute(ARM2PRU_INITALIZATIONSIGNAL_SET);
-	timeout_c::wait_ms(pulsewidth_ms);
+#if defined(UNIBUS)
+	timeout_c::wait_ms(10); // UNIBUS: PDP-11/70 = 10ms
+#elif defined(QBUS)
+	timeout_c::wait_us(10); // QBUS only 10us !
+#endif
 	mailbox->initializationsignal.id = INITIALIZATIONSIGNAL_INIT;
 	mailbox->initializationsignal.val = 0;
 	mailbox_execute(ARM2PRU_INITALIZATIONSIGNAL_SET);
@@ -415,8 +419,8 @@ bool qunibus_c::is_address_overlay_active() {
 void qunibus_c::set_cpu_bus_activity(bool active) {
 	UNUSED(active) ;
 #if defined(QBUS)
-	mailbox->cpu_enable = active ;
-	mailbox_execute(ARM2PRU_CPU_BUS_ACTIVITY);
+	mailbox->param = active ;
+	mailbox_execute(ARM2PRU_CPU_BUS_ACCESS);
 #endif
 }
 
