@@ -7,6 +7,14 @@
 . qunibone-platform.env
 . compile-bbb.env
 
+# guard against legacy qunibone-platform.env
+if [ -z "$QUNIBONE_PLATFORM_SUFFIX" ] ; then
+        QUNIBONE_PLATFORM_SUFFIX=$PLATFORM_SUFFIX
+fi
+if [ -z "$QUNIBONE_PLATFORM" ] ; then
+        QUNIBONE_PLATFORM=$MAKE_QUNIBUS
+fi
+
 # makefile_u or makefile_q
 MAKEFILE=makefile$QUNIBONE_PLATFORM_SUFFIX
 
