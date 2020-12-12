@@ -2,8 +2,8 @@ set cpu 11/34
 
 set rl enabled
 
-att rl0 rt11v5.5_34.rl02
-att rl1 rt11v5.5_games_34.rl02
+att rl0 rt11v5.5.rl02
+att rl1 rt11v5.5_games.rl02
 
 set rq enabled
 set rq0 ra82

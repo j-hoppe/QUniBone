@@ -1,22 +1,21 @@
 #! /bin/bash
 #
-# Personalizes GitHub "QUniBone" software tree to "UniBOne" or "QBone" hardware.
+# Personalizes GitHub "QUniBone" software tree to "UniBone" or "QBone" hardware.
+# Called by github-sync.sh after file update.
 # Needs hardware-specific settings in "qunibone-platform.env".
 #
-# Generates simple links to
-# Example:
-# on UniBone, "compile.sh" is a link to "compile_u.sh"
-# on QBone, it is a link to "compile_q.sh"
-
-
 #set -v
 #set -x
 #set -u
-# requests a <enter> afte each line
+# requests a <enter> after each line
 #trap read debug
 
-# Are we running on am UniBone or a QBone hardware ?
+# Are we running on UniBone or QBone hardware ?
 PLATFORMENV="qunibone-platform.env"
+if [ ! -f $PLATFORMENV ]; then
+  # on old UniBone installation, use "example" file as UniBone config
+  cp qunibone-platform.env.example $PLATFORMENV
+fi
 if [ ! -f $PLATFORMENV ]; then
   echo "Error: Platform settings in file $PLATFORMENV not found!"
   exit 1
@@ -25,8 +24,22 @@ fi
 
 . $PLATFORMENV
 
-if [ -z "$PLATFORM_SUFFIX" ]; then
-  echo "Error: variable PLATFORM_SUFFIX not set or empty!"
+# fix legacy qunibone-platform.env: QUNIBONE_PLATFORM was MAKE_QUNIBUS
+# QUNIBONE_PLATFORM_SUFFIX was PLATFORM_SUFFIX
+if [ -z "$QUNIBONE_PLATFORM_SUFFIX" } ; then
+        QUNIBONE_PLATFORM_SUFFIX=$PLATFORM_SUFFIX
+fi
+if [ -z "$QUNIBONE_PLATFORM_SUFFIX" } ; then
+        QUNIBONE_PLATFORM=$MAKE_QUNIBUS
+fi
+
+
+if [ -z "$QUNIBONE_PLATFORM" ]; then
+  echo "Error: variable QUNIBONE_PLATFORM not set or empty!"
+  exit 1
+fi
+if [ -z "$QUNIBONE_PLATFORM_SUFFIX" ]; then
+  echo "Error: variable QUNIBONE_PLATFORM_SUFFIX not set or empty!"
   exit 1
 fi
 
@@ -82,12 +95,14 @@ function link4dir() {
   linkpath="$1"
 
   substr=
-  replace=${PLATFORM_SUFFIX}
+  replace=${QUNIBONE_PLATFORM_SUFFIX}
   filepath=${linkpath/%$substr/$replace}
 
   mkdir -p $filepath
 
+  # create symbolic link "linkpath" for "filepath"
   make_link
+
   return $?
 }
 
@@ -96,6 +111,34 @@ function link4dir() {
 
 # link4sh ./compile.sh
 
+
+# fix
+# GITHUB: contains both UniBone and QUniBone
+# 10.03_app_demo/5_applications are sorted into
+#       "...5_applications" (identical for UNIBUS and QBUS machines)
+# and   "...5_applications_q" (runs only on QBUS)
+# and   "...5_applications_u" (runs only on UNIBUS)
+
+# Final Installation: only 5_applications with all fitting apps
+# if UniBone: copy 5_applications_u/* to 5_applications,
+# if QBone: copy 5_applications_q/* to 5_applications,
+
+cp -f -a $HOME/10.03_app_demo/5_applications$QUNIBONE_PLATFORM_SUFFIX $HOME/10.03_app_demo/5_applications
+
+# In any case: remove 5_applications_u and 5_applications_q
+rm -f -R  $HOME/10.03_app_demo/5_applications_u
+rm -f -R  $HOME/10.03_app_demo/5_applications_q
+
+# Generating shortcuts for demo scripts in ~ home directory
+find $HOME/10.03_app_demo/5_applications -name \*.sh -exec ln -sf {} $HOME \;
+
 link4dir $HOME/10.03_app_demo/4_deploy
 
+
+
+# Assure all shell scripts are executable
+find . -name '*.sh' -exec chmod +x '{}' \;
+
+# remove broken links, if any remaining
+find . -xtype l -delete
 

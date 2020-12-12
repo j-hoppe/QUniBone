@@ -8,11 +8,11 @@
 . compile-bbb.env
 
 # makefile_u or makefile_q
-MAKEFILE=makefile$PLATFORM_SUFFIX
+MAKEFILE=makefile$QUNIBONE_PLATFORM_SUFFIX
 
 # Debugging: remote from Eclipse. Compile on BBB is release.
 export MAKE_CONFIGURATION=RELEASE
-export MAKE_QUNIBUS
+export QUNIBONE_PLATFORM
 
 cd 10.03_app_demo/2_src
 

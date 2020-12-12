@@ -26,9 +26,6 @@ svn export --force ${GITURL}/trunk  .
 chmod +x *.sh
 ./qunibone-platform.sh
 
-# Generating shortcuts for demo scripts in ~ home directory
-find 10.03_app_demo/5* -name \*.sh -exec ln -sf {} $HOME \;
-
 # Assure all shell scripts are executable
 find . -name '*.sh' -exec chmod +x '{}' \;
 

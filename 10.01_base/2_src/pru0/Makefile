@@ -26,12 +26,12 @@ $(error $(ERROR_BODY))
 endif
 
 PROJ_NAME=pru0
-ifeq ($(MAKE_QUNIBUS),UNIBUS)
+ifeq ($(QUNIBONE_PLATFORM),UNIBUS)
 	OBJ_DIR=$(abspath ../../4_deploy_u)
-else ifeq  ($(MAKE_QUNIBUS),QBUS)
+else ifeq  ($(QUNIBONE_PLATFORM),QBUS)
 	OBJ_DIR=$(abspath ../../4_deploy_q)
 else
-	$(error Set MAKE_QUNIBUS to UNIBUS or QBUS!)
+	$(error Set QUNIBONE_PLATFORM to UNIBUS or QBUS!)
 endif
 SHARED_DIR=$(abspath ../shared)
 MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))

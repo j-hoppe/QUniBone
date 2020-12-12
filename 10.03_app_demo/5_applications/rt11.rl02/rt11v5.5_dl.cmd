@@ -21,7 +21,7 @@ p emulation_speed 10	# 10x speed. Load disk in 5 seconds
 # set type to "rl02"
 p runstopbutton 0	# released: "LOAD"
 p powerswitch 1		# power on, now in "load" state
-p image rt11v5.5_34.rl02 # mount image file with test pattern
+p image rt11v5.5.rl02 # mount image file with test pattern
 p runstopbutton 1	# press RUN/STOP, will start
 
 # mount RT11 GAMES in RL02 #1 and start
@@ -31,7 +31,7 @@ p emulation_speed 10	# 10x speed. Load disk in 5 seconds
 # set type to "rl02"
 p runstopbutton 0	# released: "LOAD"
 p powerswitch 1		# power on, now in "load" state
-p image rt11v5.5_games_34.rl02	# mount image file with test pattern
+p image rt11v5.5_games.rl02	# mount image file with test pattern
 p runstopbutton 1	# press RUN/STOP, will start
 
 # mount scratch2 in RL02 #2 and start
