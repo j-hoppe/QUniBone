@@ -160,7 +160,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	// uses all slot resource, can onyl run alone
 	//testcontroller_c *test_controller = new testcontroller_c();
 
+#if defined(UNIBUS)
 	cpu_c *cpu = NULL;
+#endif
 	// create RL11 +  also 4 RL01/02 drives
 	RL11_c *RL11 = new RL11_c();
 	paneldriver->reset(); // reset I2C, restart worker()
@@ -177,18 +179,20 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	DL11->rs232adapter.baudrate = DL11->baudrate.value; // limit speed of injected chars
 
 	ltc_c *LTC = new ltc_c();
+
+	//	//demo_regs.install();
+	//	//demo_regs.worker_start();
+	
+
+	
 #if defined(UNIBUS)
 	m9312_c *m9312 = new m9312_c();
-#endif
-
-
-//	//demo_regs.install();
-//	//demo_regs.worker_start();
 
 	if (with_emulated_CPU) {
 		cpu = new cpu_c();
 		cpu->enabled.set(true);
 	}
+#endif
 
 	if (with_storage_file_test) {
 		const char *testfname = "/tmp/storagedrive_selftest.bin";
@@ -568,12 +572,12 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 		}
 	} // ready
 
+#if defined(UNIBUS)
 	if (with_emulated_CPU) {
 		cpu->enabled.set(false);
 		delete cpu;
 	}
 
-#if defined(UNIBUS)
 	m9312->enabled.set(false) ;
 	delete m9312 ;
 #endif
