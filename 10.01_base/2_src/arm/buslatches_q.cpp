@@ -277,14 +277,14 @@ void buslatches_c::setup() {
 	// connected to bidirectional terminated QBUS lines.
 	// see CPLD1+2 design!
 	clear() ; // will not delete instances
-	push_back(new buslatch_c(0, /*bitwidth*/8)); // DAL<7..0>
-	push_back(new buslatch_c(1, /*bitwidth*/8)); // DAL<15..8>
-	push_back(new buslatch_c(2, /*bitwidth*/8)); // DAL<21..16>,BS7*,SYNC
-	push_back(new buslatch_c(3, /*bitwidth*/4)); // read: SYNClatch,BS7*,WTBT*,REF*, write: cmds
-	push_back(new buslatch_c(4, /*bitwidth*/7)); // DATA control signals
-	push_back(new buslatch_c(5, /*bitwidth*/6)); // system signals
-	push_back(new buslatch_c(6, /*bitwidth*/8)); // INTR/DMA
-	push_back(new buslatch_c(7, /*bitwidth*/0));
+	push_back(new buslatch_c(0, /*bitmask*/0xff)); // DAL<7..0>
+	push_back(new buslatch_c(1, /*bitmask*/0xff)); // DAL<15..8>
+	push_back(new buslatch_c(2, /*bitmask*/0xff)); // DAL<21..16>,BS7*,SYNC
+	push_back(new buslatch_c(3, /*bitmask*/0x8f)); // read: SYNClatch,BS7*,WTBT*,REF*, write: cmds, 80=version
+	push_back(new buslatch_c(4, /*bitmask*/0x7f)); // DATA control signals
+	push_back(new buslatch_c(5, /*bitmask*/0x3f)); // system signals
+	push_back(new buslatch_c(6, /*bitmask*/0xff)); // INTR/DMA
+	push_back(new buslatch_c(7, /*bitmask*/0));
 	for (unsigned i=0 ; i < BUSLATCHES_COUNT ; i++)
 		assert(at(i)->addr == i) ; // will index by address
 

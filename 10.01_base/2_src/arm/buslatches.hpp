@@ -56,7 +56,6 @@ buslatches_wire_info_t *buslatches_wire_info_get(const char * unibus_name, unsig
 class buslatch_c {
 public:
 	unsigned addr; // address of latch
-	unsigned bitwidth; // # of bits in latch (startign at 0)
 	unsigned bitmask; // mask with valid bits
 	unsigned rw_bitmask; // mask with persistent read/write bits
 
@@ -65,11 +64,10 @@ public:
 	bool read_inverted; // true:  read back inverted with respect to write levels
 	unsigned cur_reg_val; // content of output latches
 
-	buslatch_c(unsigned addr, unsigned bitwidth) {
+	buslatch_c(unsigned addr, unsigned bitmask) {
 		// create with defaults
 		this->addr = addr;
-		this->bitwidth = bitwidth;
-		this->bitmask = this->rw_bitmask = BitmaskFromLen32[bitwidth];
+		this->bitmask = this->rw_bitmask = bitmask;
 		this->read_inverted = false;
 	}
 	// PRU handles special DAL/ADDR demux logic

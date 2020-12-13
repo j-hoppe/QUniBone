@@ -1,5 +1,5 @@
-QBUS signal registers
-=====================
+QBUS signal registers (CPLD revision 0001)
+==========================================
 
 Register layout optimized for "slave DIN " cycle, minimal CPLD access by PRU
 
@@ -32,10 +32,12 @@ Register 0: DAL<7:0>
 --------------------
 Bit     R/W     CPLD#   Phase   Func
 7..0    R/W     1       A       DAL[7..0]*
+                                if "show_revision == 1": LSB of firmware revision for CPLD1&2s
 
 Register 1: DAL<15:8>
 ---------------------
 7..0    R/W     1       A       DAL[15..8]*
+                                if "show_revision == 1": MSB of firmware revision for CPLD1&2s
 
 Register 2, DAL<21:16>
 -------------------------
@@ -50,6 +52,7 @@ Register 3 read: Address-signals, latched on SYNC
 1       R       1       RBS7*    Addr phase: IOpage access, 2nd appearance
 2       R       2       RWTBT*   Addr phase: 0=DIN following. 1=DOUT following
 3       R       2       RREF*    Addr phase: Refresh cycle
+7       R       1       show_revision
 
 Register 3 write: Commands (bitwise)
 ------------------------------------
@@ -58,6 +61,7 @@ Register 3 write: Commands (bitwise)
                         even when SYNC still 1
 1       W       1       CLR DAL - negate all DAL lines and BS7
                                 (before master DIN, after master DOUT
+7       W       1       show_revision
 
 
 Register 4: DATA control signals

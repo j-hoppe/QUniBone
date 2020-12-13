@@ -129,13 +129,13 @@ void application_c::menu_buslatches(const char *menu_code) {
 
 #define PRINTBUSLATCH(bl)	do { 											\
 		if ((bl)->rw_bitmask != 0xff)								\
-		printf("buslatch[%d] = 0x%02x (%d bits, R/W bits = 0x%02x)\n", (bl)->addr,	\
+		printf("buslatch[%d] = 0x%02x (bits = 0x%02x, R/W bits = 0x%02x)\n", (bl)->addr,	\
 				(bl)->getval() & (bl)->bitmask, 				\
-				(bl)->bitwidth, (bl)->rw_bitmask) ;			\
+				(bl)->bitmask, (bl)->rw_bitmask) ;			\
 		else 																\
-				printf("buslatch[%d] = 0x%02x (%d bits)\n", (bl)->addr,				\
+				printf("buslatch[%d] = 0x%02x (bits = 0x%02x)\n", (bl)->addr,				\
 						(bl)->getval() & (bl)->bitmask, 		\
-						(bl)->bitwidth) ;							\
+						(bl)->bitmask) ;							\
 				} while(0)
 	ready = false;
 	while (!ready) {

@@ -339,19 +339,19 @@ buslatches_wire_info_t buslatches_wire_info[] = { //
 // init state
 void buslatches_c::setup() {
 	// chips are all 8bit width, but not all input/outputs are
-	// connected to bidirektional terminated UNIBUS lines.
+	// connected to bidirectional terminated UNIBUS lines.
 	// see PCB schematic!
     clear() ;// will not delete instances
 
-	push_back(new buslatch_c(0, /*bitwidth*/5)); // BG4567, NPG
+	push_back(new buslatch_c(0, /*bitmask*/0x1f)); // BG4567, NPG
 // LTC on .6 ignored, is input only
-	push_back(new buslatch_c(1, /*bitwidth*/7)); // BR4..BR7,NPR,SACK,BBSY
-	push_back(new buslatch_c(2, /*bitwidth*/8)); // addresses 0..7 ;
-	push_back(new buslatch_c(3, /*bitwidth*/8)); // addresses 8..15
-	push_back(new buslatch_c(4, /*bitwidth*/6)); // A16,17,C0,C1, MSYN,SSYN
-	push_back(new buslatch_c(5, /*bitwidth*/8)); // data 0..7
-	push_back(new buslatch_c(6, /*bitwidth*/8)); // data 8..15
-	push_back(new buslatch_c(7, /*bitwidth*/6)); // INTR,PA,PB,INIT,ACLO,DCLO
+	push_back(new buslatch_c(1, /*bitmask*/0x7f)); // BR4..BR7,NPR,SACK,BBSY
+	push_back(new buslatch_c(2, /*bitmask*/0xff)); // addresses 0..7 ;
+	push_back(new buslatch_c(3, /*bitmask*/0xff)); // addresses 8..15
+	push_back(new buslatch_c(4, /*bitmask*/0x3f)); // A16,17,C0,C1, MSYN,SSYN
+	push_back(new buslatch_c(5, /*bitmask*/0xff)); // data 0..7
+	push_back(new buslatch_c(6, /*bitmask*/0xff)); // data 8..15
+	push_back(new buslatch_c(7, /*bitmask*/0x3f)); // INTR,PA,PB,INIT,ACLO,DCLO
 	for (unsigned i=0 ; i < BUSLATCHES_COUNT ; i++)
 		assert(at(i)->addr == i) ; // will index by address
 //  BG4567, NPG are read back non inverted from UNIBUS
