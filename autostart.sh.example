@@ -1,5 +1,5 @@
 #!/bin/bash
-# Actions to start in "screen" session after boot
+# Actions to start in "screen" session after boot.
 
 # set -x
 
@@ -7,7 +7,8 @@ GPIO_ROOT=/sys/class/gpio
 
 ####################################################################
 # get_switches()
-# read the 4 UniBone/QBone user switches
+# read the 4 UniBone/QBone user switches.
+# Switch vlaues: 0 = "up" = "OFF", 1 = "down" = "ON".
 # sw0 = bank1, pin 4 = gpio36
 # sw1 = bank1, pin 5 = gpio37
 # sw2 = bann1, pin 6 = gpio38
