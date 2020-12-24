@@ -970,7 +970,8 @@ uda_c::DMAWrite(
     assert ((lengthInBytes % 2) == 0);
 //    if (address >= 0x40000)
 //    	logger->dump(logger->default_filepath) ;
-    assert (address < 0x40000);
+	assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
+    // assert (address < 0x40000);
 
     qunibusadapter->DMA(dma_request, true,
             QUNIBUS_CYCLE_DATO,
@@ -996,7 +997,8 @@ uda_c::DMARead(
 {
     assert (bufferSize >= lengthInBytes);
     assert((lengthInBytes % 2) == 0);
-    assert (address < 0x40000);
+	assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
+//    assert (address < 0x40000);
 
     uint16_t* buffer = new uint16_t[bufferSize >> 1];
 
