@@ -3,7 +3,7 @@
 d			# device menu
 pwr			# reboot PDP-11
 .wait 3000		# wait for PDP-11 to reset
-#m i			# install max UNIBUS memory
+m i			# install max UNIBUS memory
 
 # Deposit bootloader into memory
 m ll du.lst
