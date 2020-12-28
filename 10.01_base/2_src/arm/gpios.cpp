@@ -207,7 +207,7 @@ void gpios_c::init() {
 	;
 	ARM_DEBUG_PIN3(0)
 	;
-
+	// call with commandline "--leds 15" to keep DEBUG PINS == 0
 	set_leds(cmdline_leds) ;
 }
 
