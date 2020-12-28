@@ -79,7 +79,7 @@ public:
 
 	void print_arbitration_info(		const char *indent);
 	char *getchoice(const char *menu_code);
-	bool emulate_memory(void);
+	bool emulate_memory(uint32_t endaddr = 0) ;
 	void print_params(parameterized_c *parameterized, parameter_c *p);
 
 	qunibusdevice_register_t * device_register_by_id(qunibusdevice_c *device, char *specifier);

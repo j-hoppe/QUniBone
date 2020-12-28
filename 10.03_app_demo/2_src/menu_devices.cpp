@@ -224,7 +224,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 			} else
 				printf("    NO " QUNIBUS_NAME " memory installed ... device test limited!\n");
 			printf("\n");
-			printf("m i                  Install (emulate) max " QUNIBUS_NAME " memory\n");
+			printf("m i [<endaddr>]      Install (emulate) max " QUNIBUS_NAME " memory, or until by <endaddr>\n");
 			printf("m f [word]           Fill " QUNIBUS_NAME " memory (with 0 or other octal value)\n");
 			printf("m d                  Dump " QUNIBUS_NAME " memory to disk\n");
 			printf(
@@ -297,10 +297,13 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				} else if (!strcasecmp(s_param[0], "f")) {
 					logger->dump(logger->default_filepath);
 				}
-			} else if (!strcasecmp(s_opcode, "m") && n_fields == 2
+			} else if (!strcasecmp(s_opcode, "m") && n_fields >= 2
 					&& !strcasecmp(s_param[0], "i")) {
-				// install (emulate) max QBUS/UNIBUS memory
-				memory_emulated = emulate_memory();
+				// install (emulate) max QBUS/UNIBUS memory or limited by <endaddr>
+				uint32_t endaddr = 0;
+				if (n_fields == 3)
+					qunibus->parse_addr(s_param[1], &endaddr);
+				memory_emulated = emulate_memory(endaddr);
 				show_help = true; // menu struct changed
 			} else if (!strcasecmp(s_opcode, "m") && n_fields >= 2
 					&& !strcasecmp(s_param[0], "f")) {
