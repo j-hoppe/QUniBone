@@ -159,7 +159,7 @@ typedef struct {
 	 * and the IOpage (8K)
 	 */
 	uint32_t	memory_start_addr ; // start of emulateded memory
-	uint32_t	memory_limit_addr ; // first address after emulateded memory, 0 = disable emulation
+	uint32_t	memory_limit_addr ; // first address after emulated memory, 0 = disable emulation
 
 	uint32_t	iopage_start_addr ; // 0160000, 0760000, 017760000
 	
