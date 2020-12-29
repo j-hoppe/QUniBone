@@ -1,0 +1,62 @@
+
+set rp disabled
+set rx disabled
+set lpt disabled
+
+set cpu 11/73 2048K
+set cpu hist=100
+set throttle 5m
+set clk 50hz
+
+
+; to make gkermit work
+;set tti 8b
+;set tto 8b
+; input polling: ca 19200 baud at 5mhz
+; deposit tti time 1300
+
+
+set xq type=deqna
+; list all interfaces
+sho xq eth
+
+; Windows:
+; INSTALL WINPCAP on Host! WinPcap_4_0_2.exe
+; connect to SECONDARY ethernet card
+; attach xq0  \Device\NPF_{4B2D841C-5E7B-42FA-8EBD-C957E43CF312}
+
+; Linux:
+attach xq0 eth0
+
+sho xq mac
+
+set DZ lines=8
+
+; use telnet ports 4000..4007
+attach DZ 4000
+
+set rq0 rd54
+attach rq0 root.rd54
+set rq1 rx33
+set rq2 disabled
+set rq3 disabled
+
+
+
+; I have a TK50
+set TQ TK50
+set TQ0 enable
+set TQ1 disable
+set TQ2 disable
+set TQ3 disable
+
+; also TM11 tape controller
+set TM enabled
+
+
+b rq0
+; on the boot prompt, type "unix"
+
+
+
+
