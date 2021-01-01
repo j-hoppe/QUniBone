@@ -91,6 +91,20 @@ void qunibus_c::set_addr_width(unsigned addr_width) {
 	addr_space_byte_count = 2 * addr_space_word_count;
 }
 
+// verify user selected address width, 
+// address width is determined by PDP-11 CPU and cannot be guessed.
+// Example: a 16 bit LSI operates in an 18 bit backplane,
+// then QBOne must generate BS7 for addresses >= 160000
+// but  addresses 0.. 777776 are valid.
+void qunibus_c::assert_addr_width(void) {
+#if defined(QBUS)
+	if (!addr_width) {
+		FATAL("Select address width of CPU via global parameter\n(command line -aw 16/28/22)") ;
+	}
+#endif	
+}
+
+
 /* return a 16 bit result, or TIMEOUT
  * result: 0 = timeout, else OK
  */

@@ -59,7 +59,7 @@ int iopageregisters_connect(void) {
 
 //  initialize register tables to "empty"
 void iopageregisters_init() {
-	assert(qunibus->addr_width) ;// address width already known, bus sizing done
+	qunibus->assert_addr_width() ; // address width already known, bus sizing done
 	assert(qunibus->iopage_start_addr) ;
 
 	// clear the pagetable: no address emulated, only IO page marked
