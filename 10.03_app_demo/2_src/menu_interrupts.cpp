@@ -118,7 +118,8 @@ void application_c::menu_interrupts(const char *menu_code) {
 #if defined(UNIBUS)
             printf("pwr                  Simulate UNIBUS power cycle (ACLO/DCLO)\n");
 #elif defined(QBUS)
-            printf("pwr                  Simulate QBUS power cycle (POK/DCOK)\n");
+			printf("h <1|0>              Set/release QBUS HALT, like front panel toggle switch\n");
+            printf("pwr                  Simulate QBUS power cycle (POK/DCOK) like front panel RESTART\n");
 #endif
             printf("q                    Quit\n");
         }
@@ -131,6 +132,12 @@ void application_c::menu_interrupts(const char *menu_code) {
             ready = true;
         } else if (!strcasecmp(s_opcode, "pwr")) {
             qunibus->powercycle();
+#if defined(QBUS)				
+		} else if (!strcasecmp(s_opcode, "h") && n_fields == 2) {
+			uint16_t active ;
+			qunibus->parse_word(s_param[0], &active) ;				
+			qunibus->set_halt(active) ;
+#endif				
         } else if (!strcasecmp(s_opcode, "m") && n_fields == 1) {
             emulate_memory();
         } else if (!strcasecmp(s_opcode, "e") && n_fields == 2) {

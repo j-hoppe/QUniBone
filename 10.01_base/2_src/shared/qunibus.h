@@ -154,6 +154,9 @@ public:
 	bool get_arbitrator_active(void);
 
 	void powercycle(int phase = 3);
+#if defined(QBUS)	
+	void set_halt(bool active) ;
+#endif
 
 #if defined(UNIBUS)
 	void set_address_overlay(uint32_t address_overlay) ;

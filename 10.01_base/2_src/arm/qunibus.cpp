@@ -415,6 +415,16 @@ void qunibus_c::powercycle(int phase) {
 #endif
 }
 
+#if defined(QBUS)	
+// set state of QBUS  HALT line, like HALT toggle switch on QBUS front panels
+void qunibus_c::set_halt(bool active) {
+	mailbox->initializationsignal.id = INITIALIZATIONSIGNAL_HALT;
+	mailbox->initializationsignal.val = active;
+	mailbox_execute(ARM2PRU_INITALIZATIONSIGNAL_SET);
+}
+#endif
+
+
 #if defined(UNIBUS)
 void qunibus_c::set_address_overlay(uint32_t address_overlay) {
 	mailbox->address_overlay = address_overlay;

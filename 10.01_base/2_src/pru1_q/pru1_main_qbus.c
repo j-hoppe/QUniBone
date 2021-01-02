@@ -278,6 +278,10 @@ void main(void) {
 					// assert/deassert INIT
 					buslatches_setbits(5, INITIALIZATIONSIGNAL_INIT, mailbox.initializationsignal.val? INITIALIZATIONSIGNAL_INIT:0);
 					break;
+				case INITIALIZATIONSIGNAL_HALT:
+					// assert/deassert HALT
+					buslatches_setbits(5, INITIALIZATIONSIGNAL_HALT, mailbox.initializationsignal.val? INITIALIZATIONSIGNAL_HALT:0);
+					break;
 				}
 				mailbox.arm2pru_req = ARM2PRU_NONE; // ACK: done
 				break;
