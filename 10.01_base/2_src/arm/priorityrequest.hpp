@@ -100,9 +100,9 @@ public:
 
 	~dma_request_c();
 	// const for all chunks
-	uint8_t unibus_control; // DATI,DATO
-	uint32_t unibus_start_addr;
-	uint32_t unibus_end_addr;
+	uint8_t qunibus_control; // DATI,DATO
+	uint32_t qunibus_start_addr;
+	uint32_t qunibus_end_addr;
 	uint16_t* buffer;
 	uint32_t wordcount;
 
@@ -110,19 +110,19 @@ public:
 
 	// DMA transaction are divided in to smaller DAT transfer "chunks" 
 	uint32_t chunk_max_words; // max is PRU capacity PRU_MAX_DMA_WORDCOUNT (512)
-	uint32_t chunk_unibus_start_addr; // current chunk
+	uint32_t chunk_qunibus_start_addr; // current chunk
 	uint32_t chunk_words; // size of current chunks
 
 	volatile bool success; // DMA can fail with bus timeout
 
 	// return ptr to chunk pos in buffer
 	uint16_t *chunk_buffer_start(void) {
-		return buffer + (chunk_unibus_start_addr - unibus_start_addr) / 2;
+		return buffer + (chunk_qunibus_start_addr - qunibus_start_addr) / 2;
 	}
 
 	// words already transfered in previous chunks
 	uint32_t wordcount_completed_chunks(void) {
-		return (chunk_unibus_start_addr - unibus_start_addr) / 2;
+		return (chunk_qunibus_start_addr - qunibus_start_addr) / 2;
 	}
 
 };

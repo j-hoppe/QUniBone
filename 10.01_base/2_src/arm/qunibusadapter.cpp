@@ -476,21 +476,21 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         dmareq->chunk_words = std::min(dmareq->chunk_max_words, wordcount_remaining);
 
         assert(dmareq->chunk_words); // if complete, the dmareq should not be active anymore
-        if (dmareq->chunk_unibus_start_addr >= qunibus->iopage_start_addr) {
+        if (dmareq->chunk_qunibus_start_addr >= qunibus->iopage_start_addr) {
 #if defined(UNIBUS)
             // UniBone PRU doesn't handle IOpage addresses marked with IOpage bit 22
-            mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
+            mailbox->dma.startaddr = dmareq->chunk_qunibus_start_addr ;
 #elif defined(QBUS)
-            mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr | QUNIBUS_IOPAGE_ADDR_BITMASK ;
+            mailbox->dma.startaddr = dmareq->chunk_qunibus_start_addr | QUNIBUS_IOPAGE_ADDR_BITMASK ;
 #endif
         } else
-            mailbox->dma.startaddr = dmareq->chunk_unibus_start_addr ;
-        mailbox->dma.buscycle = dmareq->unibus_control;
+            mailbox->dma.startaddr = dmareq->chunk_qunibus_start_addr ;
+        mailbox->dma.buscycle = dmareq->qunibus_control;
         mailbox->dma.wordcount = dmareq->chunk_words;
         mailbox->dma.cpu_access = dmareq->is_cpu_access;
 
         // Copy outgoing data into mailbox device_DMA buffer
-        if (QUNIBUS_CYCLE_IS_DATO(dmareq->unibus_control)) {
+        if (QUNIBUS_CYCLE_IS_DATO(dmareq->qunibus_control)) {
             memcpy((void*) mailbox->dma.words, dmareq->chunk_buffer_start(),
                    2 * dmareq->chunk_words);
         }
@@ -633,10 +633,10 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
     dma_request.complete = false;
     dma_request.success = false;
     dma_request.executing_on_PRU = false;
-    dma_request.unibus_control = qunibus_cycle;
-    dma_request.unibus_start_addr = unibus_addr;
-    dma_request.chunk_unibus_start_addr = unibus_addr;
-    dma_request.unibus_end_addr = 0; // last transfered addr, or error position
+    dma_request.qunibus_control = qunibus_cycle;
+    dma_request.qunibus_start_addr = unibus_addr;
+    dma_request.chunk_qunibus_start_addr = unibus_addr;
+    dma_request.qunibus_end_addr = 0; // last transfered addr, or error position
     dma_request.buffer = buffer;
     dma_request.wordcount = wordcount;
     dma_request.chunk_max_words = PRU_MAX_DMA_WORDCOUNT; // PRU limit, maybe less
@@ -1006,7 +1006,7 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     // fix PRU data struct: remove IOPAGE bit from mailbox struct, was set im mailbox_execute()
     mailbox->dma.startaddr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
     mailbox->dma.cur_addr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
-    dmareq->unibus_end_addr = mailbox->dma.cur_addr; // track emnd of trasnmission, eror position
+    dmareq->qunibus_end_addr = mailbox->dma.cur_addr; // track emnd of trasnmission, eror position
     unsigned wordcount_transferred = dmareq->wordcount_completed_chunks()
                                      + mailbox->dma.wordcount;
     assert(wordcount_transferred <= dmareq->wordcount);
@@ -1029,7 +1029,7 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     } else {
         // more data to transfer: next chunk.
         assert(!dmareq->is_cpu_access); // CPU accesses only single words
-        dmareq->chunk_unibus_start_addr = mailbox->dma.cur_addr + 2;
+        dmareq->chunk_qunibus_start_addr = mailbox->dma.cur_addr + 2;
         // dmarequest remains prl->active and ->busy
 
         _DEBUG(
@@ -1050,9 +1050,9 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     }
     if (!more_chunks) {
         _DEBUG("DMA ready: %s @ %s..%s, wordcount %d, data=%06o, %06o, ... %s",
-               qunibus->control2text(dmareq->unibus_control),
-               qunibus->addr2text(dmareq->unibus_start_addr),
-               qunibus->addr2text(dmareq->unibus_end_addr), dmareq->wordcount, dmareq->buffer[0],
+               qunibus->control2text(dmareq->qunibus_control),
+               qunibus->addr2text(dmareq->qunibus_start_addr),
+               qunibus->addr2text(dmareq->qunibus_end_addr), dmareq->wordcount, dmareq->buffer[0],
                dmareq->buffer[1], dmareq->success ? "OK" : "TIMEOUT");
 
         // clear from schedule table of this level

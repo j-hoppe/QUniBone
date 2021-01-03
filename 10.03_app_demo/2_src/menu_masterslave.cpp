@@ -258,9 +258,9 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
                     wordcount = WORDBUFFER_LEN;
             }
             timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATI, cur_addr, wordbuffer, wordcount);
-            for (i = 0; cur_addr <= qunibus->dma_request->unibus_end_addr; i++, cur_addr += 2)
+            for (i = 0; cur_addr <= qunibus->dma_request->qunibus_end_addr; i++, cur_addr += 2)
                 printf("EXAM %s -> %06o\n", qunibus->addr2text(cur_addr), wordbuffer[i]);
-            cur_addr = qunibus->dma_request->unibus_end_addr;
+            cur_addr = qunibus->dma_request->qunibus_end_addr;
             if (timeout)
                 printf("Bus timeout at %s.\n", qunibus->addr2text(mailbox->dma.cur_addr));
 
@@ -311,9 +311,9 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
                 wordcount = 1;
             }
             timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATO, cur_addr, wordbuffer, wordcount);
-            for (i = 0; cur_addr <= qunibus->dma_request->unibus_end_addr; i++, cur_addr += 2)
+            for (i = 0; cur_addr <= qunibus->dma_request->qunibus_end_addr; i++, cur_addr += 2)
                 printf("DEPOSIT %s <- %06o\n", qunibus->addr2text(cur_addr), wordbuffer[i]);
-            cur_addr = qunibus->dma_request->unibus_end_addr;
+            cur_addr = qunibus->dma_request->qunibus_end_addr;
             if (timeout)
                 printf("Bus timeout at %s.\n", qunibus->addr2text(cur_addr));
         }

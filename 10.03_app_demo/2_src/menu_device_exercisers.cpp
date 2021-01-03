@@ -243,7 +243,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 						&wordbuffer, 1);
 				printf("DEPOSIT %s <- %06o\n", qunibus->addr2text(addr), wordbuffer);
 				if (timeout)
-					printf("Bus timeout at %s.\n", qunibus->addr2text(qunibus->dma_request->unibus_end_addr));
+					printf("Bus timeout at %s.\n", qunibus->addr2text(qunibus->dma_request->qunibus_end_addr));
 			} else if (!strcasecmp(s_opcode, "e") && n_fields <= 2) {
 				uint16_t wordbuffer;
 				bool timeout=false;

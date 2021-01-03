@@ -503,7 +503,7 @@ uint32_t qunibus_c::test_sizer(void) {
 	// one big transaction, automatically split in chunks
 	qunibusadapter->DMA(*dma_request, true, QUNIBUS_CYCLE_DATI, addr, testwords,
 			qunibus->addr_space_word_count);
-	return dma_request->unibus_end_addr; // first non implemented address
+	return dma_request->qunibus_end_addr; // first non implemented address
 }
 
 /*
