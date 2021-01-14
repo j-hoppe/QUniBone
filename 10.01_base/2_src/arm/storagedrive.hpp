@@ -56,7 +56,7 @@ public:
 	true, "byte", "%d", "Storage capacity", 64, 10);
 
 	parameter_string_c image_filepath = parameter_string_c(this, "image", "img", /*readonly*/
-	false, "Path to image file");
+	false, "Path to image file. Do not include additional \".gz\" for compressed archive.");
 
 	virtual bool on_param_changed(parameter_c *param) override;
 
