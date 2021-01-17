@@ -40,7 +40,7 @@ sd cpu20
 .print Serial I/O on simulated DL11 at 177650, RS232 port is UART2.
 .print Start 10000 to boot from drive 0, 10010 for drive 1, ...
 .print Reload with "m ll"
-.print Start CPU20 by togeeling CONT switch with "p c 1"
+.print Start CPU20 by toggeling CONT switch with "p c 1"
 
 
 
