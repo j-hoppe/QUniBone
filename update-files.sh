@@ -1,6 +1,8 @@
 #!/bin/bash
 #
-# Downloads big disk images which do not fit into github Repositiry
+# Download files which do not fit into github repository:
+# Emulation scripts and disk/tape images.
+
 
 FILES_URL=http://files.retrocmp.com/qunibone/
 
