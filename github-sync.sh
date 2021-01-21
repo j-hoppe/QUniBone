@@ -1,5 +1,11 @@
 #!/bin/bash
 #
+
+if [ -f ./update-code.sh ] ; then
+    echo "$0 is deprecated, execute \"./update-code.sh\" instead."
+    exit 1
+fi
+
 GITURL=https://github.com/j-hoppe/QUniBone.git
 echo "This script updates local files from GitHub"
 echo "		$GITURL"
