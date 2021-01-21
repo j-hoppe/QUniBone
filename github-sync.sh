@@ -3,6 +3,7 @@
 
 if [ -f ./update-code.sh ] ; then
     echo "$0 is deprecated, execute \"./update-code.sh\" instead."
+    echo "Update disk images and emulation scripts with \"./update-files.sh\"."
     exit 1
 fi
 
@@ -37,3 +38,6 @@ find . -name '*.sh' -exec chmod +x '{}' \;
 
 # Start recompile.
 ./compile.sh -a
+
+echo "Compile complete."
+echo "Update disk images and emulation scripts with \"./update-files.sh\"."
