@@ -51,7 +51,7 @@ uda_c::uda_c() :
     type_name.value = "UDA50";
     type_name.readonly = false; 
     log_label = "uda";
-    twenty_two_bit_DMA.value = false; 
+    _22bitDMA = twenty_two_bit_DMA.value = (qunibus->addr_width == 22); 
 
     // base addr, intr-vector, intr level
     set_default_bus_params(0772150, 20, 0154, 5) ;
