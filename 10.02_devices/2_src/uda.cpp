@@ -18,6 +18,7 @@
 */
 
 #include <string.h>
+#include <strings.h>
 #include <assert.h>
 
 #include "logger.hpp"
@@ -31,6 +32,8 @@
 
 uda_c::uda_c() :
         storagecontroller_c(),
+        _controllerType(UDA50),
+        _22bitDMA(false),
         _server(nullptr),
         _ringBase(0),
         _commandRingLength(0),
@@ -46,7 +49,9 @@ uda_c::uda_c() :
 {
     name.value = "uda";  
     type_name.value = "UDA50";
+    type_name.readonly = false; 
     log_label = "uda";
+    twenty_two_bit_DMA.value = false; 
 
     // base addr, intr-vector, intr level
     set_default_bus_params(0772150, 20, 0154, 5) ;
@@ -95,16 +100,42 @@ uda_c::~uda_c()
     storagedrives.clear();
 }
 
-bool uda_c::on_param_changed(parameter_c *param) {
+bool uda_c::on_param_changed(parameter_c *param) 
+{
     // no own parameter or "enable" logic
-	if (param == &priority_slot) {
-		dma_request.set_priority_slot(priority_slot.new_value);
-		intr_request.set_priority_slot(priority_slot.new_value);
-	}  else if (param == &intr_level) {
-		intr_request.set_level(intr_level.new_value);
-	} else if (param == &intr_vector) {
-		intr_request.set_vector(intr_vector.new_value);
-	}	
+    if (param == &priority_slot) 
+    {
+        dma_request.set_priority_slot(priority_slot.new_value);
+        intr_request.set_priority_slot(priority_slot.new_value);
+    } 
+    else if (param == &intr_level) 
+    {
+        intr_request.set_level(intr_level.new_value);
+    } 
+    else if (param == &intr_vector) 
+    {
+        return false;  // Not configurable for the UDA50.
+    } 
+    else if (param == &type_name) 
+    {
+        if (strcasecmp("uda50", type_name.new_value.c_str()) == 0) 
+        {
+            _controllerType = UDA50;
+        }
+        else if (strcasecmp("rqdx3", type_name.new_value.c_str()) == 0)
+        {
+            _controllerType = RQDX3;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (param == &twenty_two_bit_DMA)
+    {
+        _22bitDMA = twenty_two_bit_DMA.new_value;
+    }
+      
     return storagecontroller_c::on_param_changed(param) ; // more actions (for enable)
 }
 
@@ -220,7 +251,8 @@ void uda_c::worker(unsigned instance)
                  // implement enhanced diagnostics, and that no errors have
                  // occurred.
                  //
-                 update_SA(0x0800);
+                 DEBUG("22 bit dma is %d", _22bitDMA);
+                 update_SA(STEP1 | (_22bitDMA ? STEP1_22_BIT : 0x0));
                  break;
 
             case InitializationStep::Step2:
@@ -230,7 +262,7 @@ void uda_c::worker(unsigned instance)
                  // Update the SA read value for step 2:
                  // S2 is set, qunibus port type (0),  SA bits 15-8 written
                  // by the host in step 1.
-                 Interrupt(0x1000 | ((_step1Value >> 8) & 0xff));
+                 Interrupt(STEP2 | ((_step1Value >> 8) & 0xff));
                  break;
 
             case InitializationStep::Step3:
@@ -239,7 +271,7 @@ void uda_c::worker(unsigned instance)
                  DEBUG("Transition to Init state S3.");
                  // Update the SA read value for step 3:
                  // S3 set, plus SA bits 7-0 written by the host in step 1.
-                 Interrupt(0x2000 | (_step1Value & 0xff));
+                 Interrupt(STEP3 | (_step1Value & 0xff));
                  break;
  
             case InitializationStep::Step4:
@@ -279,7 +311,7 @@ void uda_c::worker(unsigned instance)
                  DEBUG("Transition to Init state S4, comm area initialized.");
                  // Update the SA read value for step 4:
                  // Bits 7-0 indicating our control microcode version.
-                 Interrupt(UDA50_ID);  // UDA50 ID, makes RSTS happy
+                 Interrupt(STEP4 | (_controllerType == UDA50 ? UDA50_ID : RQDX3_ID)); 
                  break;
 
             case InitializationStep::Complete:
@@ -968,10 +1000,7 @@ uda_c::DMAWrite(
     uint8_t* buffer)
 {
     assert ((lengthInBytes % 2) == 0);
-//    if (address >= 0x40000)
-//    	logger->dump(logger->default_filepath) ;
-	assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
-    // assert (address < 0x40000);
+    assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
 
     qunibusadapter->DMA(dma_request, true,
             QUNIBUS_CYCLE_DATO,
@@ -997,8 +1026,7 @@ uda_c::DMARead(
 {
     assert (bufferSize >= lengthInBytes);
     assert((lengthInBytes % 2) == 0);
-	assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
-//    assert (address < 0x40000);
+    assert (address < 2* qunibus->addr_space_word_count); // exceeds address space? test for IOpage too?
 
     uint16_t* buffer = new uint16_t[bufferSize >> 1];
 

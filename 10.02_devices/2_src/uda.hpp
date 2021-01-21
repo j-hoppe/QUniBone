@@ -21,13 +21,18 @@
 #define DRIVE_COUNT 8
 
 // The control/microcode version info returned by SA in the fourth intialization step.
-// This indicates a UDA50 controller, which makes RSTS happy.
-#define UDA50_ID 0x4063
+#define UDA50_ID 0x0063
+#define RQDX3_ID 0x0133
 
 // The maximum message length we can handle.  This is provided as a sanity check
-// to prvent parsing clearly invalid commands.
+// to prevent parsing clearly invalid commands.
 #define MAX_MESSAGE_LENGTH 0x1000
 
+#define STEP1    0x0800
+#define STEP2    0x1000
+#define STEP3    0x2000
+#define STEP4    0x4000
+#define STEP1_22_BIT 0x200
 
 // TODO: this currently assumes a little-endian machine!
 #pragma pack(push,1)
@@ -74,12 +79,15 @@ public:
     void on_init_changed(void) override;
 
     void on_drive_status_changed(storagedrive_c *drive) override;
-
 	
     // As every storage controller UDA has one INTR and DMA
     dma_request_c dma_request = dma_request_c(this) ; // operated by qunibusadapter
     intr_request_c intr_request = intr_request_c(this) ;
-	
+
+    // Configuration parameter for 22-bit DMA
+    parameter_bool_c twenty_two_bit_DMA = parameter_bool_c(this, "22_bit_dma", "dma22",
+        false, "Enable 22-bit DMA"); 
+   	
 public:
 
     //
@@ -109,6 +117,13 @@ private:
     uint32_t GetCommandDescriptorAddress(size_t index);
     uint32_t GetResponseDescriptorAddress(size_t index);
 
+    enum ControllerType {
+        UDA50 = 0,
+        RQDX3 = 1,
+    } _controllerType;
+
+    bool _22bitDMA;
+   
 public:
     bool DMAWriteWord(uint32_t address, uint16_t word);
     uint16_t DMAReadWord(uint32_t address, bool& success);
