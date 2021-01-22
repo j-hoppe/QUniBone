@@ -1220,7 +1220,11 @@ void qunibusadapter_c::worker(unsigned instance) {
 
             }
 
-            if (!EVENT_IS_ACKED(*mailbox, deviceregister)) {
+			// QBUS: INIT is a short pulse, PDP11 may execute many opcodes after RESET until
+			// we receive event INIT and execute device initalization.
+			// PDP11 CPU state is out of sync with device state in that time, but CPU sees device
+			// only via SSYN/RPLY halted deviceregister accesses. So make sure pending INIT are processed before register access
+            if (!EVENT_IS_ACKED(*mailbox, deviceregister) && EVENT_IS_ACKED(*mailbox, init)) {
                 any_event = true;
 
                 // DATI/DATO

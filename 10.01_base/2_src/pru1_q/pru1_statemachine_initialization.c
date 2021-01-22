@@ -93,13 +93,37 @@ void sm_initialization_func() {
 			mailbox.events.init_signal_cur = 1 ;
             EVENT_SIGNAL(mailbox,init);
             PRU2ARM_INTERRUPT;
+			// Timeout for special cases where ARM software is not setup to ACK the event.
             // 50msec: longest time ARM unibusadapter needs accept PRU2ARM_INTERRUPT?
-            TIMEOUT_SET(TIMEOUT_QBUS_INIT, MILLISECS(10));
-            // wait with DMR asserted
-            sm_arb.cpu_bus_inhibit_dmr_mask |= ARB_CPU_BUS_INHIBIT_DMR_INIT ;
+//            TIMEOUT_SET(TIMEOUT_QBUS_INIT, MILLISECS(50));
+	// do not delay CPU on INIT with DMR: 11/53 hangs. 
+	// See qunibusadapter_c::worker() for handling of delays INIT and device states
+// wait with DMR asserted
+//            sm_arb.cpu_bus_inhibit_dmr_mask |= ARB_CPU_BUS_INHIBIT_DMR_INIT ;
             sm_initialization.state = state_initialization_init_asserted ;
         }
         break ;
+
+		// 11/53 after POK L->H: INIT asserted BY CPU, but not deasserted when DMR set?!
+		case state_initialization_init_asserted: {
+			uint8_t ready;
+			// wait for timeout or ACK of ARM event
+			ready = EVENT_IS_ACKED(mailbox,init) ;
+			if (!ready)
+				TIMEOUT_REACHED(TIMEOUT_QBUS_INIT, ready) ;
+			if (ready) {
+				// ARM has processed INIT event, free DMR
+//				sm_arb.cpu_bus_inhibit_dmr_mask &= ~ARB_CPU_BUS_INHIBIT_DMR_INIT ;
+				
+				// wait for trailing edge of INIT
+				if (!(sm_initialization.bussignals_cur & INITIALIZATIONSIGNAL_INIT)) {
+					sm_initialization.state = state_initialization_idle ;
+				}
+			}
+		}
+		break ;
+
+#ifdef OLD
     case state_initialization_init_asserted: {
         uint8_t ready;
         // wait for timeout or ACK of ARM event
@@ -134,6 +158,7 @@ void sm_initialization_func() {
         }
     }
     break ;
+#endif	
     }
 }
 
