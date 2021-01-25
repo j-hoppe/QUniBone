@@ -75,6 +75,11 @@ static void buslatches_wire_info_print_path(buslatch_c *bl, unsigned mismatch_bi
 void buslatches_c::output_enable(bool enable) {
 	enable = !!enable;
 	GPIO_SETVAL(gpios->bus_enable, enable);
+
+	// tie LED to driver enable via software
+	if (gpios->activity_led) 
+		GPIO_SETVAL(gpios->activity_led, !enable);
+		
 	cur_output_enable = enable;
 }
 

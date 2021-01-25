@@ -166,6 +166,7 @@ void gpios_c::init() {
 	pins[n++] = reg_enable = config("REG_ENABLE", DIR_OUTPUT, 1, 14);
 	pins[n++] = bus_enable = config("BUS_ENABLE", DIR_OUTPUT, 1, 13);
 	pins[n++] = i2c_panel_reset = config("PANEL_RESET", DIR_OUTPUT, 1, 28);
+	pins[n++] = activity_led = config("ACTIVITY_LED", DIR_OUTPUT, 0, 30);
 
 	// double functions on header: P9.41 set other pin function to tristate
 	pins[n++] = collision_p9_41 = config(NULL, DIR_INPUT, 3, 20);
@@ -209,6 +210,8 @@ void gpios_c::init() {
 	;
 	// call with commandline "--leds 15" to keep DEBUG PINS == 0
 	set_leds(cmdline_leds) ;
+	if (activity_led) // default: OFF
+		GPIO_SETVAL(activity_led, 1) ;
 }
 
 // display a number on the 4 LEDs
@@ -262,6 +265,8 @@ void gpios_c::test_loopback(void) {
 		GPIO_SETVAL(led[2], GPIO_GETVAL(swtch[2]));
 		GPIO_SETVAL(led[3], GPIO_GETVAL(swtch[3]));
 		GPIO_SETVAL(bus_enable, GPIO_GETVAL(button));
+		if (activity_led) // tied to driver enable
+			GPIO_SETVAL(activity_led, GPIO_GETVAL(button));
 		timeout.wait_ms(10);
 	}
 }

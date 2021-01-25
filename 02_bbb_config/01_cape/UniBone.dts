@@ -1,0 +1,180 @@
+/* UniBone - Device Tree Overlay for enabling GPIOs, PRU GPIOs and UARTs
+*
+* This overlay is based on the BB-PRU-01 overlay
+* Written by Derek Molloy for the book "Exploring BeagleBone: Tools and
+* Techniques for Building with Embedded Linux" by John Wiley & Sons, 2014
+* ISBN 9781118935125. Please see the file README.md in the repository root
+* directory for copyright and GNU GPLv3 license information.
+*/
+/dts-v1/;
+/plugin/;
+
+/ {
+   compatible = "ti,beaglebone", "ti,beaglebone-black";
+
+   part-number = "UniBone";
+   version = "00A0";
+
+   /* This overlay uses the following resources */
+   exclusive-use =
+   // SW[0..3] input on regular GPIO
+         "P8.23", "P8.22", "P8.3", "P8.4",
+         // BUTTON input on regular GPIO
+         "P8.12",
+
+         // LED[0..3] output on regular GPIO
+         "P8.25", "P8.24", "P8.5", "P8.6",
+
+         // Driver & Register output enable output on regular GPIO
+         "P8.11", "P8.16",
+
+         // PRU0 REG_DATOUT[0..7] outputs
+         // "P9.31", "P9.29", "P9.30", "P9.28", "P9.42", "P9.27", "P9.41", "P9.25",
+	 // P9.41 & P9.42 not "exclisive" here, used by PRU
+         "P9.31", "P9.29", "P9.30", "P9.28", "P9.27", "P9.25",
+
+         // PRU1 REG_DATIN[0..7] inputs
+         "P8.45", "P8.46", "P8.43", "P8.44", "P8.41", "P8.42", "P8.39", "P8.40",
+
+         // PRU1 REG_ADR[0..2], REG_WRITE outputs
+         "P8.27", "P8.29", "P8.28", "P8.30",
+         // PRU1 Debugging output r30 pin 12  // ,13
+         "P8.21",  // "P8.20",
+
+
+         // Assert constant level on eMMC CMD input
+         "P8.20",
+
+         "P9.26", // Pin UART1 RXD
+         "P9.24", // Pin UART1 TXD
+         "P9.22", // Pin UART2 RXD
+         "P9.21", // Pin UART2 TXD
+
+         "P9.11",  // GPIO0_30: QBone activity LED
+         "P9.12",  // GPIO1_28: I2C panel reset
+
+         // ip used
+         "pru0", "pru1",
+         "uart1", "uart2"  // UARTs necessary here?
+            ;
+
+   fragment@0 {
+      target = <&am33xx_pinmux>;
+      __overlay__ {
+
+        // <pinctrl memory register as offset from 0x44e10800> <value> pairs
+        // value composed as sum of (SPRU73N, 9.2.2.2.0)
+        // SLEWCTRL: 0 = fast, 0x40 = slow.
+        // RXACTIVE: Input buffer enable. 0 = disable, 0x20 = enable
+        // PULLTYPESEL: Pad pullup/pulldown. 0 = pull down, 0x10 = pull up
+        // PULLUDEN: Pad pullup/down enable. 0 = enable, 0x08 = disable
+        // MUXMODE: 0..7
+         gpio_pins: pinmux_gpio_pins {         // The GPIO pins
+            pinctrl-single,pins = <
+
+               0x010  0x2f // SW0 input on P8.23: gpio1_4, rx, no pull up/dn, mode=7
+               0x014  0x2f // SW1 input on P8.22: gpio1_5, rx, no pull up/dn, mode=7
+               0x018  0x2f // SW2 input on P8.3: gpio1_6, rx, no pull up/dn, mode=7
+               0x01c  0x2f // SW3 input on P8.4: gpio1_7, rx, no pull up/dn, mode=7
+               0x030  0x2f // BUTTON input on P8.12: gpio1_12, rx, no pull up/dn, mode=7
+
+               0x000  0x07 // LED0 output on P8.25: gpio1_0, pulldown, mode=7
+               0x004  0x07 // LED1 output on P8.24: gpio1_1, pulldown, mode=7
+               0x008  0x07 // LED2 output on P8.05: gpio1_2, pulldown, mode=7
+               0x00c  0x07 // LED3 output on P8.06: gpio1_3, pulldown, mode=7
+               0x038  0x17 // REG_ENABLE output on P8.16: gpio1_14, pullup, mode=7
+               0x034  0x17 // BUS_ENABLE output on P8.11: gpio1_13, pullup, mode=7
+
+               0x084 0x07 // Force constant level on eMMC CMD pin. P8.20 output gpio1_31, pulldown, mode=7
+
+                // UARTs
+               0x180 0x30 // UART1 RXD on P9.26, receiver, pullup, mode=0=UART1
+               0x184 0x10 // UART1 TXD on P9.24, xmitter, pullup, mode=0=UART1
+               0x150 0x31 // UART2 RXD on P9.22, receiver, pullup, mode=1=UART2
+               0x154 0x11 // UART2 TXD on P9.21, xmitter, pullup, mode=1=UART2
+
+                // Activity LED
+               0x070 0x07 // LED output on P9.11: gpio0_30, pulldown, mode=7
+                // I2C panel reset
+               0x078 0x17 // I2C panel reset on P9.12: gpio1_28, pullup, mode=7
+
+            >;
+         };
+
+         pru_pru_pins: pinmux_pru_pru_pins {   // The PRU pin modes
+            pinctrl-single,pins = <
+                 0x190 0x15 // PRU0 REG_DATOUT_0 on P9.31: pr1_pru0_pru_r30_0, fast, pullup, mode=5
+                 0x194 0x15 // PRU0 REG_DATOUT_1 on P9.29: pr1_pru0_pru_r30_1, fast, pullup, mode=5
+                 0x198 0x15 // PRU0 REG_DATOUT_2 on P9.30: pr1_pru0_pru_r30_2, fast, pullup, mode=5
+                 0x19c 0x15 // PRU0 REG_DATOUT_3 on P9.28: pr1_pru0_pru_r30_3, fast, pullup, mode=5
+                 0x1a0 0x15 // PRU0 REG_DATOUT_4 on P9.42: pr1_pru0_pru_r30_4, fast, pullup, mode=5
+                 0x1a4 0x15 // PRU0 REG_DATOUT_5 on P9.27: pr1_pru0_pru_r30_5, fast, pullup, mode=5
+                 0x1a8 0x15 // PRU0 REG_DATOUT_6 on P9.41: pr1_pru0_pru_r30_6, fast, pullup, mode=5
+                 0x1ac 0x15 // PRU0 REG_DATOUT_7 on P9.25: pr1_pru0_pru_r30_7, fast, pullup, mode=5
+                 0x164 0x2f // P9.42 REG_DATOUT_4 tied to GPIO0_7: GPIO tristate! input, no pull up/dn, mode=7
+                 0x1b4 0x2f // P9.41 REG_DATOUT_6 tied to GPIO0_20: GPIO tristate! input, no pull up/dn, mode=7
+
+                 0x0a0 0x2e // PRU1 REG_DATIN_0 on P8.45: pr1_pru1_pru_r31_0, fast, rx, no pulldown, mode6
+                 0x0a4 0x2e // PRU1 REG_DATIN_1 on P8.46: pr1_pru1_pru_r31_1, fast, rx, no pulldown, mode6
+                 0x0a8 0x2e // PRU1 REG_DATIN_2 on P8.43: pr1_pru1_pru_r31_2, fast, rx, no pulldown, mode6
+                 0x0ac 0x2e // PRU1 REG_DATIN_3 on P8.44: pr1_pru1_pru_r31_3, fast, rx, no pulldown, mode6
+                 0x0b0 0x2e // PRU1 REG_DATIN_4 on P8.41: pr1_pru1_pru_r31_4, fast, rx, no pulldown, mode6
+                 0x0b4 0x2e // PRU1 REG_DATIN_5 on P8.42: pr1_pru1_pru_r31_5, fast, rx, no pulldown, mode6
+                 0x0b8 0x2e // PRU1 REG_DATIN_6 on P8.39: pr1_pru1_pru_r31_6, fast, rx, no pulldown, mode6
+                 0x0bc 0x2e // PRU1 REG_DATIN_7 on P8.40: pr1_pru1_pru_r31_7, fast, rx, no pulldown, mode6
+                 // 0x0bc 0x36 // PRU1 REG_DATIN_7 on P8.40: pr1_pru1_pru_r31_7, fast, rx, pullup, mode6
+                 // 0x0bc 0x26 // PRU1 REG_DATIN_7 on P8.40: pr1_pru1_pru_r31_7, fast, rx, pulldown, mode6
+
+                 // PRU1 REG_ADR[0..2], REG_WRITE outputs
+                 0x0e0 0x05 // REG_ADR_0 on P8.27: pr1_pru1_pru_r30_8, fast, output, pulldown, mode=5
+                 0x0e4 0x05 // REG_ADR_1 on P8.29: pr1_pru1_pru_r30_9, fast, output, pulldown, mode=5
+                 0x0e8 0x05 // REG_ADR_2 on P8.28: pr1_pru1_pru_r30_10, fast, output, pulldown, mode=5
+                 0x0ec 0x15 // REG_WRITE on P8.30: pr1_pru1_pru_r30_11, fast, output, pullup, mode=5
+                 0x080 0x05 // PRU1_12 on P8.21: pr1_pru1_pru_r30_12, fast, output, pulldown, mode=5
+                 // 0x084 0x05 // PRU1_13 on P8.20: pr1_pru1_pru_r30_13, fast, output, pulldown, mode=5
+
+            >;
+         };
+      };
+   };
+
+   fragment@1 {         // Enable the PRUSS
+      target = <&pruss>;
+      __overlay__ {
+         status = "okay";
+         pinctrl-names = "default";
+         pinctrl-0 = <&pru_pru_pins>;
+      };
+   };
+
+   fragment@2 {         // Enable the GPIOs
+      target = <&ocp>;
+      __overlay__ {
+         gpio_helper {
+            compatible = "gpio-of-helper";
+            status = "okay";
+            pinctrl-names = "default";
+            pinctrl-0 = <&gpio_pins>;
+         };
+      };
+   };
+
+   fragment@3{
+            target = <&uart1>;
+            __overlay__ {
+                    status          = "okay";
+            };
+    };
+
+   fragment@4{
+            target = <&uart2>;
+            __overlay__ {
+                    status          = "okay";
+            };
+    };
+
+
+
+
+
+};
