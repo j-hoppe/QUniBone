@@ -342,10 +342,12 @@ void cpu_c::worker(unsigned instance) {
 		}
 		continue_switch.value = false; // momentary action
 
+        ka11.sw = swreg.value & 0xffff;
+
 		if (!runmode.value && start_switch.value) {
 			// START, or HALT+START: reset system
 			ka11.r[7] = pc.value & 0xffff;
-            ka11.sw = swreg.value & 0xffff;
+//            ka11.sw = swreg.value & 0xffff;
 			qunibus->init();
 			ka11_reset(&ka11);
 			if (!halt_switch.value) {
