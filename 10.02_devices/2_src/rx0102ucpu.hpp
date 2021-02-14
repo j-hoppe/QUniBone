@@ -33,7 +33,7 @@
 #include <string.h>
 #include <vector>
 
-#include "RX0102drive.hpp"
+#include "rx0102drive.hpp"
 
 class RX11_c ;
 // by default visible to user .. not good
