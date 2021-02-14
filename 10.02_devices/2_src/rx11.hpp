@@ -28,7 +28,7 @@
 
 #include "qunibusadapter.hpp"
 #include "storagecontroller.hpp"
-#include "RX0102ucpu.hpp"
+#include "rx0102ucpu.hpp"
 
 
 // the RX controller is jsut an stateless interface between
