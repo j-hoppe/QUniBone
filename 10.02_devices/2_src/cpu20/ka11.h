@@ -35,6 +35,8 @@ struct KA11
 };
 
 
+void ka11_tracestate(KA11 *cpu);
+void ka11_printstate(KA11 *cpu);
 void ka11_reset(KA11 *cpu);
 void ka11_setintr(KA11 *cpu, unsigned vec);
 void ka11_pwrfail_trap(KA11 *cpu);

@@ -83,7 +83,7 @@ ubxt(word a)
 }
 
 void
-tracestate(KA11 *cpu)
+ka11_tracestate(KA11 *cpu)
 {
 	(void)cpu;
 	trace(" R0 %06o R1 %06o R2 %06o R3 %06o R4 %06o R5 %06o R6 %06o R7 %06o\n"
@@ -98,7 +98,7 @@ tracestate(KA11 *cpu)
 }
 
 void
-printstate(KA11 *cpu)
+ka11_printstate(KA11 *cpu)
 {
 	(void)cpu;
 	printf(" R0 %06o R1 %06o R2 %06o R3 %06o R4 %06o R5 %06o R6 %06o R7 %06o\n"
@@ -609,7 +609,7 @@ trap:
 	/* no trace trap after a trap */
 	oldpsw = PSW;
 
-	tracestate(cpu);
+	ka11_tracestate(cpu);
 	return;		// TODO: is this correct?
 //	SVC;
 
@@ -711,5 +711,5 @@ run(KA11 *cpu)
 		ka11_condstep(cpu);
 	}
 
-	printstate(cpu);
+	ka11_printstate(cpu);
 }

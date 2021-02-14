@@ -32,6 +32,7 @@ using namespace std;
 //#include "qunibusadapter.hpp"
 //#include "qunibusdevice.hpp"
 #include "unibuscpu.hpp"
+#include "qunibus_trigger.hpp"
 #include "cpu20/11.h"
 #include "cpu20/ka11.h"
 
@@ -93,6 +94,10 @@ public:
 			override;
 
 	void on_interrupt(uint16_t vector);
+
+	//diagnostic
+	trigger_c	trigger ;
+
 
 };
 
