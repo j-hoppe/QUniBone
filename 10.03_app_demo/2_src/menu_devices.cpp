@@ -53,6 +53,7 @@
 #include "testcontroller.hpp"
 #include "rl11.hpp"
 #include "rk11.hpp"
+#include "rx11.hpp"
 #include "uda.hpp"
 #include "dl11w.hpp"
 #if defined(UNIBUS)
@@ -183,6 +184,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	DL11->rs232adapter.baudrate = DL11->baudrate.value; // limit speed of injected chars
 
 	ltc_c *LTC = new ltc_c();
+
+	RX11_c *RX11 = new RX11_c() ;
 
 	//	//demo_regs.install();
 	//	//demo_regs.worker_start();
@@ -596,6 +599,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	m9312->enabled.set(false) ;
 	delete m9312 ;
 #endif
+
+	RX11->enabled.set(false) ;
+	delete RX11;
 
 	LTC->enabled.set(false);
 	delete LTC;

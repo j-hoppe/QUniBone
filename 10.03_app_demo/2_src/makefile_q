@@ -106,6 +106,9 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/uda.o         \
 	$(OBJDIR)/mscp_server.o \
 	$(OBJDIR)/mscp_drive.o \
+	$(OBJDIR)/rx0102drive.o	\
+	$(OBJDIR)/rx0102ucpu.o	\
+	$(OBJDIR)/rx11.o	\
 	$(OBJDIR)/rs232.o \
 	$(OBJDIR)/rs232adapter.o \
 	$(OBJDIR)/dl11w.o \
@@ -139,6 +142,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/logger.o	\
 	$(OBJDIR)/utils.o	\
 	$(OBJDIR)/compile_timestamp.o
+
 
 # create needed directories
 $(shell   mkdir -p $(PRU_DEPLOY_DIR) $(OBJDIR))
@@ -244,6 +248,15 @@ $(OBJDIR)/rk05.o :  $(DEVICE_SRC_DIR)/rk05.cpp $(DEVICE_SRC_DIR)/rk05.hpp
 $(OBJDIR)/rk11.o :  $(DEVICE_SRC_DIR)/rk11.cpp $(DEVICE_SRC_DIR)/rk11.hpp
 	$(CC) $(CCFLAGS) -Wno-missing-field-initializers $< -o $@
 
+$(OBJDIR)/rx0102drive.o :  $(DEVICE_SRC_DIR)/rx0102drive.cpp $(DEVICE_SRC_DIR)/rx0102drive.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/rx0102ucpu.o :  $(DEVICE_SRC_DIR)/rx0102ucpu.cpp $(DEVICE_SRC_DIR)/rx0102ucpu.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/rx11.o :  $(DEVICE_SRC_DIR)/rx11.cpp $(DEVICE_SRC_DIR)/rx11.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
 $(OBJDIR)/uda.o :   $(DEVICE_SRC_DIR)/uda.cpp $(DEVICE_SRC_DIR)/uda.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
@@ -261,9 +274,6 @@ $(OBJDIR)/rs232adapter.o :  $(DEVICE_SRC_DIR)/rs232adapter.cpp $(DEVICE_SRC_DIR)
 
 $(OBJDIR)/dl11w.o :  $(DEVICE_SRC_DIR)/dl11w.cpp $(DEVICE_SRC_DIR)/dl11w.hpp
 	$(CC) $(CCFLAGS) $< -o $@
-
-#$(OBJDIR)/m9312.o :  $(DEVICE_SRC_DIR)/m9312.cpp $(DEVICE_SRC_DIR)/m9312.hpp
-#	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/storagedrive.o :  $(BASE_SRC_DIR)/storagedrive.cpp $(BASE_SRC_DIR)/storagedrive.hpp
 	$(CC) $(CCFLAGS) $< -o $@

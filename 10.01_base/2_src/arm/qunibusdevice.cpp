@@ -73,8 +73,10 @@ bool qunibusdevice_c::on_param_changed(parameter_c *param) {
 			intr_vector.readonly = true;
 			intr_level.readonly = true;
 			install(); // visible on QBUS/UNIBUS
+			on_after_install() ;
 		} else {
 			// disable
+			on_before_uninstall() ;
 			uninstall();
 			on_after_uninstall() ; // possible callback to device
 			base_addr.readonly = false;
