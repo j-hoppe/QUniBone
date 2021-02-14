@@ -1,0 +1,78 @@
+	.title	M9312 'DX' BOOT prom for RX11 compatible controller
+
+	; This source code is a modified copy of the DEC M9312 23-753A9 boot PROM.
+	;
+	; This boot PROM is for any RX11/RX01 compatible floppy controller.
+	;
+	; Multiple units and/or CSR addresses are supported via different entry points.
+	;
+
+rxcsr	=177170				; std RX11 csrbase
+
+rxcs	=+0				; command/status
+rxdb	=+2				; data buffer
+
+
+	.asect
+	; ---- Simple boot drive 0 from 0
+	. = 0
+	jmp	@#start0
+
+	; ---- Reboot drive 0 on power event
+	. = 24				; Power ON/OFF
+	.word	start0			; PC
+	.word	340			; PSW priority level 7
+
+
+	; ----- Main boot addresses
+	.=10000 			;  arbitrary position > 3000
+
+start:
+	; 2 unit numbers => 2 entry addresses
+start0:
+	mov	#0,r0
+	br	rxnr
+	nop
+start1:
+	mov	#1,r0
+
+rxnr:
+	mov	#rxcsr,r1		; boot std csr, unit <r0>
+
+	mov	#<003*400>+007,r3	; unit zero, read+go
+	bitb	#1,r0			; test unit ID
+	beq	2$			; br if zero
+	mov	#<023*400>+027,r3	; unit one, read+go
+
+2$:	bitb	#100040,(r1)		; test error<15> or done<5>
+	beq	2$			; neither, keep looping
+
+	movb	r3,(r1)			; exec read+go on unit
+
+3$:	movb	(r1),r5			; wait for transfer req
+	bpl	3$			; not yet, keep looping
+
+	movb	#1,rxdb(r1)		; set track/sector 1
+	rorb	r3			; 007 -> 003 -> 001 -> 000
+	bvs	3$			; loop three times
+
+4$:	bit	#100040,(r1)		; test error<15> or done<5>
+	beq	4$			; neither, keep looping
+	bmi	6$			; br if error
+
+	swab	r3			; R3=003/023 unit0/1
+	movb	r3,(r1)			; exec emptybuf+go on unit
+
+	clr	r3			; bus address ptr
+5$:	tstb	(r1)			; wait for data transfer req
+	bpl	5$			; loop if not yet
+	movb	rxdb(r1),(r3)+		; store data byte
+	tstb	r3			; check address >= 128
+	bpl	5$			; br if address in 0..127
+
+	clr	pc			; jump to bootstrap at zero
+
+6$:	reset				; failed, reset controller
+	br	rxnr			; and retry from the beginning
+
+	.end

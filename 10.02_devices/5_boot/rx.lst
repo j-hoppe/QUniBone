@@ -1,0 +1,79 @@
+       1                                	.title	M9312 'DX' BOOT prom for RX11 compatible controller
+       2                                
+       3                                	; This source code is a modified copy of the DEC M9312 23-753A9 boot PROM.
+       4                                	;
+       5                                	; This boot PROM is for any RX11/RX01 compatible floppy controller.
+       6                                	;
+       7                                	; Multiple units and/or CSR addresses are supported via different entry points.
+       8                                	;
+       9                                
+      10 177170                         rxcsr	=177170				; std RX11 csrbase
+      11                                
+      12 000000                         rxcs	=+0				; command/status
+      13 000002                         rxdb	=+2				; data buffer
+      14                                
+      15                                
+      16                                	.asect
+      17                                	; ---- Simple boot drive 0 from 0
+      18 000000                         	. = 0
+      19 000000 000137  010000          	jmp	@#start0
+      20                                
+      21                                	; ---- Reboot drive 0 on power event
+      22 000024                         	. = 24				; Power ON/OFF
+      23 000024 010000                  	.word	start0			; PC
+      24 000026 000340                  	.word	340			; PSW priority level 7
+      25                                
+      26                                
+      27                                	; ----- Main boot addresses
+      28 010000                         	.=10000 			;  arbitrary position > 3000
+      29                                
+      30                                start:
+      31                                	; 2 unit numbers => 2 entry addresses
+      32                                start0:
+      33 010000 012700  000000          	mov	#0,r0
+      34 010004 000403                  	br	rxnr
+      35 010006 000240                  	nop
+      36                                start1:
+      37 010010 012700  000001          	mov	#1,r0
+      38                                
+      39                                rxnr:
+      40 010014 012701  177170          	mov	#rxcsr,r1		; boot std csr, unit <r0>
+      41                                
+      42 010020 012703  001407          	mov	#<003*400>+007,r3	; unit zero, read+go
+      43 010024 132700  000001          	bitb	#1,r0			; test unit ID
+      44 010030 001402                  	beq	2$			; br if zero
+      45 010032 012703  011427          	mov	#<023*400>+027,r3	; unit one, read+go
+      46                                
+      47 010036 132711  100040          2$:	bitb	#100040,(r1)		; test error<15> or done<5>
+      48 010042 001775                  	beq	2$			; neither, keep looping
+      49                                
+      50 010044 110311                  	movb	r3,(r1)			; exec read+go on unit
+      51                                
+      52 010046 111105                  3$:	movb	(r1),r5			; wait for transfer req
+      53 010050 100376                  	bpl	3$			; not yet, keep looping
+      54                                
+      55 010052 112761  000001  000002  	movb	#1,rxdb(r1)		; set track/sector 1
+      56 010060 106003                  	rorb	r3			; 007 -> 003 -> 001 -> 000
+      57 010062 102771                  	bvs	3$			; loop three times
+      58                                
+      59 010064 032711  100040          4$:	bit	#100040,(r1)		; test error<15> or done<5>
+      60 010070 001775                  	beq	4$			; neither, keep looping
+      61 010072 100412                  	bmi	6$			; br if error
+      62                                
+      63 010074 000303                  	swab	r3			; R3=003/023 unit0/1
+      64 010076 110311                  	movb	r3,(r1)			; exec emptybuf+go on unit
+      65                                
+      66 010100 005003                  	clr	r3			; bus address ptr
+      67 010102 105711                  5$:	tstb	(r1)			; wait for data transfer req
+      68 010104 100376                  	bpl	5$			; loop if not yet
+      69 010106 116123  000002          	movb	rxdb(r1),(r3)+		; store data byte
+      70 010112 105703                  	tstb	r3			; check address >= 128
+      71 010114 100372                  	bpl	5$			; br if address in 0..127
+      72                                
+      73 010116 005007                  	clr	pc			; jump to bootstrap at zero
+      74                                
+      75 010120 000005                  6$:	reset				; failed, reset controller
+      76 010122 000734                  	br	rxnr			; and retry from the beginning
+      77                                
+      78                                	.end
+      78                                
