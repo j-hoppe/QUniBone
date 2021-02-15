@@ -26,6 +26,7 @@
 #ifndef _RX11_HPP_
 #define _RX11_HPP_
 
+#include <pthread.h>
 #include "qunibusadapter.hpp"
 #include "storagecontroller.hpp"
 #include "rx0102ucpu.hpp"
@@ -56,7 +57,7 @@ private:
 
 public:
 
-    // register interface to  RL11 controller
+    // register interface to RX11 controller
     qunibusdevice_register_t *busreg_RXCS; 	// Control Status: offset +0
     qunibusdevice_register_t *busreg_RXDB;		// multipurpose data register: offset +2
 
@@ -81,6 +82,7 @@ public:
     // assemble content of RXCS and RXDB read register
     // called by uCPU on any status change
     void update_status(const char *debug_info);
+	pthread_mutex_t status_mutex = PTHREAD_MUTEX_INITIALIZER ;
 
 //    void on_uCPU_status_changed(const char *debug_info) ;
 

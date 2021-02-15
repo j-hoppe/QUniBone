@@ -179,8 +179,9 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
     case step_none:
         break ; // not reached
     case step_transfer_buffer_write: // controller fills buffer before function execution ()
+        // transfer_byte_count at program setup
         transfer_byte_idx = 0 ;
-        signal_transfer_request = true ;
+        signal_transfer_request = true ; // may write first byte now
         controller->update_status("step_execute(step_transfer_buffer_write) -> update_status") ; // show TR bit in RXCS
         // wait for rxdb_after_write() to signal transfer completion
         pthread_cond_wait(&on_worker_cond, &on_worker_mutex);
@@ -188,11 +189,12 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
         break ;
     case step_transfer_buffer_read: // controller reads back buffer (only "empty")
 //        logger->debug_hexdump(this, "transfer_buffer before read", (uint8_t *) transfer_buffer, sizeof(transfer_buffer), NULL);
-        signal_transfer_request = true ;
+        // transfer_byte_count at program setup
         transfer_byte_idx = 0 ;
         // put first word into RXDB
         switch (signal_function_code) {
         case RX11_CMD_EMPTY_BUFFER:
+            signal_transfer_request = true ; // when RXDB is valid
             rxdb = sector_buffer[0] ; // 	1st byte readable
             DEBUG("sector_buffer[0] = %06o", rxdb) ;
             break ;
@@ -238,7 +240,7 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
         if (selected_drive()->check_ready())
             rxes |= BIT(7) ; // drive ready
         rxdb = rxes ;
-        controller->update_status("step_execute(step_done_read_error) -> update_status") ; // may trigger interrupt
+        controller->update_status("step_execute(step_init_done) -> update_status") ; // may trigger interrupt
         break ;
     case step_done: // idle between functions
         initializing = false ; // also called at end of INIT
@@ -419,32 +421,30 @@ void RX0102uCPU_c::pgmstep_seek(void) {
 
 // Notify read access to RXDB by controller
 // puts next buffer cell into RXDB.
-// block read when state == state_transfer_read_result;
+// only for block read when state == state_transfer_read_result;
 void RX0102uCPU_c::rxdb_after_read(void) {
     DEBUG("rxdb_after_read() in function %s, word %d/%d", function_code_text(signal_function_code),transfer_byte_idx,transfer_byte_count) ;
-    if (transfer_byte_idx >= transfer_byte_count)
-        // not expecting any data
-        return ;
-    switch(signal_function_code) {
-    case RX11_CMD_EMPTY_BUFFER:
+
+    if (transfer_byte_idx < transfer_byte_count && signal_function_code == RX11_CMD_EMPTY_BUFFER) {
         // read data from buffer, "empty"
         if (transfer_byte_idx+1 < transfer_byte_count) {
             // put next buffer byte into RXDB
             rxdb = sector_buffer[++transfer_byte_idx] ; // read 8bit, return 16 bit
             DEBUG("sector_buffer[%d] = %06o",transfer_byte_idx, rxdb) ;
+            controller->update_status("rxdb_after_read() rxdb=buffer byte -> update_status") ; // new RXDB, new TR
         } else {
             // last byte transmitted: continue halted program
             signal_transfer_request = false ;
             transfer_byte_idx++ ; // move to "invalid"
+            controller->update_status("rxdb_after_read() -> update_status") ; // new RXDB, new TR, before INTR
             pthread_mutex_lock(&on_worker_mutex);
             pthread_cond_signal(&on_worker_cond);
             pthread_mutex_unlock(&on_worker_mutex);
             // last word written: "fill" and "empty" programs executes DONE
             // last buffer word return to QBUS DATI, Interrupt raised simultaneously and pending
+            // next RXDB is RXES together with INTR, see step_done
         }
     }
-    controller->update_status("rxdb_after_read() -> update_status") ; // new RXDB, new TR
-    DEBUG(" ... return %06o", rxdb) ;
 }
 
 // Write access to RXDB by controller
@@ -527,13 +527,13 @@ bool RX0102uCPU_c::on_param_changed(parameter_c *param) {
             RX0102drive_c *drive = drives[i] ;
             drive->enabled.set(enabled.new_value) ;
         }
-		 controller->update_status("on_param_changed(enabled) -> update_status") ;
+        controller->update_status("on_param_changed(enabled) -> update_status") ;
 
     }  else if (param == &power_switch) {
         if (!power_switch.new_value) {
             // switch OFF by user
             set_powerless() ;
-			controller->update_status("on_param_changed(power_switch) -> update_status") ;
+            controller->update_status("on_param_changed(power_switch) -> update_status") ;
         } else {
             // power-on reset sequence
             init() ;
@@ -578,7 +578,7 @@ void RX0102uCPU_c::on_init_changed(void) {
 void RX0102uCPU_c::on_drive_state_changed(RX0102drive_c *drive) {
     // forward "drive ready" to RXES
     if (drive == selected_drive()) {
-		controller->update_status("on_drive_state_changed() -> update_status") ;
+        controller->update_status("on_drive_state_changed() -> update_status") ;
     }
 }
 
@@ -621,11 +621,12 @@ void RX0102uCPU_c::init() {
     program_steps.push_back(step_sector_read) ;
     program_steps.push_back(step_init_done) ;
 
+    controller->update_status("init() -> update_status") ;
+
     // wakeup worker, start program
     pthread_cond_signal(&on_worker_cond);
     pthread_mutex_unlock(&on_worker_mutex);
 
-	controller->update_status("init() -> update_status") ;
 }
 
 
@@ -651,8 +652,7 @@ void RX0102uCPU_c::go() { // execute function_code
 
     case RX11_CMD_FILL_BUFFER:
         rxer = 0 ;
-        transfer_byte_count = 128 ;
-		signal_transfer_request = true ; // immediately
+        transfer_byte_count = 128 ; // buffer
         program_steps.push_back(step_transfer_buffer_write) ; // start by data
         program_steps.push_back(step_done) ;
         break ;
@@ -665,8 +665,7 @@ void RX0102uCPU_c::go() { // execute function_code
         */
     case RX11_CMD_EMPTY_BUFFER:
         rxer = 0 ;
-        transfer_byte_count = 128 ;
-		signal_transfer_request = true ; // immediately
+        transfer_byte_count = 128 ; // buffer
         program_steps.push_back(step_transfer_buffer_read) ;
         program_steps.push_back(step_done) ;
         break ;
@@ -682,7 +681,6 @@ void RX0102uCPU_c::go() { // execute function_code
     case RX11_CMD_READ_SECTOR:
         rxer = 0 ;
         transfer_byte_count = 2 ; // sector&track
-		signal_transfer_request = true ; // immediately
         program_steps.push_back(step_transfer_buffer_write) ; // start by disk address
         program_steps.push_back(step_seek) ;
         program_steps.push_back(step_sector_read) ;
@@ -693,7 +691,6 @@ void RX0102uCPU_c::go() { // execute function_code
         rxer = 0 ;
         deleted_data_mark = (signal_function_code == RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA) ;
         transfer_byte_count = 2 ; // sector&track
-		signal_transfer_request = true ; // immediately
         program_steps.push_back(step_transfer_buffer_write) ; // start by disk address
         program_steps.push_back(step_seek) ;
         program_steps.push_back(step_sector_write) ;
@@ -726,10 +723,10 @@ void RX0102uCPU_c::go() { // execute function_code
         */
     } // switch
     // wake up worker, start program
+    controller->update_status("go() -> update_status") ;
+
     pthread_cond_signal(&on_worker_cond);
     pthread_mutex_unlock(&on_worker_mutex);
-
-	controller->update_status("go() -> update_status") ;
 
 }
 

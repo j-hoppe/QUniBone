@@ -139,10 +139,10 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     if (!check_ready())
         return false ; // no floppy image
 
-	// wait for 1 sector to pass, else ZRXB failures
-	unsigned rotation_ms =  (1000*60) / full_rpm ; // time for index hole to pass
-	unsigned sector_millis = rotation_ms / sector_count ; // about 6.5 ms
-	timeout_c().wait_ms(sector_millis / emulation_speed.value) ;
+    // wait for 1 sector to pass, else ZRXB failures
+    unsigned rotation_ms =  (1000*60) / full_rpm ; // time for index hole to pass
+    unsigned sector_millis = rotation_ms / sector_count ; // about 6.5 ms
+    timeout_c().wait_ms(sector_millis / emulation_speed.value) ;
 
     *deleted_data_mark = deleted_data_marks[track][sector] ;
 
@@ -173,12 +173,12 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
         WARNING("Write access to readonly floppy image file ignored") ;
         return true ;
     }
-	
-	// wait for 1 sector to pass, else ZRXB failures
-	unsigned rotation_ms =  (1000*60) / full_rpm ; // time for index hole to pass
-	unsigned sector_millis = rotation_ms / sector_count ; // about 6.5 ms
-	timeout_c().wait_ms(sector_millis / emulation_speed.value) ;
-	
+
+    // wait for 1 sector to pass, else ZRXB failures
+    unsigned rotation_ms =  (1000*60) / full_rpm ; // time for index hole to pass
+    unsigned sector_millis = rotation_ms / sector_count ; // about 6.5 ms
+    timeout_c().wait_ms(sector_millis / emulation_speed.value) ;
+
     deleted_data_marks[track][sector] = deleted_data_mark ;
 
     if (!track0image.value) {

@@ -166,7 +166,7 @@ bool RX11_c::on_before_install() {
 
 void RX11_c::on_after_install() {
     // poll signal wires from uCPU
-    update_status(__func__) ;
+    update_status("on_after_install() -> update_status") ;
 }
 
 void RX11_c::on_after_uninstall() {
@@ -198,7 +198,7 @@ void RX11_c::reset(void) {
     interrupt_condition_prev = true ;
     uCPU->init() ; // home, read boot sector
     // generates done = 0,1 sequence
-    update_status(__func__);
+    update_status("reset() -> update_status");
 
 }
 
@@ -245,9 +245,9 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                 uCPU->init() ;
             } else if (busreg_RXCS->active_dato_flipflops & 1) { // GO bit
                 uCPU->go() ; // execute uCPU.function_code
-            }
-
-            update_status(__func__) ; // may trigger interrupt
+            } else 
+				// register status NOT updated via uCPU activity
+	            update_status("on_after_register_access() -> update_status") ; // may trigger interrupt
 
             pthread_mutex_unlock(&on_after_register_access_mutex);
         } else {
@@ -280,7 +280,10 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 // must be done after each DATO
 // generates INTR too: on change on DONE or on change of INTENABLE
 void RX11_c::update_status(const char *debug_info) {
-    // RXDB
+	// update_status() *NOT* called both by DATI/DATO on_after_register_access() and uCPU worker thread
+	//	pthread_mutex_lock(&status_mutex);
+
+	// RXDB
     set_register_dati_value(busreg_RXDB, uCPU->rxdb, debug_info);
 
     bool interrupt_condition = uCPU->signal_done && interrupt_enable ;
@@ -298,16 +301,20 @@ void RX11_c::update_status(const char *debug_info) {
 
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
-        DEBUG("update_status(): done=%d, int_enable=%d, interrupt!", uCPU->signal_done, interrupt_enable) ;
+        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
+        	uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
         qunibusadapter->INTR(intr_request, busreg_RXCS, tmp);
     } else {
         if (!interrupt_condition) // revoke INTR, if raised
             qunibusadapter->cancel_INTR(intr_request);
         set_register_dati_value(busreg_RXCS, tmp, debug_info);
-        DEBUG("update_status(): done=%d, int_enable=%d, no interrupt", uCPU->signal_done, interrupt_enable) ;
+        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
+			uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
     }
 
     interrupt_condition_prev = interrupt_condition ;
+
+	//	pthread_mutex_unlock(&status_mutex);
 
 }
 
