@@ -106,6 +106,8 @@ qunibusadapter_c::qunibusadapter_c() :
     requests_init();
 
     registered_cpu = NULL;
+
+	memset(register_by_handle, 0, sizeof(register_by_handle)) ;
 }
 
 bool qunibusadapter_c::on_param_changed(parameter_c *param) {
@@ -125,6 +127,7 @@ void qunibusadapter_c::on_init_changed(void) {
     mailbox->intr.priority_arbitration_bit = PRIORITY_ARBITRATION_BIT_MASK;
     mailbox_execute(ARM2PRU_INTR_CANCEL);
 }
+
 
 // register_device ... "plug" the device into QBUS/UNIBUSs backplane
 // - assign handle
@@ -208,9 +211,12 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
 
         device_reg->pru_iopage_register = pru_iopage_reg; // link controller register to shared descriptor
         device_reg->register_handle = register_handle;
+		assert(register_by_handle[register_handle] == NULL) ;
+		register_by_handle[register_handle] = device_reg ; // PRU->ARM lookup table
         pru_iopage_reg->value = device_reg->reset_value; // init
         pru_iopage_reg->writable_bits = device_reg->writable_bits;
         pru_iopage_reg->event_flags = 0;
+		pru_iopage_reg->event_register_handle = 0; 
         // "active" devices are marked with controller handle
         if (device_reg->active_on_dati || device_reg->active_on_dato) {
             if (device_reg->active_on_dati && !device_reg->active_on_dato && device_reg->writable_bits != 0x0000) {
@@ -222,20 +228,18 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
                     "make DATO active too -> datao value saved in DATO flipflops",
                     device.name.value.c_str(), i);
             }
-            pru_iopage_reg->event_device_handle = device.handle;
-            pru_iopage_reg->event_device_register_idx = i; // # of register in device
+            pru_iopage_reg->event_register_handle = device_reg->register_handle;
             if (device_reg->active_on_dati)
                 pru_iopage_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATI;
             if (device_reg->active_on_dato)
                 pru_iopage_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATO;
-        } else {
-            pru_iopage_reg->event_device_handle = 0;
-            pru_iopage_reg->event_device_register_idx = 0; // not used, PRU handles logic
         }
         // write register handle into IO page address map
         uint32_t addr = device.base_addr.value + 2 * i; // devices have always sequential address register range!
         IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,addr)= register_handle;
+
 // printf("!!! register @0%06o = reg 0x%x\n", addr, reghandle) ;
+
         register_handle++;
     }
     // if its a CPU, switch PRU to "with_CPU"
@@ -275,6 +279,9 @@ void qunibusadapter_c::unregister_device(qunibusdevice_c& device) {
     for (i = 0; i < device.register_count; i++) {
         uint32_t addr = device.base_addr.value + 2 * i; // devices have always sequential address register range!
         IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,addr)= 0;
+		uint8_t register_handle = device.registers[i].register_handle ;
+		register_by_handle[register_handle] = NULL  ;
+	
         // register descriptor remain unchanged, also device->members
     }
 }
@@ -910,17 +917,16 @@ void qunibusadapter_c::worker_power_event(signal_edge_enum aclo_edge, signal_edg
 // process DATI/DATO access to active device registers
 
 void qunibusadapter_c::worker_deviceregister_event() {
-    unsigned device_handle;
-    qunibusdevice_c *device;
-    device_handle = mailbox->events.deviceregister.device_handle;
-    assert(device_handle);
-    device = devices[device_handle];
-    unsigned evt_idx = mailbox->events.deviceregister.register_idx;
+	// signaled the 8bit registerhandle, locate device & register
+    uint8_t register_handle = mailbox->events.deviceregister.register_handle ;
+    assert(register_handle > 0 && register_handle != IOPAGE_REGISTER_HANDLE_ROM); 
+    qunibusdevice_register_t *device_reg = register_by_handle[register_handle];
+	assert(device_reg) ;
+    qunibusdevice_c *device = device_reg->device ;
     uint32_t evt_addr = mailbox->events.deviceregister.addr;
     // normally evt_data == device_reg->pru_iopage_register->value
     // but shared value gets desorted if INIT in same event clears the registers before DATO
     uint16_t evt_data = mailbox->events.deviceregister.data;
-    qunibusdevice_register_t *device_reg = &(device->registers[evt_idx]);
     uint8_t unibus_control = mailbox->events.deviceregister.unibus_control;
 
     // QBUS: for IOpage only addr bits <12:0> transferred,
@@ -942,7 +948,6 @@ void qunibusadapter_c::worker_deviceregister_event() {
     if (device_reg->active_on_dati && !QUNIBUS_CYCLE_IS_DATO(unibus_control)) {
         // register is read with DATI, this changes the logic state
         evt_addr &= ~1; // make even
-        assert(evt_addr == device->base_addr.value + 2 * evt_idx);
         unibus_control = QUNIBUS_CYCLE_DATI;
         // read access: dati-flipflops do not change
 
@@ -959,7 +964,6 @@ void qunibusadapter_c::worker_deviceregister_event() {
         switch (unibus_control) {
         case QUNIBUS_CYCLE_DATO:
             // write into a register with separate read/write flipflops
-            assert(evt_addr == device->base_addr.value + 2 * evt_idx);
             // clear unused bits, save written value
             device_reg->active_dato_flipflops = evt_data & device_reg->writable_bits;
             // signal: changed by QBUS/UNIBUS
@@ -1292,7 +1296,7 @@ void qunibusadapter_c::print_pru_iopage_register_map() {
     uint32_t addr;
     unsigned register_handle;
     unsigned device_handle;
-    volatile pru_iopage_register_t *shared_reg;
+    volatile pru_iopage_register_t *pru_iopage_reg;
 
 // registers by address
     printf("Device registers by IO page address:\n");
@@ -1301,17 +1305,23 @@ void qunibusadapter_c::print_pru_iopage_register_map() {
         addr =  qunibus->iopage_start_addr + 2 * i;
         register_handle = IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, addr);
         if (register_handle) {
-            shared_reg = &(pru_iopage_registers->registers[register_handle]);
+            pru_iopage_reg = &(pru_iopage_registers->registers[register_handle]);
             printf("%s=reg[%2u] ", qunibus->addr2text(addr), register_handle);
-            printf("cur val=%06o, writable=%06o. ", shared_reg->value,
-                   shared_reg->writable_bits);
+            printf("cur val=%06o, writable=%06o. ", pru_iopage_reg->value,
+                   pru_iopage_reg->writable_bits);
             // "passive" registers are not linked to controllers.
             // better use MSB of event_controller_handle to mark "active"?
-            if (shared_reg->event_device_handle == 0)
+            if (pru_iopage_reg->event_register_handle == 0)
                 printf("passive reg (not linked to device).\n");
             else {
-                printf("active reg linked to device #%u.reg[%2u]\n",
-                       shared_reg->event_device_handle, shared_reg->event_device_register_idx);
+				// signaled the 8bit registerhandle, locate device & register
+				uint8_t register_handle = pru_iopage_reg->event_register_handle ;
+				qunibusdevice_register_t *device_reg = register_by_handle[register_handle];
+				assert(device_reg) ;
+				qunibusdevice_c *device = device_reg->device ;
+
+                printf("active iopage reg with handle %d linked to device %s reg[%s]\n", register_handle,
+                       device->name.value.c_str(), device_reg->name);
             }
 
         }

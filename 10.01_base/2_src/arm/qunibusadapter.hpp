@@ -67,6 +67,10 @@ private:
 
 	unibuscpu_c	*registered_cpu ; // only one unibuscpu_c may be registered
 
+	// Helper map: find register via 8bit handle
+	qunibusdevice_register_t *register_by_handle[MAX_IOPAGE_REGISTER_COUNT];
+	
+
 	void worker_init_event(void);
 	void worker_power_event(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge);
 	void worker_deviceregister_event(void);

@@ -141,15 +141,13 @@ typedef struct {
 
 	// EVENT to PRU, data to route event to
 	// static set up by controller logic on "install()"
+	uint8_t event_register_handle; // accesses device register
 	uint8_t event_flags; // Bit-OR of IOPAGEREGISTER_EVEMT_FLAG_*
-	uint8_t event_device_handle;
-	// # of register in device space
-	uint8_t event_device_register_idx;
 
 	// Important: record struct must have size of "power of 2"
 	// Else indexing the record array requires multiplication,
 	// which can last 4,6 us !!!
-	uint8_t dummy; // fill up to 2+2+1+1+2 = 8 byte record size
+	uint8_t dummy[2]; // fill up to 2+2+1+1+2 = 8 byte record size
 	// bus_flags: 0x01 = ignore DATO, 
 } pru_iopage_register_t;
 
@@ -198,7 +196,7 @@ void iopageregisters_print_tables(void);
 /********** included by PRU code *****************/
 
 #ifndef _IOPAGEREGISTER_C_
-// not bvolatile
+// not volatile
 extern pru_iopage_registers_t pru_iopage_registers;
 #endif
 

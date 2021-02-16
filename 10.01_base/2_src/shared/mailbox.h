@@ -211,12 +211,12 @@ typedef struct {
 	uint8_t acked; // ARM->PRU
 	// info about register access
 	uint8_t unibus_control; // DATI,DATO,DATOB
-	// handle of controller
-	uint8_t device_handle;
+	// handle of controller register
+	uint8_t register_handle;
 	// ---dword---
 	uint16_t data; // deviceregister_data value for DATO event
-	uint8_t register_idx; // # of register in device space
 	uint8_t _dummy1;
+	uint8_t _dummy2;
 	// ---dword---
 	// QUNIBUS address accessed
 	uint32_t addr; // accessed address: odd/even important for DATOB
@@ -352,8 +352,7 @@ extern volatile far mailbox_t mailbox;
 #define DO_EVENT_DEVICEREGISTER(_reg,_unibus_control,_addr,_data)	do { \
 			/* register read changes device state: signal to ARM */ 	\
 			mailbox.events.deviceregister.unibus_control = _unibus_control ;				\
-			mailbox.events.deviceregister.device_handle = _reg->event_device_handle ;\
-			mailbox.events.deviceregister.register_idx = _reg->event_device_register_idx ; \
+			mailbox.events.deviceregister.register_handle = _reg->event_register_handle ;\
 			mailbox.events.deviceregister.addr = _addr ;									 \
 			mailbox.events.deviceregister.data = _data ;									\
 			EVENT_SIGNAL(mailbox,deviceregister) ;						\
