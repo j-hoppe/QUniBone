@@ -133,11 +133,15 @@ typedef struct {
 	// it must *always* contain the content for the next DATI without
 	// further state processing.
 
+	uint16_t reset_value; // PRU sets "value := reset_value" on INIT
+
 	// QBUS/UNIBUS DATO can be restricted to certain bits.
 	// special cases:
 	// 0x0000: register is ROM/read only
 	// 0xffff: register is 16bits read/write
 	uint16_t writable_bits; // 1 = bit can be written, 0 = remains as preset
+
+
 
 	// EVENT to PRU, data to route event to
 	// static set up by controller logic on "install()"
@@ -147,8 +151,7 @@ typedef struct {
 	// Important: record struct must have size of "power of 2"
 	// Else indexing the record array requires multiplication,
 	// which can last 4,6 us !!!
-	uint8_t dummy[2]; // fill up to 2+2+1+1+2 = 8 byte record size
-	// bus_flags: 0x01 = ignore DATO, 
+	// uint8_t dummy[2]; // fill up to 2+2+1+1+2 = 8 byte record size
 } pru_iopage_register_t;
 
 typedef struct {
@@ -203,6 +206,7 @@ extern pru_iopage_registers_t pru_iopage_registers;
 uint8_t emulated_addr_read(uint32_t addr, uint16_t *w);
 uint8_t emulated_addr_write_w(uint32_t addr, uint16_t b);
 uint8_t emulated_addr_write_b(uint32_t addr, uint8_t w);
+void iopageregisters_reset_values(void) ;
 void iopageregisters_init(void);
 
 #endif

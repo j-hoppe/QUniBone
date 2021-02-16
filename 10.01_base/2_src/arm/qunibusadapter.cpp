@@ -214,7 +214,9 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
 		assert(register_by_handle[register_handle] == NULL) ;
 		register_by_handle[register_handle] = device_reg ; // PRU->ARM lookup table
         pru_iopage_reg->value = device_reg->reset_value; // init
+        pru_iopage_reg->reset_value = device_reg->reset_value;
         pru_iopage_reg->writable_bits = device_reg->writable_bits;
+		
         pru_iopage_reg->event_flags = 0;
 		pru_iopage_reg->event_register_handle = 0; 
         // "active" devices are marked with controller handle
@@ -277,11 +279,10 @@ void qunibusadapter_c::unregister_device(qunibusdevice_c& device) {
     device.handle = 0;
 
     for (i = 0; i < device.register_count; i++) {
-        uint32_t addr = device.base_addr.value + 2 * i; // devices have always sequential address register range!
-        IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,addr)= 0;
-		uint8_t register_handle = device.registers[i].register_handle ;
-		register_by_handle[register_handle] = NULL  ;
-	
+	    qunibusdevice_register_t *device_reg = &(device.registers[i]);
+        IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,device_reg->addr) = 0;
+		register_by_handle[device_reg->register_handle] = NULL  ;
+
         // register descriptor remain unchanged, also device->members
     }
 }
@@ -872,6 +873,7 @@ void qunibusadapter_c::worker_init_event() {
     unsigned device_handle;
     qunibusdevice_c *device;
     // notify device on change of INIT line
+    // device register values are already resetto "reset_value" by PRU
     DEBUG("worker_init_event(): INIT %s", line_INIT ? "asserted" : "negated");
     for (device_handle = 0; device_handle <= MAX_DEVICE_HANDLE; device_handle++)
         if ((device = devices[device_handle])) {

@@ -176,7 +176,13 @@ uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *devi
 }
 
 // write the reset value into all registers (helper for QBUS/UNIBUS INIT)
+// this done here by qunibusdevice.worker() and
+// corrects the qunibusdevice.register active_dati_flipflops.
+// 1st time done by PRU: iopageregisters_reset_values() 
+// as DATI/DATO accesses to registers which are not active(no callback events)
+// are not delayed until INIT finishes.
 void qunibusdevice_c::reset_unibus_registers() {
+
 	unsigned i;
 	for (i = 0; i < register_count; i++) {
 		qunibusdevice_register_t *reg = &(registers[i]);

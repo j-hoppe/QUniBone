@@ -30,6 +30,7 @@
 #include <stdbool.h>
 
 #include "mailbox.h"
+#include "iopageregister.h"
 #include "pru1_buslatches.h"
 #include "pru1_statemachine_arbitration.h"
 #include "pru1_utils.h"
@@ -56,9 +57,15 @@ void do_event_initializationsignals() {
         EVENT_SIGNAL(mailbox,power) ;
         PRU2ARM_INTERRUPT;
     }
+
     uint8_t initsignal_prev = mailbox.events.init_signal_cur; // as ARM knows
     if ((initsignal_prev ^ bussignals_cur) & INITIALIZATIONSIGNAL_INIT) {
         // INIT changed
+        if (!initsignal_prev) {
+			// INIT raised: put reset values into every register
+			// runs 7,6 usec, shorter than UNIBUS INIT, so no bus cycles are missed
+			iopageregisters_reset_values() ; // all reset signals
+		}
         mailbox.events.init_signal_cur = bussignals_cur & INITIALIZATIONSIGNAL_INIT;
         EVENT_SIGNAL(mailbox,init) ;
         PRU2ARM_INTERRUPT;

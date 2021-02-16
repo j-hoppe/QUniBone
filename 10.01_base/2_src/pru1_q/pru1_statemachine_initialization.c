@@ -40,6 +40,7 @@
 #include <stdbool.h>
 
 #include "mailbox.h"
+#include "iopageregister.h"
 #include "pru1_buslatches.h"
 #include "pru1_utils.h"
 #include "pru1_timeouts.h"
@@ -91,8 +92,15 @@ void sm_initialization_func() {
         if (sm_initialization.bussignals_cur & INITIALIZATIONSIGNAL_INIT) {
             // raising edge of INIT
 			mailbox.events.init_signal_cur = 1 ;
+
+			// put reset values into every register
+			// runs 7,6 usec, shorter than QBUS INIT, so no bus cycle are missed
+			// Thats why they give us 15us for INIT ;-)
+			iopageregisters_reset_values() ;
+
             EVENT_SIGNAL(mailbox,init);
             PRU2ARM_INTERRUPT;
+
 			// Timeout for special cases where ARM software is not setup to ACK the event.
             // 50msec: longest time ARM unibusadapter needs accept PRU2ARM_INTERRUPT?
 //            TIMEOUT_SET(TIMEOUT_QBUS_INIT, MILLISECS(50));
