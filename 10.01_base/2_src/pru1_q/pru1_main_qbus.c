@@ -245,7 +245,7 @@ void main(void) {
 				// The Interupt Register is set immediately. No wait for INTR GRANT,
 				// INTR level may be blocked.
 				if (mailbox.intr.iopage_register_handle)
-					deviceregisters.registers[mailbox.intr.iopage_register_handle].value =
+					pru_iopage_registers.registers[mailbox.intr.iopage_register_handle].value =
 							mailbox.intr.iopage_register_value;
 				mailbox.arm2pru_req = ARM2PRU_NONE;  // done
 				// end of INTR is signaled to ARM with signal

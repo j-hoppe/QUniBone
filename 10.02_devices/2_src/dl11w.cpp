@@ -539,7 +539,7 @@ void ltc_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 			}
 			set_lks_dati_value_and_INTR(false); // INTR only by clock, not by LKs access
 		} else
-//DEBUG("LKS DATI, control=%d, val = %06o = %06o", (int)unibus_control, reg_lks->active_dati_flipflops, device_reg->shared_register->value ) ;
+//DEBUG("LKS DATI, control=%d, val = %06o = %06o", (int)unibus_control, reg_lks->active_dati_flipflops, device_reg->pru_iopage_register->value ) ;
 			break;
 
 	default:

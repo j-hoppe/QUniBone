@@ -348,7 +348,7 @@ extern volatile far mailbox_t mailbox;
 #endif
 
 // code to send an register access event
-// iopageregister_t *reg
+// pru_iopage_register_t *reg
 #define DO_EVENT_DEVICEREGISTER(_reg,_unibus_control,_addr,_data)	do { \
 			/* register read changes device state: signal to ARM */ 	\
 			mailbox.events.deviceregister.unibus_control = _unibus_control ;				\

@@ -107,7 +107,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
                 printf("***\n");
                 printf("*** Starting full " QUNIBUS_NAME " master/slave logic on PRU\n");
                 printf("***\n");
-                qunibusadapter->print_shared_register_map();
+                qunibusadapter->print_pru_iopage_register_map();
                 active = true;
             }
             printf("sz                          Size memory: scan addresses from 0, show valid range\n");

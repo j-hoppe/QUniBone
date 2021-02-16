@@ -169,7 +169,6 @@ unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for tr
         *data = w;
         return true;
     } else {
-// ARM_DEBUG_PIN0(1) ; // CPU20 diag
         dbg = 1;
         qunibusadapter->cpu_DATA_transfer(unibone_cpu->data_transfer_request,
                                           QUNIBUS_CYCLE_DATI, addr, &w);
@@ -178,7 +177,6 @@ unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for tr
         bool success = unibone_cpu->data_transfer_request.success;
         //printf("DATI; ba=%o, data=%o, success=%u\n", addr, *data, (int)success) ;
         return success;
-// ARM_DEBUG_PIN0(0) ; // CPU20 diag
     }
 }
 

@@ -37,7 +37,7 @@
 
 // Device register struct shared between PRU and ARM.
 // Place section with register struct at begin of 8K PRU_DMEM_1_0.
-volatile iopageregisters_t *deviceregisters;
+volatile pru_iopage_registers_t *pru_iopage_registers;
 
 int iopageregisters_connect(void) {
 	void *pru_shared_dataram;
@@ -49,7 +49,7 @@ int iopageregisters_connect(void) {
 	}
 	// prussdrv_map_prumem( PRU_MAILBOX_RAM_ID, &pru_shared_dataram) ;
 	// point to struct inside RAM
-	deviceregisters = (iopageregisters_t *) ((uint8_t *) pru_shared_dataram
+	pru_iopage_registers = (pru_iopage_registers_t *) ((uint8_t *) pru_shared_dataram
 			+ PRU_DEVICEREGISTER_RAM_OFFSET);
 
 	// now ARM and PRU can access the device register descriptors
@@ -63,13 +63,13 @@ void iopageregisters_init() {
 	assert(qunibus->iopage_start_addr) ;
 
 	// clear the pagetable: no address emulated, only IO page marked
-	deviceregisters->iopage_start_addr = qunibus->iopage_start_addr ;
-	deviceregisters->memory_start_addr = 0 ;
-	deviceregisters->memory_limit_addr = 0 ; // no mem emulation
+	pru_iopage_registers->iopage_start_addr = qunibus->iopage_start_addr ;
+	pru_iopage_registers->memory_start_addr = 0 ;
+	pru_iopage_registers->memory_limit_addr = 0 ; // no mem emulation
 
   	// clear the iopage addr map: no register assigned
-	memset((void *) deviceregisters->iopage_register_handles, 0,
-			sizeof(deviceregisters->iopage_register_handles));
+	memset((void *) pru_iopage_registers->register_handles, 0,
+			sizeof(pru_iopage_registers->register_handles));
 }
 
 void iopageregisters_print_tables(void) {
@@ -77,12 +77,12 @@ void iopageregisters_print_tables(void) {
 	uint32_t addr;
 
 	
-	printf("Start of IO page: %s\n", qunibus->addr2text(deviceregisters->iopage_start_addr));
-	if (deviceregisters->memory_limit_addr == 0)
+	printf("Start of IO page: %s\n", qunibus->addr2text(pru_iopage_registers->iopage_start_addr));
+	if (pru_iopage_registers->memory_limit_addr == 0)
 		printf("  No memory emulation.\n") ;
 	else 
 		printf("  Memory emulation in range %s..%s (excluding).\n", 
-		qunibus->addr2text(deviceregisters->memory_start_addr),qunibus->addr2text(deviceregisters->memory_limit_addr)) ;
+		qunibus->addr2text(pru_iopage_registers->memory_start_addr),qunibus->addr2text(pru_iopage_registers->memory_limit_addr)) ;
 	
 	printf("\n");
 	printf("IO page register table:");
@@ -90,7 +90,7 @@ void iopageregisters_print_tables(void) {
 	for (addr = qunibus->iopage_start_addr; addr < qunibus->addr_space_byte_count; addr += 2) {
 		uint8_t reghandle;
 		i = (addr - qunibus->iopage_start_addr) / 2; // register handle
-		reghandle = deviceregisters->iopage_register_handles[i];
+		reghandle = pru_iopage_registers->register_handles[i];
 		if (reghandle != 0) {
 			if ((n % 4) == 0) // 4 in a row
 				printf("\n");

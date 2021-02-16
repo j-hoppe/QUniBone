@@ -101,14 +101,14 @@
 #include "rl0102.hpp"
 
 // function codes
-#define CMD_NOOP 	0
-#define CMD_WRITE_CHECK	1
-#define CMD_GET_STATUS	2
-#define CMD_SEEK	3
-#define CMD_READ_HEADER	4
-#define CMD_WRITE_DATA	5
-#define CMD_READ_DATA	6
-#define CMD_READ_DATA_WITHOUT_HEADER_CHECK 7
+#define RL11_CMD_NOOP 	0
+#define RL11_CMD_WRITE_CHECK	1
+#define RL11_CMD_GET_STATUS	2
+#define RL11_CMD_SEEK	3
+#define RL11_CMD_READ_HEADER	4
+#define RL11_CMD_WRITE_DATA	5
+#define RL11_CMD_READ_DATA	6
+#define RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK 7
 
 // state of controller
 #define RL11_STATE_CONTROLLER_READY	0 // can accept new commands
@@ -436,11 +436,11 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                 change_state(RL11_STATE_CONTROLLER_BUSY); // force BUSY->READY INTR
                 execute_function_delayed = false;
                 switch (function_code) {
-                case CMD_NOOP:
+                case RL11_CMD_NOOP:
                     DEBUG("cmd %d = Noop", function_code);
                     do_command_done();
                     break;
-                case CMD_SEEK:
+                case RL11_CMD_SEEK:
                     drive = selected_drive();
                     if ((drive->status_word & 0x07) == RL0102_STATE_seek)
                         //	if waiting for end of seek: execute seek in worker()
@@ -450,7 +450,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                         state_seek();
                     }
                     break;
-                case CMD_GET_STATUS:
+                case RL11_CMD_GET_STATUS:
                     drive = selected_drive();
                     // SIMH: OPI if DA code not 3? Real RL11: just NOOP
                     DEBUG("cmd %d = Get Status. DA=%06o.", function_code,
@@ -506,7 +506,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
         } else {
             // value written by DATO are parameters for cmds, they do not change state
             // but restore value readable with DATI
-            assert(busreg_MP->shared_register->value == busreg_MP->active_dati_flipflops);
+            assert(busreg_MP->pru_iopage_register->value == busreg_MP->active_dati_flipflops);
         }
         break;
 	case 4: // write BAE on RLV12
@@ -738,7 +738,7 @@ void RL11_c::state_readwrite() {
 
     assert(sizeof(silo) / 2 >= sector_wordcount);
     assert(
-        function_code == CMD_READ_DATA_WITHOUT_HEADER_CHECK || function_code == CMD_READ_DATA || function_code == CMD_WRITE_DATA || function_code == CMD_WRITE_CHECK);
+        function_code == RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK || function_code == RL11_CMD_READ_DATA || function_code == RL11_CMD_WRITE_DATA || function_code == RL11_CMD_WRITE_CHECK);
 
     if (!drive->drive_ready_line) {
         do_operation_incomplete("state_readwrite(): drive not ready"); // verified
@@ -761,7 +761,7 @@ void RL11_c::state_readwrite() {
         // start next sector read, or terminate
         assert(cmd_wordcount > 0);
 
-        if (function_code == CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
+        if (function_code == RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
             // just read next sector data block from disk, disk address ignored
         } else {
             // Disk address valid?
@@ -791,8 +791,8 @@ void RL11_c::state_readwrite() {
         memset((uint8_t *) silo, 0, sizeof(silo));
         memset((uint8_t *) silo_compare, 0, sizeof(silo_compare));
 
-        if (function_code == CMD_READ_DATA
-                || function_code == CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
+        if (function_code == RL11_CMD_READ_DATA
+                || function_code == RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
             // the requested sector passes the head: read it into the SILO
             drive->cmd_read_next_sector_data(silo, 128);
             //logger.debug_hexdump(LC_RL, "Read data between disk access and DMA",
@@ -802,7 +802,7 @@ void RL11_c::state_readwrite() {
                                 dma_wordcount);
             error_dma_timeout = !dma_request.success;
             qunibus_address = dma_request.qunibus_end_addr;
-        } else if (function_code == CMD_WRITE_CHECK) {
+        } else if (function_code == RL11_CMD_WRITE_CHECK) {
             // read sector data to compare with sector data
             drive->cmd_read_next_sector_data(silo, 128);
             // logger.debug_hexdump(LC_RL, "Read data between disk access and DMA",
@@ -812,7 +812,7 @@ void RL11_c::state_readwrite() {
                                 silo_compare, dma_wordcount);
             error_dma_timeout = !dma_request.success;
             qunibus_address = dma_request.qunibus_end_addr;
-        } else if (function_code == CMD_WRITE_DATA) {
+        } else if (function_code == RL11_CMD_WRITE_DATA) {
             // start DMA transmission of memory into SILO
             qunibusadapter->DMA(dma_request, true, QUNIBUS_CYCLE_DATI, qunibus_address, silo,
                                 dma_wordcount);
@@ -831,12 +831,12 @@ void RL11_c::state_readwrite() {
             do_operation_incomplete("RL11_STATE_RW_WAIT_DMA: dma timeout");
             break;
         }
-        if (function_code == CMD_WRITE_DATA) { // data from SILO to disk
+        if (function_code == RL11_CMD_WRITE_DATA) { // data from SILO to disk
             // write whole silo. if less data read from memory, 00s are filled in.
             drive->cmd_write_next_sector_data(silo, 128);
             //logger.debug_hexdump(LC_RL, "Write data between DMA and disk access",
             //		(uint8_t *) silo, sizeof(silo),	NULL);
-        } else if (function_code == CMD_WRITE_CHECK) {
+        } else if (function_code == RL11_CMD_WRITE_CHECK) {
             // compare data from disk in silo[] with data from memory in silo_compare[]
             unsigned i;
             error_writecheck = false;
@@ -847,7 +847,7 @@ void RL11_c::state_readwrite() {
                     error_writecheck = true;
         }
 
-        if (function_code == CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
+        if (function_code == RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK) {
             // "The DA register is not incremented"
             // But ZRLHB0, test 44: DA should increment by 1
             disk_address++;
@@ -898,7 +898,7 @@ void RL11_c::worker(unsigned instance) {
         int res;
 
         // CRDY in busreg_CS->active_dati_flipflops & 0x80))
-        // may still be inactive, when PRU updatesit with iNTR delayed.
+        // may still be inactive, when PRU updates it with INTR delayed.
         // enable operation of pending on_after_register_access()
         /*
          if (!(busreg_CS->active_dati_flipflops & 0x80)) { // CRDY must be set
@@ -942,7 +942,7 @@ void RL11_c::worker(unsigned instance) {
         }
         if (seek_wait) {
             // wait for "DRIVE ready" after seek: race condition between RL0102 and RL11
-            while ((busreg_CS->shared_register->value & 1) == 0)
+            while ((busreg_CS->pru_iopage_register->value & 1) == 0)
                 ;
 
 //			do_controller_status("seek busy ended") ;
@@ -956,18 +956,18 @@ void RL11_c::worker(unsigned instance) {
              * handled fast in on_after_register_access()
              */
 
-        case CMD_WRITE_CHECK: // Write Check
+        case RL11_CMD_WRITE_CHECK: // Write Check
             DEBUG("cmd %d = Write Check", function_code);
             change_state(RL11_STATE_RW_INIT);
             // reads 1 sector into a separate buffer and compares data
             break;
-        case CMD_SEEK:
+        case RL11_CMD_SEEK:
             // SEEK has immediate INTR: handled fast in on_after_register_access()
             // but can be delayed if drive already seeking and cmd execution blocked
             DEBUG("cmd %d = Seek (delayed)", function_code);
             change_state(RL11_STATE_SEEK_INIT);
             break;
-        case CMD_READ_HEADER: // Read sector header from disk
+        case RL11_CMD_READ_HEADER: // Read sector header from disk
             DEBUG("cmd %d = Read Header", function_code);
             // read header if not locked-on track?
             if (!drive->cmd_read_next_sector_header((uint16_t *) mpr_silo, 3)) {
@@ -975,16 +975,16 @@ void RL11_c::worker(unsigned instance) {
             set_MP_dati_silo(__func__);
             do_command_done();
             break;
-        case CMD_WRITE_DATA: // Write sector data from memory to disk
+        case RL11_CMD_WRITE_DATA: // Write sector data from memory to disk
             DEBUG("cmd %d = Write Data", function_code);
             change_state(RL11_STATE_RW_INIT);
             break;
-        case CMD_READ_DATA: // Read disk datao into memory
+        case RL11_CMD_READ_DATA: // Read disk datao into memory
             DEBUG("cmd %d = Read Data", function_code);
             // sector address from DA, before seek must moved head to same track
             change_state(RL11_STATE_RW_INIT);
             break;
-        case CMD_READ_DATA_WITHOUT_HEADER_CHECK:
+        case RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK:
             DEBUG("cmd %d = Read Data Without Check", function_code);
             change_state(RL11_STATE_RW_INIT);
             break;

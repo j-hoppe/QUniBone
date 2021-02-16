@@ -151,7 +151,7 @@ void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_r
 //	if (device_reg->active_on_dati)
 	// always set dati_flipflops, needed to restore value written with DATO
 	device_reg->active_dati_flipflops = value;
-	device_reg->shared_register->value = value;
+	device_reg->pru_iopage_register->value = value;
 
 	// signal: changed by device logic
 	log_register_event(debug_info, device_reg);
@@ -164,7 +164,7 @@ void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_r
  device_reg->active_dato_flipflops = value;
  // do not change value seen with QBUS/UNIBUS DATI
  } else
- device_reg->shared_register->value = value;
+ device_reg->pru_iopage_register->value = value;
  }
  */
 // get value of QBUS/UNIBUS register which has been written by DATO
@@ -172,7 +172,7 @@ uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *devi
 	if (device_reg->active_on_dato)
 		return device_reg->active_dato_flipflops;
 	else
-		return device_reg->shared_register->value;
+		return device_reg->pru_iopage_register->value;
 }
 
 // write the reset value into all registers (helper for QBUS/UNIBUS INIT)
@@ -218,15 +218,15 @@ void qunibusdevice_c::log_register_event(const char *change_info,
 			char buff1[80];
 			qunibusdevice_register_t *reg = &(registers[i]);
 			if (reg->active_on_dati || reg->active_on_dato)
-				sprintf(buff1, " %s=%06o/%06o", reg->name, reg->shared_register->value,
+				sprintf(buff1, " %s=%06o/%06o", reg->name, reg->pru_iopage_register->value,
 						reg->active_dato_flipflops);
 			else
-				sprintf(buff1, " %s=%06o", reg->name, reg->shared_register->value);
+				sprintf(buff1, " %s=%06o", reg->name, reg->pru_iopage_register->value);
 			strcat(buffer, buff1);
 		}
 	} else {
 		// only the changed register
-		sprintf(buffer, "%s=%06o", changed_reg->name, changed_reg->shared_register->value);
+		sprintf(buffer, "%s=%06o", changed_reg->name, changed_reg->pru_iopage_register->value);
 	}
 	DEBUG(buffer);
 }

@@ -172,7 +172,7 @@ static statemachine_state_func sm_dma_state_1() {
 		// ADDR, CONTROL (and DATA) stable since 150ns, set MSYN
 
 		// use 150ns delay to check for internal address
-		// page_table_entry = PAGE_TABLE_ENTRY(deviceregisters,addr);
+		// page_table_entry = PAGE_TABLE_ENTRY(pru_iopage_registers,addr);
 		// !!! optimizer may not move this around !!!
 		// try "volatile internal_addr" (__asm(";---") may be rearanged)
 
@@ -218,7 +218,7 @@ static statemachine_state_func sm_dma_state_1() {
 		// ADDR, CONTROL (and DATA) stable since 150ns, set MSYN next
 
 		// use 150ns delay to check for internal address
-		// page_table_entry = PAGE_TABLE_ENTRY(deviceregisters,addr);
+		// page_table_entry = PAGE_TABLE_ENTRY(pru_iopage_registers,addr);
 		// !!! optimizer may not move this around !!!
 
 		// MSYN = latch[4], bit 4

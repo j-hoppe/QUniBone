@@ -190,7 +190,7 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 	// init empty pagetable, just iopage
 	bool error;
 
-	deviceregisters->iopage_start_addr = qunibus->iopage_start_addr ;
+	pru_iopage_registers->iopage_start_addr = qunibus->iopage_start_addr ;
 
 	// need position of iopage and # of words in memory
 	if (qunibus->addr_width == 0 || qunibus->iopage_start_addr == 0)
@@ -204,8 +204,8 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 			&& qunibus_endaddr < qunibus->addr_space_byte_count 
 			&& qunibus_startaddr <= qunibus_endaddr);
 	if (!enabled) {
-		deviceregisters->memory_start_addr = 0 ; 
-		deviceregisters->memory_limit_addr = 0 ; // disable in PRU
+		pru_iopage_registers->memory_start_addr = 0 ; 
+		pru_iopage_registers->memory_limit_addr = 0 ; // disable in PRU
 		return true;
 	}
 	error = true; 
@@ -220,8 +220,8 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 		WARNING("End addr %s is no word address", qunibus->addr2text(qunibus_endaddr));
 	else {
 		// mark pages in address range as "memory emulation"
-		deviceregisters->memory_start_addr = qunibus_startaddr ;
-		deviceregisters->memory_limit_addr = qunibus_endaddr+1 ;
+		pru_iopage_registers->memory_start_addr = qunibus_startaddr ;
+		pru_iopage_registers->memory_limit_addr = qunibus_endaddr+1 ;
 		error = false ;		
 	}
 	return !error;

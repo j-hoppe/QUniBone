@@ -157,7 +157,7 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
     devices[device_handle] = &device;
     device.handle = device_handle; // tell the device its slots
 
-    // lookup iopage_register_handles[]
+    // lookup register_handles[]
     memset(register_handle_used, 0, sizeof(register_handle_used)); // all 0
 
     // verify: does the device implement a register address already
@@ -165,7 +165,7 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
     for (i = 0; i < device.register_count; i++) {
         qunibusdevice_register_t *device_reg = &(device.registers[i]);
         device_reg->addr = device.base_addr.value + 2 * i;
-        uint8_t reghandle = IOPAGE_REGISTER_ENTRY(*deviceregisters, device_reg->addr);
+        uint8_t reghandle = IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, device_reg->addr);
         if (reghandle != 0 && reghandle != IOPAGE_REGISTER_HANDLE_ROM)
             FATAL(
                 "register_device() IO page address conflict: %s implements register at %s, belongs already to other device.",
@@ -174,7 +174,7 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
 
     for (i = 0; i < 0x1000; i++) {
         // scan all addresses in IO page
-        register_handle = deviceregisters->iopage_register_handles[i];
+        register_handle = pru_iopage_registers->register_handles[i];
         assert(register_handle < MAX_IOPAGE_REGISTER_COUNT || register_handle == IOPAGE_REGISTER_HANDLE_ROM);
         if (register_handle != 0 && register_handle != IOPAGE_REGISTER_HANDLE_ROM)
             // device registers may decdoe into ROM space, M9312
@@ -200,17 +200,17 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
 
     for (i = 0; i < device.register_count; i++) {
         qunibusdevice_register_t *device_reg = &(device.registers[i]);
-        volatile iopageregister_t *shared_reg = &deviceregisters->registers[register_handle];
+        volatile pru_iopage_register_t *pru_iopage_reg = &pru_iopage_registers->registers[register_handle];
         // complete link to device
         device_reg->device = &device;
         device_reg->index = i;
         device_reg->addr = device.base_addr.value + 2 * i;
 
-        device_reg->shared_register = shared_reg; // link controller register to shared descriptor
-        device_reg->shared_register_handle = register_handle;
-        shared_reg->value = device_reg->reset_value; // init
-        shared_reg->writable_bits = device_reg->writable_bits;
-        shared_reg->event_flags = 0;
+        device_reg->pru_iopage_register = pru_iopage_reg; // link controller register to shared descriptor
+        device_reg->register_handle = register_handle;
+        pru_iopage_reg->value = device_reg->reset_value; // init
+        pru_iopage_reg->writable_bits = device_reg->writable_bits;
+        pru_iopage_reg->event_flags = 0;
         // "active" devices are marked with controller handle
         if (device_reg->active_on_dati || device_reg->active_on_dato) {
             if (device_reg->active_on_dati && !device_reg->active_on_dato && device_reg->writable_bits != 0x0000) {
@@ -222,19 +222,19 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
                     "make DATO active too -> datao value saved in DATO flipflops",
                     device.name.value.c_str(), i);
             }
-            shared_reg->event_device_handle = device.handle;
-            shared_reg->event_device_register_idx = i; // # of register in device
+            pru_iopage_reg->event_device_handle = device.handle;
+            pru_iopage_reg->event_device_register_idx = i; // # of register in device
             if (device_reg->active_on_dati)
-                shared_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATI;
+                pru_iopage_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATI;
             if (device_reg->active_on_dato)
-                shared_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATO;
+                pru_iopage_reg->event_flags |= IOPAGEREGISTER_EVENT_FLAG_DATO;
         } else {
-            shared_reg->event_device_handle = 0;
-            shared_reg->event_device_register_idx = 0; // not used, PRU handles logic
+            pru_iopage_reg->event_device_handle = 0;
+            pru_iopage_reg->event_device_register_idx = 0; // not used, PRU handles logic
         }
         // write register handle into IO page address map
         uint32_t addr = device.base_addr.value + 2 * i; // devices have always sequential address register range!
-        IOPAGE_REGISTER_ENTRY(*deviceregisters,addr)= register_handle;
+        IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,addr)= register_handle;
 // printf("!!! register @0%06o = reg 0x%x\n", addr, reghandle) ;
         register_handle++;
     }
@@ -274,7 +274,7 @@ void qunibusadapter_c::unregister_device(qunibusdevice_c& device) {
 
     for (i = 0; i < device.register_count; i++) {
         uint32_t addr = device.base_addr.value + 2 * i; // devices have always sequential address register range!
-        IOPAGE_REGISTER_ENTRY(*deviceregisters,addr)= 0;
+        IOPAGE_REGISTER_ENTRY(*pru_iopage_registers,addr)= 0;
         // register descriptor remain unchanged, also device->members
     }
 }
@@ -287,7 +287,7 @@ bool qunibusadapter_c::register_rom(uint32_t address) {
     assert((address & 1) == 0);
     assert(address >=  qunibus->iopage_start_addr && address <= qunibus->addr_space_byte_count-2);
 
-    volatile uint8_t *iopage_cellhandle = &IOPAGE_REGISTER_ENTRY(*deviceregisters, address);
+    volatile uint8_t *iopage_cellhandle = &IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, address);
     // assert: no other ROM installed here, proper nesting of install()/uninstall() required
     assert(*iopage_cellhandle != IOPAGE_REGISTER_HANDLE_ROM);
 
@@ -304,7 +304,7 @@ void qunibusadapter_c::unregister_rom(uint32_t address) {
     assert((address & 1) == 0);
     assert(address >= qunibus->iopage_start_addr && address <= qunibus->addr_space_byte_count-2);
 
-    volatile uint8_t *iopage_cellhandle = &IOPAGE_REGISTER_ENTRY(*deviceregisters, address);
+    volatile uint8_t *iopage_cellhandle = &IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, address);
     // assert: ROM (or device reg) installed here, proper nesting of install()/uninstall() required
     if (*iopage_cellhandle == 0)
         // may already be 0 if overlaying device register unregistered
@@ -325,7 +325,7 @@ bool qunibusadapter_c::is_rom(uint32_t address) {
     if (address <  qunibus->iopage_start_addr)
         return false ; // ROM only in IOPAGE
     assert(address <= qunibus->addr_space_byte_count-2);
-    uint8_t iopage_cellhandle = IOPAGE_REGISTER_ENTRY(*deviceregisters, address);
+    uint8_t iopage_cellhandle = IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, address);
     return (iopage_cellhandle == IOPAGE_REGISTER_HANDLE_ROM) ;
 }
 
@@ -529,7 +529,7 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         mailbox->intr.vector[intrreq->level_index] = intrreq->vector;
         if (intrreq->interrupt_register)
             mailbox->intr.iopage_register_handle =
-                intrreq->interrupt_register->shared_register_handle;
+                intrreq->interrupt_register->register_handle;
         else
             mailbox->intr.iopage_register_handle = 0; // none
         mailbox->intr.iopage_register_value = intrreq->interrupt_register_value;
@@ -917,7 +917,7 @@ void qunibusadapter_c::worker_deviceregister_event() {
     device = devices[device_handle];
     unsigned evt_idx = mailbox->events.deviceregister.register_idx;
     uint32_t evt_addr = mailbox->events.deviceregister.addr;
-    // normally evt_data == device_reg->shared_register->value
+    // normally evt_data == device_reg->pru_iopage_register->value
     // but shared value gets desorted if INIT in same event clears the registers before DATO
     uint16_t evt_data = mailbox->events.deviceregister.data;
     qunibusdevice_register_t *device_reg = &(device->registers[evt_idx]);
@@ -951,10 +951,10 @@ void qunibusadapter_c::worker_deviceregister_event() {
 
         device->on_after_register_access(device_reg, unibus_control);
     } else if (device_reg->active_on_dato && QUNIBUS_CYCLE_IS_DATO(unibus_control)) {
-        //		uint16_t reg_value_written = device_reg->shared_register->value;
+        //		uint16_t reg_value_written = device_reg->pru_iopage_register->value;
         //	restore value accessible by DATI
-        device_reg->shared_register->value = device_reg->active_dati_flipflops;
-        // Restauration of shared_register->value IS NOT ATOMIC against device logic threads.
+        device_reg->pru_iopage_register->value = device_reg->active_dati_flipflops;
+        // Restauration of pru_iopage_register->value IS NOT ATOMIC against device logic threads.
         // Devices must use only reg->active_dati_flipflops !
         switch (unibus_control) {
         case QUNIBUS_CYCLE_DATO:
@@ -987,7 +987,7 @@ void qunibusadapter_c::worker_deviceregister_event() {
          DEBUG(LL_DEBUG, LC_UNIBUS, "dev.reg=%d.%d, %s, addr %06o, data %06o->%06o",
          device_handle, evt_idx,
          qunibus_c::control2text(mailbox->event.unibus_control), evt_addr,
-         oldval, device_reg->shared_register->value);
+         oldval, device_reg->pru_iopage_register->value);
          */
     }
 }
@@ -1287,21 +1287,21 @@ void qunibusadapter_c::worker(unsigned instance) {
 }
 
 // debugging: print PRU sharead regsster map
-void qunibusadapter_c::print_shared_register_map() {
+void qunibusadapter_c::print_pru_iopage_register_map() {
     unsigned i;
     uint32_t addr;
     unsigned register_handle;
     unsigned device_handle;
-    volatile iopageregister_t *shared_reg;
+    volatile pru_iopage_register_t *shared_reg;
 
 // registers by address
     printf("Device registers by IO page address:\n");
     for (i = 0; i < 0x1000; i++) {
         // scan all addresses in IO page
         addr =  qunibus->iopage_start_addr + 2 * i;
-        register_handle = IOPAGE_REGISTER_ENTRY(*deviceregisters, addr);
+        register_handle = IOPAGE_REGISTER_ENTRY(*pru_iopage_registers, addr);
         if (register_handle) {
-            shared_reg = &(deviceregisters->registers[register_handle]);
+            shared_reg = &(pru_iopage_registers->registers[register_handle]);
             printf("%s=reg[%2u] ", qunibus->addr2text(addr), register_handle);
             printf("cur val=%06o, writable=%06o. ", shared_reg->value,
                    shared_reg->writable_bits);

@@ -117,7 +117,7 @@ public:
 
 	void cpu_DATA_transfer(dma_request_c& dma_request, uint8_t qunibus_cycle, uint32_t unibus_addr, uint16_t *buffer);
 
-	void print_shared_register_map(void);
+	void print_pru_iopage_register_map(void);
 
 		void debug_init(void) ;
 	void debug_snapshot(void) ;

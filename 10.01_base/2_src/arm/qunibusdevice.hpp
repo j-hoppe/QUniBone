@@ -48,10 +48,10 @@ typedef struct qunibusdevice_register_struct {
 
 	/*** link into PRU shared area ***/
 	// only for access by qunibusadapter
-	// Restauration of shared_register->value IS NOT ATOMIC against device logic threads.
+	// Restauration of pru_iopage_register->value IS NOT ATOMIC against device logic threads.
 	// Devices must use only reg->active_dati_flipflops !
-	volatile iopageregister_t *shared_register;
-	uint8_t shared_register_handle;
+	volatile pru_iopage_register_t *pru_iopage_register;
+	uint8_t register_handle;
 
 	/*** static setup information ***/
 	// "Active=true": PRU generates an event after DATI and/or DATO on that register

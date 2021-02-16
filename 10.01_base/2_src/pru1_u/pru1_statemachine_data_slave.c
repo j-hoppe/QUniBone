@@ -100,7 +100,7 @@ statemachine_state_func sm_data_slave_start() {
 //	PRU_DEBUG_PIN0(1) ; // trigger to LA.
 
 
-	// page_table_entry = PAGE_TABLE_ENTRY(deviceregisters,addr) ; // is addr ignored,memory,iopage?
+	// page_table_entry = PAGE_TABLE_ENTRY(pru_iopage_registers,addr) ; // is addr ignored,memory,iopage?
 //	if (addr >= 0x8000 && addr < 0x10000)
 //		page_table_entry = PAGE_MEMORY ;
 	switch (control) {

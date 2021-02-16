@@ -34,7 +34,7 @@
  7-feb-2020   JH      begin
 
  A ROM is implemented by DDR memory, which is accessed by PRU
- if iopageregisters_t.iopage_register_handles[addr] == 0xff
+ if pru_iopage_registers_t.register_handles[addr] == 0xff
 
  State:
  Code in a ROM can be loaded from a disk file (MACRO11 listing),

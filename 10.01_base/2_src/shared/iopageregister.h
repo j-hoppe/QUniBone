@@ -103,13 +103,13 @@
 #define PAGE_SIZE	8192	// 1 page = 8KB. (size of uiopage)
 #define PAGE_COUNT	32	// 256KB/8 = 32 entries
 
-#define PAGE_TABLE_ENTRY(deviceregisters,addr)	( (deviceregisters).pagetable[(addr) >> 13] )
+#define PAGE_TABLE_ENTRY(pru_iopage_registers,addr)	( (pru_iopage_registers).pagetable[(addr) >> 13] )
 #endif
 
 // convert a full 16/18/22bit byte address to index# of word adress in the IO page
 // examples: 760000 -> 0, 760002 -> 1, ... 777776 -> 4095
-#define IOPAGE_REGISTER_ENTRY(deviceregisters,addr)	\
-	(deviceregisters).iopage_register_handles[((addr)& 017777)/ 2]
+#define IOPAGE_REGISTER_ENTRY(pru_iopage_registers,addr)	\
+	(pru_iopage_registers).register_handles[((addr)& 017777)/ 2]
 
 // # of device registers supported. Limited by PRU RAM size and handle type = uint8_t
 #define MAX_IOPAGE_REGISTER_COUNT	0xff	// valid handles 1..0xfe
@@ -151,7 +151,7 @@ typedef struct {
 	// which can last 4,6 us !!!
 	uint8_t dummy; // fill up to 2+2+1+1+2 = 8 byte record size
 	// bus_flags: 0x01 = ignore DATO, 
-} iopageregister_t;
+} pru_iopage_register_t;
 
 typedef struct {
 	/* The whole memory range is segmented into 
@@ -168,14 +168,14 @@ typedef struct {
 	// handle of a device register descriptor,
 	// handle == 0 if address not used
 	// handle == 0xff if address is ROM
-	uint8_t iopage_register_handles[0x1000]; // 4k entries for 8k bytes
+	uint8_t register_handles[0x1000]; // 4k entries for 8k bytes
 
 	// array of 254 register, indexed by register handles
 	// handle 0 not used, 0xff = ROM=>DDR RAM
- 	iopageregister_t registers[MAX_IOPAGE_REGISTER_COUNT];
-	// sizeof(iopageregister_t) == "power of 2", index calculation!
+ 	pru_iopage_register_t registers[MAX_IOPAGE_REGISTER_COUNT];
+	// sizeof(pru_iopage_register_t) == "power of 2", index calculation!
 
-} iopageregisters_t;
+} pru_iopage_registers_t;
 // must fit in 8K PRU0 RAM
 
 #ifdef ARM
@@ -187,7 +187,7 @@ typedef struct {
 /********** included by ARM code *****************/
 
 #ifndef _IOPAGEREGISTER_CPP_
-extern volatile iopageregisters_t *deviceregisters;
+extern volatile pru_iopage_registers_t *pru_iopage_registers;
 #endif
 
 int iopageregisters_connect(void);
@@ -199,7 +199,7 @@ void iopageregisters_print_tables(void);
 
 #ifndef _IOPAGEREGISTER_C_
 // not bvolatile
-extern iopageregisters_t deviceregisters;
+extern pru_iopage_registers_t pru_iopage_registers;
 #endif
 
 uint8_t emulated_addr_read(uint32_t addr, uint16_t *w);
