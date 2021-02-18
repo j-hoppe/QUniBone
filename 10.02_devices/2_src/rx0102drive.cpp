@@ -145,6 +145,7 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     timeout_c().wait_ms(sector_millis / emulation_speed.value) ;
 
     *deleted_data_mark = deleted_data_marks[track][sector] ;
+	DEBUG("sector_read(): delmark=%d, track=%d, sector=%d", (unsigned)*deleted_data_mark, (unsigned)track, (unsigned)sector) ;
 
     if (! track0image.value) {
         // file image does not contain track 0: skip it
@@ -157,6 +158,7 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     }
 
     int offset = get_sector_image_offset(track, sector) ;
+	DEBUG("sector_read(): reading 0x%03x bytes from file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
     file_read(sector_buffer, (unsigned) offset, sector_size_bytes) ;
     return true ;
 }
@@ -181,6 +183,8 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
 
     deleted_data_marks[track][sector] = deleted_data_mark ;
 
+	DEBUG("sector_write(): delmark=%d, track=%d, sector=%d", (unsigned)deleted_data_mark, (unsigned)track, (unsigned)sector) ;
+
     if (!track0image.value) {
         // file image does not contain track 0: skip it
 
@@ -192,6 +196,7 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
         }
     }
     int offset = get_sector_image_offset(track, sector) ;
+	DEBUG("sector_write(): writing 0x%03x bytes to file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
     file_write(sector_buffer, (unsigned) offset, sector_size_bytes) ;
     return true ;
 }
