@@ -89,13 +89,13 @@ bool storagedrive_c::file_open(string image_fname, bool create) {
             if (FILE *fz = fopen(compressed_image_fname.c_str(), "r")) {
                 fclose(fz);
                 string uncompress_cmd = "zcat " + compressed_image_fname + " >" + image_fname ;
-                INFO("Only compressed image file %s found, expanding \"%s\" ...", image_fname.c_str(), uncompress_cmd.c_str()) ;
+                printf("Only compressed image file %s found, expanding \"%s\" ...", image_fname.c_str(), uncompress_cmd.c_str()) ;
                 int ret = system(uncompress_cmd.c_str()) ;
                 if (ret != 0) {
-                    INFO("Expanding failed.") ;
+                    printf(" FAILED!\n") ;
                     retries = 0 ; // not again
                 } else
-                    INFO("Expanding complete.") ;
+                    printf(" complete.\n") ;
 
             } else
                 retries = 0 ; // not again
