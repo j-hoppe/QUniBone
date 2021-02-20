@@ -30,6 +30,7 @@
 
 using namespace std;
 
+//#include "gpios.hpp" // ARM_DEBUG_PIN
 #include "logger.hpp"
 #include "timeout.hpp"
 #include "utils.hpp"
@@ -589,6 +590,7 @@ void RX0102uCPU_c::on_drive_state_changed(RX0102drive_c *drive) {
 // init state, seek track 0 of drive 1
 // read sector 1 of track 1 of drive 0(?)
 void RX0102uCPU_c::init() {
+
     DEBUG("init()") ;
 
     if (!power_switch.new_value) // else no init() in on_param_change
@@ -601,6 +603,8 @@ void RX0102uCPU_c::init() {
     rxdb = 0 ;
     rxes = 0 ;
     rxer = 0 ;
+    controller->update_status("init() -> update_status") ;
+
 
     // boot drive 0, drive 1 also homed
 
@@ -620,8 +624,6 @@ void RX0102uCPU_c::init() {
     program_steps.push_back(step_seek) ;
     program_steps.push_back(step_sector_read) ;
     program_steps.push_back(step_init_done) ;
-
-    controller->update_status("init() -> update_status") ;
 
     // wakeup worker, start program
     pthread_cond_signal(&on_worker_cond);

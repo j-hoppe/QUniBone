@@ -199,7 +199,6 @@ void RX11_c::reset(void) {
     uCPU->init() ; // home, read boot sector
     // generates done = 0,1 sequence
     update_status("reset() -> update_status");
-
 }
 
 
@@ -220,9 +219,16 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
         if (qunibus_control == QUNIBUS_CYCLE_DATO) {
 //GPIO_SETVAL(gpios.led[0], 1); // inverted, led OFF
 
+			// Not clear, which bits may be written when DONE=0 (busy)
+			// "go" disabled
+			// RX11 DX.MAC: sets INT enable while INIT active
+			// INIT interrupts GO ?
+			// But: Changes of Unit select" while CPU active??"
+
+
             // write only allowed if RX02 is not busy
-            if (! uCPU->signal_done)
-                break; // ignore write
+            // if (! uCPU->signal_done)
+            //    break; // ignore write
 
             pthread_mutex_lock(&on_after_register_access_mutex);
 
@@ -243,7 +249,7 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 
             if ((busreg_RXCS->active_dato_flipflops >> 14) & 1) { // INIT bit
                 uCPU->init() ;
-            } else if (busreg_RXCS->active_dato_flipflops & 1) { // GO bit
+            } else if (uCPU->signal_done && busreg_RXCS->active_dato_flipflops & 1) { // GO bit
                 uCPU->go() ; // execute uCPU.function_code
             } else 
 				// register status NOT updated via uCPU activity
