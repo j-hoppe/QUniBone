@@ -1,0 +1,103 @@
+       1                                	.TITLE DUAL-DENSITY BOOTSTRAP FOR RX02
+       2                                
+       3                                	; THIS BOOTSTRAP IS DERIVED FROM THE RX211/RXV21
+       4                                	; BOOTSTRAP THAT APPEARS IN THE RX01/RX02 POCKET SERVICE
+       5                                	; GUIDE (DEC ORDER NUMBER EK-RX012-PS-002).
+       6                                	;
+       7                                	; IT HAS BEEN MODIFIED SO THAT:
+       8                                	; * IT CAN BE USED FOR UNIT 0 OR UNIT 1
+       9                                	; * IT WILL FIRST ATTEMPT TO BOOT A DOUBLE-DENSITY DISK.
+      10                                	;   IF THAT FAILS, IT WILL THEN ATTEMPT TO BOOT A
+      11                                	;   SINGLE-DENSITY DISK.
+      12                                	;
+      13                                	; THE CODE SHOWN BELOW IS FOR UNIT 0. TO BOOT FROM UNIT 1:
+      14                                	; * CHANGE THE WORD AT 002036 FROM 000407 TO 000427
+      15                                	; * CHANGE THE WORD AT 002132 FROM 000000 TO 000001
+      16                                	;
+      17                                	; MALCOLM MACLEOD - 11 JUNE 2017
+      18                                
+      19                                	.ASECT
+      20 010000                         	.=010000
+      21                                
+      22 177170                         RX2CS	= 177170		; RXV21 CONTROL/STATUS REGISTER
+      23 177172                         RX2DB	= 177172		; RXV21 DATA BUFFER REGISTER
+      24 000200                         WRDCNT	= ^D128 		; 128 FOR DBL-DEN, 64 FOR SGL-DEN
+      25 100240                         MASK	= 100240		; BIT 15=ERR, 7=XFER-RQST, 5=DONE
+      26                                
+      27 010000 012701  177170          START:	MOV	#RX2CS,R1	; PUT ADDR OF RX2CS INTO R1
+      28 010004 012700  100240          	MOV	#MASK,R0	; PUT BIT MASK INTO R0
+      29 010010 005002                  	CLR	R2		; CLEAR BUS ADDR (DMA DEST'N ADDR)
+      30 010012 012705  000200          	MOV	#WRDCNT,R5	; PUT WORD COUNT (128) INTO R5
+      31 010016 012704  000401          	MOV	#401,R4 	; TRACK 1, SECTOR 1
+      32 010022 012703  177172          $1:	MOV	#RX2DB,R3	; PUT ADDR OF RX2DB IN R3
+      33                                
+      34                                	; CHECK THAT THE RXV21 IS READY
+      35                                
+      36 010026 030011                  $2:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      37 010030 001776                  	BEQ	$2		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      38 010032 100441                  	BMI	QUIT		; HALT IF ERR IS SET
+      39                                
+      40                                	; INITIATE A READ-SECTOR COMMAND
+      41                                
+      42 010034 012711  000407          	MOV	#407,(R1)	; DEN=DDEN, UNIT=0, FN=RD-SECTOR, GO
+      43 010040 030011                  $3:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      44 010042 001776                  	BEQ	$3		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      45 010044 100434                  	BMI	QUIT		; HALT IF ERR IS SET
+      46                                	; CODE ASSUMES THAT XFER-RQST IS NOW SET (IGNORES DONE)
+      47 010046 110413                  	MOVB	R4,(R3) 	; WRITE SECTOR NUMBER TO RX2DB
+      48 010050 000304                  	SWAB	R4		; SWAP TRACK NUMBER TO BITS 0-7
+      49 010052 030011                  $4:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      50 010054 001776                  	BEQ	$4		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      51                                	; CODE ASSUMES THAT XFER-RQST (NOT ERR OR DONE) IS NOW SET
+      52 010056 110413                  	MOVB	R4,(R3) 	; WRITE TRACK NUMBER TO RX2DB
+      53                                
+      54                                	; RXV21 IS NOW READING SECTOR DATA INTO ITS OWN BUFFER
+      55                                
+      56 010060 000304                  	SWAB	R4		; SWAP TRACK NUMBER TO BITS 15-8
+      57 010062 030011                  $5:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      58 010064 001776                  	BEQ	$5		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      59 010066 100423                  	BMI	QUIT		; HALT IF ERR IS SET
+      60                                
+      61                                	; CODE ASSUMES THAT XFER-RQST IS NOW SET (IGNORES DONE)
+      62                                
+      63                                	; THE SECTOR DATA IS NOW IN RXV21'S DATA BUFFER.
+      64                                	; PREPARE TO TRANSFER SECTOR DATA FROM RXV21 TO RAM BY DMA
+      65                                
+      66 010070 012711  000403          	MOV	#403,(R1)	; DEN=DDEN, UNIT=ANY, FN=EMPTY-BUF, GO
+      67 010074 030011                  $6:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      68 010076 001776                  	BEQ	$6		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      69 010100 100416                  	BMI	QUIT		; HALT IF ERR IS SET
+      70                                	; CODE ASSUMES THAT XFER-RQST IS NOW SET (IGNORES DONE)
+      71 010102 010513                  	MOV	R5,(R3) 	; LD WORD COUNT INTO RX2WC VIA RX2DB
+      72 010104 030011                  $7:	BIT	R0,(R1) 	; APPLY MASK TO RX2CS
+      73 010106 001776                  	BEQ	$7		; LOOP UNTIL ERR, XFER-RQST OR DONE
+      74 010110 100412                  	BMI	QUIT		; HALT IF ERR IS SET
+      75                                	; CODE ASSUMES THAT XFER-RQST IS NOW SET (IGNORES DONE)
+      76 010112 010213                  	MOV	R2,(R3) 	; LD BUS ADDRS INTO RX2BA VIA RX2DB
+      77                                
+      78                                	; DATA (256 BYTES) IS NOW BEING COPIED TO RAM VIA DMA
+      79                                
+      80 010114 060502                  	ADD	R5,R2		; ADD 128 DEC TO BUS ADDRESS
+      81 010116 060502                  	ADD	R5,R2		; ADD 128 DEC TO BUS ADDRESS
+      82 010120 122424                  	CMPB	(R4)+,(R4)+	; INCREMENT SECTOR NUMBER BY 2
+      83 010122 120427  000007          	CMPB	R4,#7		; SECTORS 1, 3, 5 & 7 WILL BE READ
+      84 010126 003737                  	BLE	$2		; LOOP BACK AND DO NEXT SECTOR
+      85 010130 012700  000000          	MOV	#0,R0		; BOOT DEVICE IS UNIT 0
+      86 010134 005007                  	CLR	PC		; GO TO ADDR ZERO
+      87                                
+      88                                	; ERRORS ALWAYS BRANCH TO HERE. ON FIRST ERROR (DURING
+      89                                	; DDEN ATTEMPT) WE CHANGE TO SDEN MODE AND TRY AGAIN. ON
+      90                                	; SECOND ERROR, WE HALT.
+      91                                
+      92 010136 000005                  QUIT:	RESET			; RESET ALL I/O DEVICES
+      93 010140 012700  010000          	MOV	#START,R0	; LOAD R0 WITH START ADDRESS
+      94 010144 012701  000400          	MOV	#400,R1 	; SETUP MASK BYTE
+      95 010150 006260  000014          	ASR	14(R0)		; CHANGE WRDCNT TO 64 DECIMAL
+      96 010154 040160  000036          	BIC	R1,36(R0)	; CHANGE READ-SECTOR CMD TO SDEN
+      97 010160 040160  000072          	BIC	R1,72(R0)	; CHANGE EMPTY-BUFFER CMD TO SDEN
+      98 010164 012760  000017  000124  	MOV	#17,124(R0)	; CHANGE LAST SECTOR TO D'15
+      99 010172 005060  000136          	CLR	136(R0) 	; PUT HALT AT QUIT LOCATION
+     100 010176 000700                  	BR	START		; GO BACK AND TRY SDEN MODE
+     101                                
+     102                                	.END
+     102                                
