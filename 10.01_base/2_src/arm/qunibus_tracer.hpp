@@ -1,4 +1,4 @@
-/* qunibus_trigger.hpp: debugging tool to find sequences of BUS DATI/DATO accesses
+/* qunibus_tracer.hpp: debugging tool to find and trace sequences of BUS DATI/DATO accesses
 
  Copyright (c) 2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -33,8 +33,8 @@
 
  */
 
-#ifndef _QUNIBUS_TRIGGER_HPP_
-#define _QUNIBUS_TRIGGER_HPP_
+#ifndef _QUNIBUS_TRACER_HPP_
+#define _QUNIBUS_TRACER_HPP_
 
 
 #include <vector>
@@ -86,6 +86,10 @@ public:
 //is an ordered list of conditions
 class trigger_c: std::vector<trigger_condition_c> {
 public:
+    trigger_c() {
+        conditions_clear() ;
+    }
+
     /* defining */
     void conditions_clear() {
         clear() ;
@@ -125,6 +129,37 @@ public:
             fprintf(stream, "%d) %s\n", i, at(i).to_string()) ;
     }
 
+} ;
+
+
+// map for each memory address, wheter to trace or not
+class tracer_c {
+public:
+    bool enabled ; // to be evaluated?
+    bool	addr[0x10000] ; // one flag per logical 16 bit address
+    tracer_c() {
+        clear() ;
+    }
+
+    void clear() {
+        enabled = false ;
+        memset(addr, 0, sizeof(addr)) ;
+    }
+    // enable address range for tracing
+    void enable(uint16_t addr_from, uint16_t addr_to) {
+        enabled = true ;
+        for (unsigned i=addr_from ; i <= addr_to ; i++)
+            addr[i] = true ;
+    }
+    void disable(uint16_t addr_from, uint16_t addr_to) {
+        unsigned i ;
+        for (i=addr_from ; i <= addr_to ; i++)
+            addr[i] = false ;
+        enabled = false ; // any conditions set?
+        for (i=0 ;! enabled &&  (i < 0x10000) ; i++)
+            if (addr[i])
+                enabled = true ;
+    }
 } ;
 
 

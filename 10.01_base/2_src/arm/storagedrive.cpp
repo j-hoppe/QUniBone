@@ -61,6 +61,7 @@ bool storagedrive_c::on_param_changed(parameter_c *param) {
 // creates file, if not existing
 // result: OK= true, else false
 bool storagedrive_c::file_open(string image_fname, bool create) {
+	this->image_fname = image_fname ; // save for re-open
 
     // 1st: if file not exists, try to unzip it from <image_fname>.gz
     int retries = 2 ;
@@ -68,6 +69,8 @@ bool storagedrive_c::file_open(string image_fname, bool create) {
         file_readonly = false;
         if (file_is_open())
             file_close(); // after RL11 INIT
+        if (image_fname.empty())
+			return true ; // ! is_open
         f.open(image_fname, ios::in | ios::out | ios::binary | ios::ate);
         if (f.is_open())
             return true;
@@ -124,6 +127,18 @@ bool storagedrive_c::file_open(string image_fname, bool create) {
 bool storagedrive_c::file_is_open() {
     return f.is_open();
 }
+
+// set file size to 0
+bool storagedrive_c::file_truncate() {
+	assert(file_is_open());
+	assert(!file_readonly); // caller must take care
+	
+	f.close();
+	// reopen with "trunc" option	
+	f.open(image_fname, ios::in | ios::out | ios::binary | ios::trunc);
+	return  f.is_open() ;
+}
+
 
 /* read "len" bytes from file into buffer
  * if file is too short, 00s are read

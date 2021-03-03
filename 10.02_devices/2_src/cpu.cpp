@@ -105,27 +105,35 @@ void unibone_grant_interrupts(void) {
 // "real world" time for bus access. emulated timeout is stepped by this on every cycle.
 
 int unibone_dato(unsigned addr, unsigned data) {
-unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
+    bool success ;
+
+    unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
 
     uint16_t wordbuffer = (uint16_t) data;
     the_flexi_timeout_controller->emu_step_ns(UNIBUS_ACCESS_NS);
     if (unibone_cpu->direct_memory.value && addr < qunibus->iopage_start_addr) {
         // Direct access Non-IOPage memory.
         ddrmem->pmi_deposit(addr, data);
-        return true;
+        success = true;
     } else {
         dbg = 1;
         qunibusadapter->cpu_DATA_transfer(unibone_cpu->data_transfer_request,
                                           QUNIBUS_CYCLE_DATO, addr, &wordbuffer);
         dbg = 0;
-        bool success = unibone_cpu->data_transfer_request.success;
+        success = unibone_cpu->data_transfer_request.success;
         //printf("DATO; ba=%o, data=%o, success=%u\n", addr, data, (int)success) ;
-        return success;
     }
+
+    // trace bus access
+    if (unibone_cpu->cycle_trace_buffer.active)
+        unibone_cpu->cycle_trace_buffer.add(qunibus_cycle_trace_entry_c(unibone_cpu->cycle_trace_entry_id++, addr >= qunibus->iopage_start_addr, addr, QUNIBUS_CYCLE_DATO, data, !success)) ;
+
+    return success;
 }
 
 int unibone_datob(unsigned addr, unsigned data) {
-unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
+    bool success ;
+    unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
     the_flexi_timeout_controller->emu_step_ns(UNIBUS_ACCESS_NS);
     if (unibone_cpu->direct_memory.value && addr < qunibus->iopage_start_addr) {
         // read-modify-write
@@ -139,7 +147,7 @@ unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for tr
             // even addr: set bits <0:7>
             w = (w & 0xff00) | (data & 0xff);
         ddrmem->pmi_deposit(word_address, w);
-        return true;
+        success = true;
     } else {
         // TODO DATOB als 1 byte-DMA !
         dbg = 1;
@@ -147,16 +155,22 @@ unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for tr
         qunibusadapter->cpu_DATA_transfer(unibone_cpu->data_transfer_request,
                                           QUNIBUS_CYCLE_DATOB, addr, &w);
         dbg = 0;
-        bool success = unibone_cpu->data_transfer_request.success;
+        success = unibone_cpu->data_transfer_request.success;
         //printf("DATOB; ba=%o, data=%o, success=%u\n", addr, data, (int)success) ;
-        return success;
     }
+
+    // trace bus access
+    if (unibone_cpu->cycle_trace_buffer.active)
+        unibone_cpu->cycle_trace_buffer.add(qunibus_cycle_trace_entry_c(unibone_cpu->cycle_trace_entry_id++, addr >= qunibus->iopage_start_addr, addr, QUNIBUS_CYCLE_DATOB, data, !success)) ;
+
+    return success;
 }
 
 int unibone_dati(unsigned addr, unsigned *data) {
+    bool success ;
     uint16_t w;
-unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for trigger system
-	
+    unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for trigger system
+
     the_flexi_timeout_controller->emu_step_ns(UNIBUS_ACCESS_NS);
     if (unibone_cpu->direct_memory.value && addr < qunibus->iopage_start_addr) {
         // boot address redirection by M9312? addrs 24/26 now in M9312 IOpage
@@ -167,17 +181,22 @@ unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for tr
         // Direct access Non-IOPage memory, or to emulated ROM
         ddrmem->pmi_exam(addr, &w);
         *data = w;
-        return true;
+        success = true;
     } else {
         dbg = 1;
         qunibusadapter->cpu_DATA_transfer(unibone_cpu->data_transfer_request,
                                           QUNIBUS_CYCLE_DATI, addr, &w);
         *data = w;
         dbg = 0;
-        bool success = unibone_cpu->data_transfer_request.success;
+        success = unibone_cpu->data_transfer_request.success;
         //printf("DATI; ba=%o, data=%o, success=%u\n", addr, *data, (int)success) ;
-        return success;
     }
+
+    // trace bus access
+    if (unibone_cpu->cycle_trace_buffer.active)
+        unibone_cpu->cycle_trace_buffer.add(qunibus_cycle_trace_entry_c(unibone_cpu->cycle_trace_entry_id++, addr >= qunibus->iopage_start_addr, addr, QUNIBUS_CYCLE_DATI, *data, !success)) ;
+
+    return success;
 }
 
 // CPU has changed the arbitration level, just forward
@@ -194,6 +213,15 @@ void unibone_bus_init() {
 }
 
 
+// selective tracing of EXEC cycles
+bool unibone_trace_enabled() {
+    return unibone_cpu->tracer.enabled ;
+}
+
+// shell and address be traced?
+bool unibone_trace_addr(uint16_t a) {
+    return !unibone_cpu->tracer.enabled || unibone_cpu->tracer.addr[a] ;
+}
 
 
 
@@ -217,6 +245,7 @@ cpu_c::cpu_c() :
     continue_switch.value = false;
     direct_memory.value = false;
     emulation_speed.value = 0.1 ; // non-PMI speed,  see on_param_changed() also
+
 
     // current CPU does not publish registers to the bus
     // must be qunibusdevice_c then!
@@ -246,7 +275,7 @@ bool cpu_c::on_before_install(void) {
     start_switch.value = false;
     continue_switch.value = false;
 // enable active: assert CPU starts stopped
-    stop("CPU stopped");
+    stop("CPU stopped", show_none);
     return true;
 }
 
@@ -255,7 +284,7 @@ void cpu_c::on_after_uninstall(void) {
     start_switch.value = false;
     halt_switch.value = true;
     // HALT disabled CPU
-    stop(NULL);
+    stop(NULL, show_none);
 }
 
 bool cpu_c::on_param_changed(parameter_c *param) {
@@ -263,6 +292,8 @@ bool cpu_c::on_param_changed(parameter_c *param) {
         // speed feedback, as measured
         // see cpu_c() also
         emulation_speed.value = direct_memory.new_value ? 0.5 : 0.1 ;
+    } else if (param == &cycle_tracefilepath) {
+	    cycle_trace_buffer.active = ! cycle_tracefilepath.new_value.empty() ;
     }
     return qunibusdevice_c::on_param_changed(param); // more actions (for enable)
 }
@@ -271,10 +302,26 @@ bool cpu_c::on_param_changed(parameter_c *param) {
 void cpu_c::start() {
 
 // stop on an ZRXB test before error output starts, to watch CPU trace
-trigger.conditions_clear() ;
-//trigger.condition_add(trigger_condition_c(0010042, TRIGGER_DATI)) ; // ZRXB, READ
-//trigger.condition_add(trigger_condition_c(0777560, 0777566, TRIGGER_DATANY)) ; // SLU status
+    trigger.conditions_clear() ;
+    /* Earlier use cases left as example: *
+    trigger.condition_add(trigger_condition_c(0777170, TRIGGER_DATO)) ; // ZRXF, start test by write into RXCS
+    trigger.condition_add(trigger_condition_c(0003576, TRIGGER_DATI)) ; // ZRXA, SEEKER
+
+    cycle_trace_buffer.active = true ;
+
+// now: trace on
+//trigger.condition_add(trigger_condition_c(0034500, TRIGGER_DATI)) ; // ZRXF, test 36 end
+//trigger.condition_add(trigger_condition_c(0010560, TRIGGER_DATI)) ; // for mov wc,rxdb
 //trigger.print(stdout) ;
+    /*
+    	// code flow tracing: only trace EXEC in this range, when trace_exec_addr_from > 0
+    //	tracer.enable(0177170,0177173) ; // RX01/02
+    	tracer.enable(026276,026400) ; // ZRXF main level of test 17
+    	tracer.enable(034246,034500) ; // ZRXF main level of test 36
+    	tracer.enable(010626,010742) ; // ZRXF EMPBUF subr
+    	tracer.enable(011610,011632) ; // ZRXF WAIT
+    //	tracer.enable(012032,012106) ; // ZRXF AWDN wait for done
+    /**/
 
     runmode.value = true;
     mailbox->param = 1;
@@ -295,7 +342,7 @@ trigger.conditions_clear() ;
 }
 
 // stop CPU logic on PRU and switch arbitration mode
-void cpu_c::stop(const char * info, bool print_pc) {
+void cpu_c::stop(const char * info, int show_options) {
 
     // time base of all device emulators now based on "real world" time
     the_flexi_timeout_controller->set_mode(flexi_timeout_c::world_time);
@@ -310,7 +357,7 @@ void cpu_c::stop(const char * info, bool print_pc) {
     qunibus->set_arbitrator_active(false);
 
     if (info && strlen(info)) {
-        if (print_pc) {
+        if (show_options & show_pc) {
             char buff[256];
             strcpy(buff, info);
             strcat(buff, " at %06o");
@@ -318,6 +365,17 @@ void cpu_c::stop(const char * info, bool print_pc) {
         } else
             INFO(info);
     }
+	if (show_options & show_trigger) {
+		trigger.print(stdout) ;
+	}
+	if (show_options & show_state) {
+		ka11_printstate(&ka11) ;
+		ka11_tracestate(&ka11) ; // DEBUG log
+	}
+	if ((show_options & show_cycletrace) && !cycle_tracefilepath.value.empty()) {
+		cycle_trace_buffer.dump(cycle_tracefilepath.value) ;
+	}
+	
 }
 
 // background worker.
@@ -376,16 +434,13 @@ void cpu_c::worker(unsigned instance) {
         // ARM_DEBUG_PIN(0,1) ; // measure pmi gain
         ka11_condstep(&ka11);
         // ARM_DEBUG_PIN(0,0) ;
-if (ka11.state != KA11_STATE_HALTED && trigger.has_triggered()) {
-	printf("Halted by trigger conditions:\n");
-	trigger.print(stdout) ;
-	ka11.state = KA11_STATE_HALTED ;
-}
-        if (prev_ka11_state > 0 && ka11.state == KA11_STATE_HALTED) {
+        if (ka11.state != KA11_STATE_HALTED && trigger.has_triggered()) {
+            stop("Halted by trigger conditions:", show_pc+show_trigger+show_state+show_cycletrace);
+        } else  if (breakpoint.value && ka11.state != KA11_STATE_HALTED && breakpoint.value == ka11.r[7]) {
+            stop("CPU HALT by breakpoint", show_pc+show_state+show_cycletrace);
+        } else  if (prev_ka11_state > 0 && ka11.state == KA11_STATE_HALTED) {
             // CPU run on HALT, sync runmode
-            stop("CPU HALT by opcode", true);
-            ka11_printstate(&ka11) ;
-            ka11_tracestate(&ka11) ; // DEBUG log
+            stop("CPU HALT by opcode", show_pc+show_state+show_cycletrace);
         }
         // running CPU: produce emulated time for all devices
         if (ka11.state == KA11_STATE_RUNNING) {
@@ -408,7 +463,7 @@ if (ka11.state != KA11_STATE_HALTED && trigger.has_triggered()) {
 
         // DCLO: halt, like "enable = 0"
         if (runmode.value && power_event_DCLO_active) {
-            stop("CPU HALT by DCLO");
+            stop("CPU HALT by DCLO", show_pc);
 //			ka11_reset(&ka11);
         }
         power_event_DCLO_active = false; // processed
@@ -416,7 +471,7 @@ if (ka11.state != KA11_STATE_HALTED && trigger.has_triggered()) {
             // Reboot
             // if HALT switch active: no action, event remains pending
 //			if (!halt_switch.value) {
-            stop("ACLO", true);
+            stop("ACLO", show_pc);
             // execute this with real-world time, else lock (CPU not step() ing here)
             qunibus->init();		// reset devices
             start();		// start CPU logic on PRU, is bus master now
@@ -434,7 +489,7 @@ if (ka11.state != KA11_STATE_HALTED && trigger.has_triggered()) {
         // after CONT+HALT: one step executed
         if (halt_switch.value && runmode.value) {
             // HALT position inside instructions !!!
-            stop("CPU HALT by switch", true);
+            stop("CPU HALT by switch", show_pc+show_state+show_cycletrace);
         }
 
         ka11.swab_vbit = (swab_vbit.value == true);

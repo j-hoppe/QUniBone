@@ -53,7 +53,7 @@
 #include "testcontroller.hpp"
 #include "rl11.hpp"
 #include "rk11.hpp"
-#include "rx11.hpp"
+#include "rx11211.hpp"
 #include "uda.hpp"
 #include "dl11w.hpp"
 #if defined(UNIBUS)
@@ -185,8 +185,13 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 
 	ltc_c *LTC = new ltc_c();
 
+#if defined(UNIBUS)
 	RX11_c *RX11 = new RX11_c() ;
-
+	RX211_c *RX211 = new RX211_c() ;
+#elif defined(QBUS)
+	RXV11_c *RX11 = new RXV11_c() ;
+	RXV21_c *RX211 = new RXV21_c() ;
+#endif
 	//	//demo_regs.install();
 	//	//demo_regs.worker_start();
 	
@@ -446,8 +451,12 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				if (p == NULL)
 					cout << "Device \"" << cur_device->name.value << "\" has no parameter \""
 							<< pn << "\".\n";
-				else
+				else {
+					// string parameter set to "" ?
+					if (typeid(*p) == typeid(parameter_string_c))
+						p->parse("");
 					print_params(cur_device, p);
+				}
 			} else if (cur_device && !strcasecmp(s_opcode, "p") && n_fields == 3) {
 				string pn(s_param[0]);
 				parameter_c *p = cur_device->param_by_name(pn);
@@ -602,6 +611,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 
 	RX11->enabled.set(false) ;
 	delete RX11;
+
+	RX211->enabled.set(false) ;
+	delete RX211;
 
 	LTC->enabled.set(false);
 	delete LTC;

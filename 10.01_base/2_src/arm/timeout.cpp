@@ -63,6 +63,13 @@ uint64_t timeout_c::get_resolution_ns() {
 	return BILLION * res.tv_sec + res.tv_nsec;
 }
 
+uint64_t timeout_c::abstime_ns(void) {
+	struct timespec now;
+	clock_gettime(CLOCK_MONOTONIC, &now);
+	uint64_t result = (uint64_t) BILLION * now.tv_sec + (uint64_t) now.tv_nsec ;
+	return result;
+}
+
 void timeout_c::start_ns(uint64_t duration_ns) {
 	this->duration_ns = duration_ns;
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
@@ -75,6 +82,7 @@ void timeout_c::start_us(uint64_t duration_us) {
 void timeout_c::start_ms(uint64_t duration_ms) {
 	start_ns(duration_ms * MILLION);
 }
+
 
 uint64_t timeout_c::elapsed_ns(void) {
 	struct timespec now;

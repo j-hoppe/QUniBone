@@ -1,6 +1,6 @@
-/* rx11.cpp: Implementation of the RX11/RX211 controller
+/* rx11.cpp: Implementation of the RX11 controller
 
- Copyright (c) 2020, Joerg Hoppe
+ Copyright (c) 2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
 
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -71,13 +71,12 @@ RX211,RXV21 RX02	single or double density 256kb,512kb
 #include "utils.hpp"
 #include "qunibus.h"
 #include "qunibusadapter.hpp"
-#include "rx11.hpp"
+#include "rx11211.hpp"
 #include "rx0102ucpu.hpp"
 #include "rx0102drive.hpp"
 
 
-RX11_c::RX11_c(void) :
-    storagecontroller_c() {
+RX11_c::RX11_c(void) :    storagecontroller_c() {
     unsigned i;
 
     name.value = "rx"; // only one supported
@@ -93,7 +92,7 @@ RX11_c::RX11_c(void) :
     // add 2 RX disk drives
     drivecount = 2;
     for (i = 0; i < drivecount; i++) {
-        RX0102drive_c *drive = new RX0102drive_c(uCPU);
+        RX0102drive_c *drive = new RX0102drive_c(uCPU, false);
         drive->unitno.value = i; // set the number plug
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
@@ -102,7 +101,8 @@ RX11_c::RX11_c(void) :
         // also connect to microcontroller
         uCPU->drives.push_back(drive) ;
     }
-    uCPU->set_RX02(false) ;
+
+    uCPU->set_RX02(false) ; // after drives instantiated
 
     // create QBUS/UNIBUS registers
     register_count = 2;
@@ -134,28 +134,13 @@ RX11_c::~RX11_c() {
     delete uCPU ;
 }
 
-// RX211  UNIBUS + DMA
-RX211_c::RX211_c(): RX11_c() {
-    type_name.value = "RX211";
-    // base addr, intr-vector, intr level
-    uCPU->set_RX02(true) ;
-}
-
-
 // RXV11  QBUS without DMA
 RXV11_c::RXV11_c(): RX11_c() {
     type_name.value = "RXV11";
     // base addr, intr-vector, intr level
-    // INTR level 4 instead of RX11s 5
-    set_default_bus_params(0777170, 16, 0264, 4);
+    // RXV11 has INTR level 4 instead of RX11s 5
+   set_default_bus_params(0777170, 16, 0264, 4);
 }
-
-// RXV21 has is QBUS + DMA
-RXV21_c::RXV21_c(): RX11_c() {
-    type_name.value = "RXV12";
-    uCPU->set_RX02(true) ;
-}
-
 
 
 // called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
@@ -175,7 +160,6 @@ void RX11_c::on_after_uninstall() {
 
 bool RX11_c::on_param_changed(parameter_c *param) {
     if (param == &priority_slot) {
-        dma_request.set_priority_slot(priority_slot.new_value);
         intr_request.set_priority_slot(priority_slot.new_value);
     } else if (param == &intr_level) {
         intr_request.set_level(intr_level.new_value);
@@ -196,6 +180,7 @@ void RX11_c::reset(void) {
     interrupt_condition_prev = false ;
     intr_request.edge_detect_reset();
     interrupt_condition_prev = true ;
+
     uCPU->init() ; // home, read boot sector
     // generates done = 0,1 sequence
     update_status("reset() -> update_status");
@@ -219,11 +204,11 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
         if (qunibus_control == QUNIBUS_CYCLE_DATO) {
 //GPIO_SETVAL(gpios.led[0], 1); // inverted, led OFF
 
-			// Not clear, which bits may be written when DONE=0 (busy)
-			// "go" disabled
-			// RX11 DX.MAC: sets INT enable while INIT active
-			// INIT interrupts GO ?
-			// But: Changes of Unit select" while CPU active??"
+            // Not clear, which bits may be written when DONE=0 (busy)
+            // "go" disabled
+            // RX11 DX.MAC: sets INT enable while INIT active
+            // INIT interrupts GO ?
+            // But: Changes of Unit select" while CPU active??"
 
 
             // write only allowed if RX02 is not busy
@@ -251,9 +236,9 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                 uCPU->init() ;
             } else if (uCPU->signal_done && busreg_RXCS->active_dato_flipflops & 1) { // GO bit
                 uCPU->go() ; // execute uCPU.function_code
-            } else 
-				// register status NOT updated via uCPU activity
-	            update_status("on_after_register_access() -> update_status") ; // may trigger interrupt
+            } else
+                // register status NOT updated via uCPU activity
+                update_status("on_after_register_access() -> update_status") ; // may trigger interrupt
 
             pthread_mutex_unlock(&on_after_register_access_mutex);
         } else {
@@ -286,10 +271,10 @@ void RX11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 // must be done after each DATO
 // generates INTR too: on change on DONE or on change of INTENABLE
 void RX11_c::update_status(const char *debug_info) {
-	// update_status() *NOT* called both by DATI/DATO on_after_register_access() and uCPU worker thread
-	//	pthread_mutex_lock(&status_mutex);
+    // update_status() *NOT* called both by DATI/DATO on_after_register_access() and uCPU worker thread
+    //	pthread_mutex_lock(&status_mutex);
 
-	// RXDB
+    // RXDB
     set_register_dati_value(busreg_RXDB, uCPU->rxdb, debug_info);
 
     bool interrupt_condition = uCPU->signal_done && interrupt_enable ;
@@ -308,19 +293,19 @@ void RX11_c::update_status(const char *debug_info) {
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
         DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
-        	uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
+              uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
         qunibusadapter->INTR(intr_request, busreg_RXCS, tmp);
     } else {
         if (!interrupt_condition) // revoke INTR, if raised
             qunibusadapter->cancel_INTR(intr_request);
         set_register_dati_value(busreg_RXCS, tmp, debug_info);
         DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
-			uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
+              uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
     }
 
     interrupt_condition_prev = interrupt_condition ;
 
-	//	pthread_mutex_unlock(&status_mutex);
+    //	pthread_mutex_unlock(&status_mutex);
 
 }
 

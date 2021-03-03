@@ -43,7 +43,8 @@ private:
 	uint64_t duration_ns;
 public:
 	timeout_c();
-	uint64_t get_resolution_ns(void);
+	static uint64_t get_resolution_ns(void);
+	static uint64_t abstime_ns(void) ;
 	void start_ns(uint64_t duration_ns);
 	void start_us(uint64_t duration_us);
 	void start_ms(uint64_t duration_ms);

@@ -10,6 +10,8 @@ int unibone_dati(unsigned addr, unsigned *data);
 void unibone_prioritylevelchange(uint8_t level);
 void unibone_bus_init() ;
 
+bool unibone_trace_addr(uint16_t a) ;
+
 
 int
 dati_bus(Bus *bus)
@@ -155,7 +157,8 @@ dati(KA11 *cpu, int b)
 	if(dati_bus(cpu->bus))
 		goto be;
 ok:
-	trace("DATI [%06o] => %06o\n", cpu->ba, cpu->bus->data);
+if (unibone_trace_addr(cpu->ba))
+ 	trace("DATI [%06o] => %06o\n", cpu->ba, cpu->bus->data);
 	cpu->be = 0;
 	return 0;
 be:
@@ -167,6 +170,7 @@ be:
 int
 dato(KA11 *cpu, int b)
 {
+if (unibone_trace_addr(cpu->ba)) // default: all
 trace("%s [%06o] <= %06o\n", b? "DATOB":"DATO", cpu->ba, cpu->bus->data);
 	if(!b && cpu->ba&1)
 		goto be;
@@ -364,8 +368,10 @@ step(KA11 *cpu)
 #define OUT(a,d)	cpu->ba = (a); cpu->bus->data = (d); if(dato(cpu, 0)) goto be
 #define IN(d)	if(dati(cpu, 0)) goto be; d = cpu->bus->data
 #define INA(a,d)	cpu->ba = a; if(dati(cpu, 0)) goto be; d = cpu->bus->data
-#define TR(m)	trace("EXEC [%06o] "#m"\n", PC-2)
-#define TRB(m)	trace("EXEC [%06o] "#m"%s\n", PC-2, by ? "B" : "")
+#define TR(m)	if (unibone_trace_addr(PC-2)) trace("EXEC [%06o] "#m"\n", PC-2)
+#define TRB(m)	if (unibone_trace_addr(PC-2)) trace("EXEC [%06o] "#m"%s\n", PC-2, by ? "B" : "")
+//#define TR(m)	trace("EXEC [%06o] "#m"\n", PC-2)
+//#define TRB(m)	trace("EXEC [%06o] "#m"%s\n", PC-2, by ? "B" : "")
 
 	inhov = 0;
 
@@ -575,7 +581,7 @@ step(KA11 *cpu)
 	/* Operate */
 	switch(cpu->ir){
 	case 0:	TR(HALT); cpu->state = KA11_STATE_HALTED; return;
-	case 1:	TR(WAIT); /*ARM_DEBUG_PIN0(1); */cpu->state = KA11_STATE_WAITING; return ; // no traps
+	case 1:	TR(WAIT); cpu->state = KA11_STATE_WAITING; return ; // no traps
 	case 2:	TR(RTI);
 		BA = SP; POP; IN(PC);
 		BA = SP; POP; IN(PSW);
@@ -600,6 +606,7 @@ be:	if(cpu->be > 1){
 	TRAP(4);
 
 trap:
+	if (unibone_trace_addr(PC-2)) 
 	trace("TRAP %o\n", TV);
 	PUSH; OUT(SP, PSW);
 	PUSH; OUT(SP, PC);
@@ -609,6 +616,7 @@ trap:
 	/* no trace trap after a trap */
 	oldpsw = PSW;
 
+	if (unibone_trace_addr(PC-2)) 
 	ka11_tracestate(cpu);
 	return;		// TODO: is this correct?
 //	SVC;
@@ -654,8 +662,6 @@ ka11_setintr(KA11 *cpu, unsigned vec)
 	trace("INTR vec=%03o\n", vec) ;
 //	if (cpu->state == KA11_STATE_WAITING) // atomically
 //		cpu->state = KA11_STATE_RUNNING ;
-//	ARM_DEBUG_PIN1(1);	// INTR pending
-//	ARM_DEBUG_PIN0(0);	// not waiting
 	pthread_mutex_unlock(&cpu->mutex) ;
 }
 
@@ -692,7 +698,6 @@ ka11_condstep(KA11 *cpu)
 	if((cpu->state == KA11_STATE_RUNNING) ||
 	   (cpu->state == KA11_STATE_WAITING && cpu->traps)
 	   || (cpu->state == KA11_STATE_WAITING && cpu->external_intr) ){
-//ARM_DEBUG_PIN0(0);	   
 		cpu->state = KA11_STATE_RUNNING;
 		// external_intr WAIT handled atomically in ka11_setintr() !
 
@@ -705,7 +710,6 @@ void
 run(KA11 *cpu)
 {
 	cpu->state = KA11_STATE_RUNNING;
-//	ARM_DEBUG_PIN0(0);	   
 	
 	while(cpu->state != KA11_STATE_HALTED){
 		ka11_condstep(cpu);

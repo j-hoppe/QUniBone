@@ -58,23 +58,28 @@ private:
     //	unsigned state_wait_ms ;
     */
 
+volatile unsigned cylinder; // current head position
 
 public:
     // the RX11 controller may see everything
     // dynamic state
-    volatile unsigned cylinder; // current head position
     static const unsigned cylinder_count = 77 ;
     static const unsigned sector_count = 26 ;
     unsigned sector_size_bytes; // in byte
     unsigned block_size_bytes; // in byte
     unsigned block_count;
 
+    bool is_RX02 ; // false: RX01, true: FM/MFM RX02 drive
+    bool is_double_density ; // true = RX02 and MFM
+
     unsigned full_rpm = 360; // normal rotation speed
-    // track-to-track time is 6ms, head settle is 25ms
+    // track-to-track time is 5ms, head settle is 25ms
+    unsigned track_step_time_ms = 5 ;
     // disk is always spinning
+    unsigned head_settle_time_ms = 25 ;
 
-    unsigned density ; // 1 = RX01, 2 = RX02 single density, 3 = RX02 DD
-
+	unsigned get_cylinder() ;
+	void set_cylinder(unsigned cyl) ;
 
     bool error_illegal_track  ;
     bool error_illegal_sector ;
@@ -84,6 +89,10 @@ public:
 
     parameter_bool_c track0image = parameter_bool_c(this, "track0image", "t0i",/*readonly*/
                                    false, "true: File image contains track 0-76 (std), else only 1..76");
+
+	// current head position , info only							   
+	parameter_unsigned_c current_track = parameter_unsigned_c(this, "track", "tr", /*readonly*/
+		true, "", "%d", "Track # of current head position", 77, 10);
 
 private:
 
@@ -105,23 +114,23 @@ public:
 
     // no user controls!
 
-    RX0102drive_c(RX0102uCPU_c *uCPU);
+    RX0102drive_c(RX0102uCPU_c *uCPU, bool is_RX02);
 
     bool on_param_changed(parameter_c *param) override;
 
     void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;
     void on_init_changed(void) override;
 
+    unsigned get_rotation_ms() ;
 
     // door closed, flopyp inserted?
     bool check_ready(void) ;
 
-    void set_density(uint8_t drivetype);
-    bool get_density() ;
+    void set_density(bool double_density);
 
     int get_sector_image_offset(unsigned track, unsigned sector) ;
-    bool sector_read(uint8_t *sector_buffer, bool *deleted_data_mark, unsigned track, unsigned sector) ;
-    bool sector_write(uint8_t *sector_buffer, bool deleted_data_mark, unsigned track, unsigned sector) ;
+    bool sector_read(uint8_t *sector_buffer, bool *deleted_data_mark, unsigned track, unsigned sector, bool with_delay) ;
+    bool sector_write(uint8_t *sector_buffer, bool deleted_data_mark, unsigned track, unsigned sector, bool with_delay) ;
 
 
     // background worker function

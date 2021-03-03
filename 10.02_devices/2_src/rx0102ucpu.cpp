@@ -1,4 +1,4 @@
-/* rx0102cpu.cpp: implementation of RX01/RX02 floppy disk drive, attached to RX11/211 controller
+/* rx0102cpu.cpp: implementation of RX01/RX02 floppy disk CPU logic, attached to RX11/211 controller
 
  Copyright (c) 2020, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -22,6 +22,8 @@
 
 
  5-jan-2020	JH      entered beta phase
+
+
  */
 
 #include <assert.h>
@@ -36,31 +38,17 @@ using namespace std;
 #include "utils.hpp"
 #include "rx0102ucpu.hpp"
 #include "rx0102drive.hpp"
-#include "rx11.hpp"
-
-
-// function codes to uCPU
-#define RX11_CMD_FILL_BUFFER 	0
-#define RX11_CMD_EMPTY_BUFFER	1
-#define RX11_CMD_WRITE_SECTOR	2
-#define RX11_CMD_READ_SECTOR	3
-#define RX11_CMD_SET_MEDIA_DENSITY 4 // RX211 only
-#define RX11_CMD_READ_STATUS	5
-#define RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA	6
-#define RX11_CMD_READ_ERROR_REGISTER 7
-
-
+#include "rx11211.hpp"
 
 // link uCPU to its RX controller
-RX0102uCPU_c::RX0102uCPU_c(RX11_c *controller): device_c(), controller(controller) {
-    // static config
-    name.value = "rxbox";
-    type_name.value = "RX0102uCPU";
-    log_label = "rxcpu";
+// RX01/02 type defined later by caller
+RX0102uCPU_c::RX0102uCPU_c(RX11211_c *controller): device_c(), controller(controller) {
 
-    is_RX02 = false ;
+    signal_function_density	= false ; // const for RX01
 
-    // imit
+
+
+    // init
     power_switch.set(0) ;
     set_powerless() ;
 }
@@ -85,13 +73,13 @@ const char * RX0102uCPU_c::function_code_text(unsigned function_code) {
         return "WRITE_SECTOR" ;
     case RX11_CMD_READ_SECTOR:
         return "READ_SECTOR" ;
-    case RX11_CMD_SET_MEDIA_DENSITY:
+    case RX211_CMD_SET_MEDIA_DENSITY:
         return "SET_MEDIA_DENSITY" ;
     case RX11_CMD_READ_STATUS:
         return "READ_STATUS" ;
     case RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA:
         return "WRITE_SECTOR_WITH_DELETED_DATA" ;
-    case RX11_CMD_READ_ERROR_REGISTER:
+    case RX11_CMD_READ_ERROR_CODE:
         return "READ_ERROR_REGISTER" ;
     default:
         return "???" ;
@@ -117,9 +105,13 @@ const char * RX0102uCPU_c::step_text(enum step_e step) {
         return "sector_write" ;
     case step_sector_read:
         return "sector_read" ;
+    case step_format_track:
+        return "step_format_track" ;
+    case step_seek_next:
+        return "step_seek_next" ;
     case step_init_done:
         return "step_init_done" ;
-    case step_done_read_error:
+    case step_done_read_error_code:
         return "done_read_error" ;
     case step_done:
         return "done" ;
@@ -179,7 +171,8 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
     switch(step) {
     case step_none:
         break ; // not reached
-    case step_transfer_buffer_write: // controller fills buffer before function execution ()
+    case step_transfer_buffer_write: // RX(2)11 controller fills buffer before function execution ()
+        // many programs accept parameters
         // transfer_byte_count at program setup
         transfer_byte_idx = 0 ;
         signal_transfer_request = true ; // may write first byte now
@@ -188,55 +181,110 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
         pthread_cond_wait(&on_worker_cond, &on_worker_mutex);
 //        logger->debug_hexdump(this, "transfer_buffer after write", (uint8_t *) transfer_buffer, sizeof(transfer_buffer), NULL);
         break ;
-    case step_transfer_buffer_read: // controller reads back buffer (only "empty")
+    case step_transfer_buffer_read: // RX(2)11 controller reads back buffer (only "empty")
+        assert(program_function_code == RX11_CMD_EMPTY_BUFFER || program_function_code == RX11_CMD_READ_ERROR_CODE) ;
 //        logger->debug_hexdump(this, "transfer_buffer before read", (uint8_t *) transfer_buffer, sizeof(transfer_buffer), NULL);
         // transfer_byte_count at program setup
         transfer_byte_idx = 0 ;
-        // put first word into RXDB
-        switch (signal_function_code) {
-        case RX11_CMD_EMPTY_BUFFER:
-            signal_transfer_request = true ; // when RXDB is valid
-            rxdb = sector_buffer[0] ; // 	1st byte readable
-            DEBUG("sector_buffer[0] = %06o", rxdb) ;
-            break ;
-        }
+        // put first word of sector_buffer or extended_status into RXDB
+        signal_transfer_request = true ; // when RXDB is valid
+        rxdb = transfer_buffer[0] ; // 	1st byte readable
+        DEBUG("transfer_buffer[0] = %06o", rxdb) ;
         controller->update_status("step_execute(step_transfer_buffer_read) -> update_status") ; // show TR bit in RXCS
         // wait for rxdb_after_read() to signal transfer completion
         pthread_cond_wait(&on_worker_cond, &on_worker_mutex);
         break ;
     case step_seek: // head movement
         pgmstep_seek() ;
-        // set_rxes() ; // no access to media
+        // complete_rxes() ; // no access to media
         break ;
     case step_head_settle: // if head has moved, it needs 100ms  to stabilize
+        // [6] word 4 <5> Head Load Bit
+        extended_status[6] |= BIT(5) ;
         // headsettle_time_ms set by seek()
         timeout.wait_ms(headsettle_time_ms / emulation_speed.value) ;
         break ;
     case step_sector_write: { // sector buffer to disk surface
-        // transferbuffer must contain track,sector[]
-        signal_error = !selected_drive()->sector_write(sector_buffer, deleted_data_mark,
-                       rxta, rxsa) ;
-        set_rxes() ;
+        if (selected_drive()->is_double_density != program_function_density) {
+            // density error
+            extended_status[0] = 0240 ;
+            rxes |= BIT(4) ;
+            signal_error = true ;
+        } else {
+            signal_error = !selected_drive()->sector_write(sector_buffer, deleted_data_mark,
+                           rxta, rxsa, true) ;
+            if (signal_error)
+                extended_status[0] = 0110 ; // no medium => no clock from data separator
+        }
+        complete_rxes() ;
     }
     break ;
     case step_sector_read: { // disk surface to sector buffer
-        signal_error = !selected_drive()->sector_read(sector_buffer, &deleted_data_mark,
-                       rxta, rxsa) ;
-        set_rxes() ;
+        if (selected_drive()->is_double_density != program_function_density) {
+            // density error
+            extended_status[0] = 0240 ;
+            rxes |= BIT(4) ;
+            signal_error = true ;
+        } else {
+            signal_error = !selected_drive()->sector_read(sector_buffer, &deleted_data_mark,
+                           rxta, rxsa, true) ;
+            if (signal_error)
+                extended_status[0] = 0110 ; // no medium => no clock from data separator
+        }
+        complete_rxes() ;
     }
     break ;
-    case step_done_read_error: // only case where rxdb is *not* rxes
+    case step_seek_next: {
+        // cheap&dirty, only for "change media density"
+        unsigned wait_ms = (selected_drive()->track_step_time_ms + selected_drive()->head_settle_time_ms) / selected_drive()->emulation_speed.value ;
+        selected_drive()->set_cylinder(selected_drive()->get_cylinder()+1) ;
+        DEBUG("drive %d stepping to next track, cyl = %d", selected_drive()->unitno.value, selected_drive()->get_cylinder());
+        timeout.wait_ms(wait_ms) ;
+    }
+    break ;
+    case step_format_track: {
+        // write 26 sectors to current track
+        uint8_t sector_00s[256] ;
+        memset(sector_00s, 0, sizeof(sector_00s)) ;
+        assert(selected_drive()->is_double_density  == program_function_density) ;
+        for (unsigned sa=1 ; !signal_error && sa <= selected_drive()->sector_count ; sa++) {
+            signal_error = !selected_drive()->sector_write(sector_00s, false, selected_drive()->get_cylinder(), sa, false) ;
+            if (signal_error)
+                extended_status[0] = 0110 ; // no medium => no clock from data separator
+        }
+        // wait explicit one rotation
+        timeout.wait_ms(selected_drive()->get_rotation_ms() / selected_drive()->emulation_speed.value) ;
+        complete_rxes() ;
+    }
+    break ;
+    case step_done_read_error_code:
+        // only case where rxdb is *not* rxes
+        // RX02:
         initializing = false ; // also called at end of INIT
         signal_done = true ;
         signal_transfer_request = false ;
-        rxdb = rxer ;
-        controller->update_status("step_execute(step_done_read_error) -> update_status") ; // may trigger interrupt
+        complete_error_codes() ;
+        if (is_RX02) {
+            // not documented, Simh behaviour:
+            rxdb = complete_rxes() ;
+            rxdb &= ~(BIT(8) | BIT(7) | BIT(5)) ; //   SimH RYES_USEL|RYES_DDEN|RYES_DRDY
+
+            /* footnote on 4-44 NOT UNDERSTOOD:
+            "for  DMA interfaces the controlelr status soft register is sent to the interface
+            at the end of the command. The four status bits are included in an 8-bit word.
+            Unit select=bit 7, Density of drive 1= bit 6, Head load = bit 5,
+            Density of read Error Register Command = bit 0""
+            */
+        } else
+            rxdb = extended_status[0] ; // rxer
+        controller->update_status("step_execute(step_done_read_error_code) -> update_status") ; // may trigger interrupt
         break ;
     case step_init_done: // idle between functions
         initializing = false ;
         signal_done = true ;
         signal_transfer_request = false ;
-        set_rxes() ;
+        complete_error_codes() ;
+        complete_rxes() ;
         rxes |= BIT(2) ; // INIT DONE only here
         if (selected_drive()->check_ready())
             rxes |= BIT(7) ; // drive ready
@@ -247,7 +295,8 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
         initializing = false ; // also called at end of INIT
         signal_done = true ;
         signal_transfer_request = false ;
-        rxdb = set_rxes() ;
+        complete_error_codes() ;
+        rxdb = complete_rxes() ;
         // CZRXBF0 RX11 INTERFACE TEST
         // ERADR  FAST   FAPT			GOOD   BAD	   PASS
         // 003736 003612 003612 000204 000000 000040	  0
@@ -263,7 +312,7 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
     case step_error: // error processing
         initializing = false ; // also called at end of INIT
         program_clear() ; // abort
-        rxdb = set_rxes() ;
+        rxdb = complete_rxes() ;
         signal_done = true ;
         signal_error = true ;
         signal_transfer_request = false ;
@@ -276,18 +325,17 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
 
 // OR standard flags into RXES register
 // "init done" and "drive ready" not set here, depends on function
-uint16_t  RX0102uCPU_c::set_rxes(void) {
+uint16_t  RX0102uCPU_c::complete_rxes(void) {
 
     if (deleted_data_mark)
         rxes |= BIT(6) ;
 
     if (is_RX02) {
+        if (!power_switch.value)
+            rxes |= BIT(3) ; // we are powered OFF, RX AC LO ;-)
+
         // density error:
-        bool double_density = selected_drive()->get_density() ;
-
-        if (double_density != signal_function_density)
-            rxes |= BIT(4) ; // Density error
-
+        bool double_density = selected_drive()->is_double_density ;
         if (double_density)
             rxes |= BIT(5) ;
 
@@ -296,127 +344,91 @@ uint16_t  RX0102uCPU_c::set_rxes(void) {
             rxes |= BIT(8) ; // unit #1 select
     }
 
-    DEBUG("set_rxes(): rxes := %06o", rxes) ;
+    DEBUG("complete_rxes(): rxes := %06o", rxes) ;
     return rxes ;
 }
 
 // generate content of RXER register depending on drive state
-// None of the medai and format related errors can occure here
-uint16_t  RX0102uCPU_c::set_rxer(void) {
-    rxer = 0 ;
-    if (selected_drive()->error_illegal_track)
-        rxer = 0040 ;
-    else if (selected_drive()->error_illegal_sector)
-        rxer = 0070 ;
-    DEBUG("set_rxer(): rxer := %06o", rxer) ;
-    return rxer ;
+// None of the media and format related errors can occure here
+// rxer for RX01, 4-word status for RX02.
+// extended error status is localed in uCPU, but accessed by RX211 too.
+void RX0102uCPU_c::clear_error_codes(void) {
+    memset(extended_status, 0, sizeof(extended_status)) ;
 }
 
-#ifdef NEEDED
-// set error code from drive into RXERR
-void RX0102uCPU_c::set_drive_error(uint16_t error_code) {
-    const char *txt = NULL ;
-    switch(error_code) {
-    case 0010:
-        txt = "Drive 0 failed to see home on Initialize" ;
-        break ;
-    case 0020:
-        txt = "Drive 1 failed to see home on Initialize" ;
-        break ;
-    case 0030:
-        txt = "Found home when stepping out 10 tracks from INIT" ;
-        break ;
-    case 0040:
-        txt = "Tried to access track greater than 77" ;
-        break ;
-    case 0050:
-        txt = "Home was found before desired track as reached" ;
-        break ;
-    case 0060:
-        txt = "Self-diagnostic error" ;
-        break ;
-    case 0070:
-        txt = "Desired sector could not be found after looking at 52 sectors (2 revolutions)" ;
-        break ;
-    case 0110:
-        txt = "More than 40us and no SEP clock seen." ;
-        break ;
-    case 0120:
-        txt = "A preamble could not be found" ;
-        break ;
-    case 0130:
-        txt = "Preamble found but no I/O mark found within allowable time span" ;
-        break ;
-    case 0140:
-        txt = "CRC error on what we thought was a header" ;
-        break ;
-    case 0150:
-        txt = "The header track address of a good header does not compare with the desired track" ;
-        break ;
-    case 0160:
-        txt = "Too many tries for an IDAM" ;
-        break ;
-    case 0170:
-        txt = "Data AM not found in alloted time" ;
-        break ;
-    case 0200:
-        txt = "CRC error on reaching the sector from disk" ;
-        break ;
-    case 0210:
-        txt = "All parity errors" ;
-        break ;
-    default:
-        txt = "Undefined error" ;
-    }
-    INFO("Drive error %04o = %s", error_code, txt);
-}
-#endif
+void  RX0102uCPU_c::complete_error_codes(void) {
+    // static information only, dynamical data inserted in program steps
+    if (is_RX02) {
+        extended_status[2] = drives[0]->get_cylinder() ;
+        extended_status[3] = drives[1]->get_cylinder() ;
 
+        // [6] word 4 <7> Unit Select Bit
+        if (signal_selected_drive_unitno)
+            extended_status[6] |= BIT(7) ;
+        else
+            extended_status[6] &= ~ BIT(7) ;
+        if (drives[0]->is_double_density)
+            extended_status[6] |= BIT(4) ;
+        else
+            extended_status[6] &= ~ BIT(4) ;
+        if (drives[1]->is_double_density)
+            extended_status[6] |= BIT(6) ;
+        else
+            extended_status[6] &= ~ BIT(6) ;
+        // [6] word 4 <0> Density of Read Error Register Command
+        // ?
+
+        extended_status[7] = selected_drive()->get_cylinder() ;
+
+        DEBUG("complete_error_codes(): RX02 status word1=%06o, word2=%06o, word3=%06o, word4=%06o",
+              extended_status[0] + ((unsigned)extended_status[1] << 8),
+              extended_status[4] + ((unsigned)extended_status[6] << 8),
+              extended_status[6] + ((unsigned)extended_status[7] << 8)) ;
+    } else
+        DEBUG("complete_error_codes(): RXER = %03o", (unsigned) extended_status[0]) ;
+}
 
 
 // seek track, part of read/write sector.
 void RX0102uCPU_c::pgmstep_seek(void) {
     timeout_c timeout ;
     RX0102drive_c *drive = selected_drive() ;
-    DEBUG("pgmstep_seek()") ;
+    DEBUG("pgmstep_seek(drive=%d, cur track = %d, rxta = %d)", signal_selected_drive_unitno, drive->get_cylinder(), rxta) ;
     uint8_t	track_address = rxta ;
 
     // periodically executed. false = ready
     unsigned calcperiod_ms = 10; // waits per loop
     // head can pass this much tracks per loop
-    unsigned trackmove_increment = 2 * emulation_speed.value; // 10/2 =5ms per track, this much per loop
-
-    // parameter chek already done
+    unsigned trackmove_increment = calcperiod_ms / selected_drive()->track_step_time_ms * emulation_speed.value; // 10/2 =5ms per track, this much per loop
+    // parameter check already done
     assert(track_address < selected_drive()->cylinder_count) ;
 
     // nothing todo if already on track
-    headsettle_time_ms = 0 ;
-    if (track_address > drive->cylinder) {
-        headsettle_time_ms = 100 ;
-        DEBUG("drive %d seeking outward, cyl = %d", drive->unitno.value, drive->cylinder);
-        drive->cylinder += trackmove_increment;
-        if (drive->cylinder >= track_address) {
+    headsettle_time_ms = (track_address == drive->get_cylinder()) ? 0 : selected_drive()->head_settle_time_ms ;
+    while (track_address > drive->get_cylinder()) {
+        DEBUG("drive %d seeking outward, cyl = %d", drive->unitno.value, drive->get_cylinder());
+        drive->set_cylinder(drive->get_cylinder() + trackmove_increment);
+        if (drive->get_cylinder() >= track_address) {
             // seek head outward finished
-            // proportionally reduced seek time
-            drive->cylinder = track_address;
-            DEBUG("drive %d seek outwards complete, cyl = %d", drive->unitno.value, drive->cylinder);
+            // proportionally reduced seek time?
+            drive->set_cylinder(track_address);
+            DEBUG("drive %d seek outwards complete, cyl = %d", drive->unitno.value, drive->get_cylinder());
             //drive->change_state(RX0102_STATE_lock_on);
         } else
             timeout.wait_ms(calcperiod_ms);
-    } else {
+    }
+    while (track_address < drive->get_cylinder()) {
         // seek head inwards
-        headsettle_time_ms = 100 ;
-        if ((drive->cylinder - track_address) <= trackmove_increment) {
-            drive->cylinder = track_address;
-            DEBUG("drive %d seek inwards complete, cyl = %d", drive->unitno.value, drive->cylinder);
+        if ((drive->get_cylinder() - track_address) <= trackmove_increment) {
+            drive->set_cylinder(track_address);
+            DEBUG("drive %d seek inwards complete, cyl = %d", drive->unitno.value, drive->get_cylinder());
             //change_state(RX0102_STATE_lock_on);
         } else {
-            DEBUG("drive %d seeking inwards, cyl = %d", drive->unitno.value, drive->cylinder);
-            drive->cylinder -= trackmove_increment;
+            DEBUG("drive %d seeking inwards, cyl = %d", drive->unitno.value, drive->get_cylinder());
+            drive->set_cylinder(drive->get_cylinder() - trackmove_increment);
             timeout.wait_ms(calcperiod_ms);
         }
     }
-
 }
 
 
@@ -424,14 +436,21 @@ void RX0102uCPU_c::pgmstep_seek(void) {
 // puts next buffer cell into RXDB.
 // only for block read when state == state_transfer_read_result;
 void RX0102uCPU_c::rxdb_after_read(void) {
-    DEBUG("rxdb_after_read() in function %s, word %d/%d", function_code_text(signal_function_code),transfer_byte_idx,transfer_byte_count) ;
+    if (program_complete())
+        return ;
 
-    if (transfer_byte_idx < transfer_byte_count && signal_function_code == RX11_CMD_EMPTY_BUFFER) {
-        // read data from buffer, "empty"
+    DEBUG("rxdb_after_read() in function %s, word %d/%d", function_code_text(program_function_code),transfer_byte_idx,transfer_byte_count) ;
+
+    if (transfer_byte_idx >= transfer_byte_count)
+        return ;
+
+    if (program_function_code == RX11_CMD_EMPTY_BUFFER || program_function_code == RX11_CMD_READ_ERROR_CODE ) {
+        // read data from buffer
         if (transfer_byte_idx+1 < transfer_byte_count) {
             // put next buffer byte into RXDB
-            rxdb = sector_buffer[++transfer_byte_idx] ; // read 8bit, return 16 bit
-            DEBUG("sector_buffer[%d] = %06o",transfer_byte_idx, rxdb) ;
+            assert(transfer_buffer) ;
+            rxdb = transfer_buffer[++transfer_byte_idx] ; // read 8bit, return 16 bit
+            DEBUG("transfer_buffer[%d] = %06o",transfer_byte_idx, rxdb) ;
             controller->update_status("rxdb_after_read() rxdb=buffer byte -> update_status") ; // new RXDB, new TR
         } else {
             // last byte transmitted: continue halted program
@@ -452,23 +471,28 @@ void RX0102uCPU_c::rxdb_after_read(void) {
 
 void  RX0102uCPU_c::rxdb_after_write(uint16_t w) {
     bool complete = false ; // true when all requested words transfered.
-    DEBUG("rxdb_after_write() function %s, word %d/%d", function_code_text(signal_function_code),transfer_byte_idx, transfer_byte_count) ;
 
     if (program_complete()) {
         // RXDB is read/write when not executing a command
         rxdb = w ;
+        if (is_RX02) // patch
+            rxdb &= 0173767 ; // RX211: bit 11,4 not readable ? ZRXFB0 test 12
+        DEBUG("rxdb_after_write() rxdb = w") ;
+        controller->update_status("rxdb_after_write() no op -> update_status") ; // new RXDB, new TR
         return ;
     }
+    DEBUG("rxdb_after_write() function %s, word %d/%d", function_code_text(program_function_code),transfer_byte_idx, transfer_byte_count) ;
 
     if (transfer_byte_idx >= transfer_byte_count)
         // not expecting any more data
         return ;
 
-    switch(signal_function_code) {
+    switch(program_function_code) {
     case RX11_CMD_FILL_BUFFER:
-        // is expecting data
+        // is expecting data.
         assert(transfer_byte_idx < transfer_byte_count) ; // else state flips to "done"
-        sector_buffer[transfer_byte_idx++] = w & 0xff ;
+        assert(transfer_buffer == sector_buffer) ;
+        transfer_buffer[transfer_byte_idx++] = w & 0xff ;
         if (transfer_byte_idx >= transfer_byte_count)
             complete = true ;
         break ;
@@ -478,20 +502,34 @@ void  RX0102uCPU_c::rxdb_after_write(uint16_t w) {
         // accept sector + track address
         if (transfer_byte_idx == 0) {
             rxsa = w & 037; // bit 7-5 always 0, 15-8 don't care
+            // [5] word 3 <15:8> Target Sector of Current Disk Access
+            extended_status[5] = rxsa ;
             if (rxsa < 1 || rxsa > selected_drive()->sector_count) {
                 signal_error = true ;
-                rxer = 0070 ; // "Can't find sector"
+                extended_status[0] = 0070 ; // "Can't find sector"
             }
         } else if (transfer_byte_idx == 1) {
             rxta = w & 0177 ; // bit 7 always 0, 15-8 don't care
+            // [4] word 3 <7:0> Target Track of Current Disk Access
+            extended_status[4] = rxta ;
             if (rxta >= selected_drive()->cylinder_count) {
                 signal_error = true ;
-                rxer = 0040 ; // "Can't find track"
+                extended_status[0] = 0040 ; // "Can't find track"
             }
             // even if sector is invalid, tr must be transfered.
             complete = true ;
         }
         transfer_byte_idx++ ;
+        break ;
+    case RX211_CMD_SET_MEDIA_DENSITY:
+        // wait for "I" key word
+        if (transfer_byte_idx == 0) {
+            if (w != 'I') {
+                signal_error = true ;
+                extended_status[0] = 0250 ; // "Wrong key word"
+            }
+            complete = true ;
+        }
         break ;
     }
     if (complete) {
@@ -546,6 +584,7 @@ bool RX0102uCPU_c::on_param_changed(parameter_c *param) {
 
 
 // set logic type and type of attached drives
+// last step of construction after drives have been assigned
 void RX0102uCPU_c::set_RX02(bool is_RX02) {
     this->is_RX02 = is_RX02 ;
     for (unsigned i=0 ; i < drives.size() ; i++) {
@@ -560,6 +599,102 @@ void RX0102uCPU_c::set_RX02(bool is_RX02) {
             drive->type_name.set("RX02") ;
         }
     }
+    if (is_RX02) {
+        name.value = "rybox";
+        type_name.value = "RX0102uCPU";
+        log_label = "rycpu";
+    } else {
+        name.value = "rxbox";
+        type_name.value = "RX0102uCPU";
+        log_label = "rxcpu";
+    }
+
+}
+
+// which buffer to transfer via RXDB?
+uint8_t	*RX0102uCPU_c::get_transfer_buffer(uint8_t function_code)
+{
+    if (is_RX02) {
+        switch (function_code) {
+        case RX11_CMD_FILL_BUFFER:
+        case RX11_CMD_EMPTY_BUFFER:
+            return sector_buffer ;
+        case RX11_CMD_READ_ERROR_CODE:
+            return extended_status ;
+        default:
+            return NULL ;
+        }
+    } else {
+        switch (function_code) {
+        case RX11_CMD_FILL_BUFFER:
+        case RX11_CMD_EMPTY_BUFFER:
+            return sector_buffer ;
+        default:
+            return NULL ;
+        }
+    }
+}
+
+// how many data bytes are to be transfered via RXDB
+// for each function code?
+unsigned	RX0102uCPU_c::get_transfer_byte_count(uint8_t function_code, bool double_density=false)
+{
+    if (is_RX02) {
+        switch (function_code) {
+        case RX11_CMD_FILL_BUFFER:
+        case RX11_CMD_EMPTY_BUFFER:
+            // Here data bytes, DMA does words.
+            return double_density ? 256 : 128 ;
+        case RX11_CMD_READ_SECTOR:
+        case RX11_CMD_WRITE_SECTOR:
+        case RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA:
+            return 2; // sector & track
+        case RX211_CMD_SET_MEDIA_DENSITY:
+            return 1 ; // mandatory ASCII "I"
+        case RX11_CMD_READ_ERROR_CODE:
+            return 8; // 4 words DMA
+        default:
+            return 0 ;
+        }
+    } else {
+        // RX01
+        switch (function_code) {
+        case RX11_CMD_FILL_BUFFER:
+        case RX11_CMD_EMPTY_BUFFER:
+            return 128 ; // sector buffer
+        case RX11_CMD_READ_SECTOR:
+        case RX11_CMD_WRITE_SECTOR:
+        case RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA:
+            return 2; // sector & track
+        default:
+            return 0 ;
+        }
+    }
+}
+
+// Not clear how the hardware communicates RX2WC between controller and uCPU.
+// Here 2 weird interface functions:
+
+// Check wether rx2wc is too large for current transfer len
+// if true: abort function and update RXCS status
+bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t function_code, bool double_density, uint16_t rx2wc) {
+    assert(is_RX02) ;
+    unsigned transfer_byte_count = get_transfer_byte_count(function_code, double_density) ;
+
+    if (rx2wc > transfer_byte_count) {
+        signal_error = signal_error_word_count_overflow = true ;
+        extended_status[0] = 0230 ;
+        step_execute(step_done) ;
+        return true ;
+    } else
+        return false ;
+}
+
+uint16_t  RX0102uCPU_c::rx2wc() {
+    RX211_c *rx211 = dynamic_cast<RX211_c*>(controller) ;
+    assert(rx211) ;
+    extended_status[1] = rx211->rx2wc ; // update often
+    return rx211->rx2wc ;
 }
 
 
@@ -596,26 +731,29 @@ void RX0102uCPU_c::init() {
     if (!power_switch.new_value) // else no init() in on_param_change
         return ; // powered off
 
+    // density on INIT always SD? Read boot sector from DD disk?
+    // program_function_density = 0;
+    // ZRXF requires boot sector read with automatic density select
+    program_function_density = selected_drive()->is_double_density;
     signal_done = false ;
     signal_error = false ;
     signal_transfer_request = false ;
     initializing = true ;
     rxdb = 0 ;
     rxes = 0 ;
-    rxer = 0 ;
+    clear_error_codes() ;
     controller->update_status("init() -> update_status") ;
 
 
     // boot drive 0, drive 1 also homed
-
     // no "home" delay
-    drives[0]->cylinder = 0 ;
-    drives[1]->cylinder = 0 ;
+    drives[0]->set_cylinder(0) ;
+    drives[1]->set_cylinder(0) ;
 
     // generate "read sector", set transfer buffer as if RX11 issued a "read sector"
     rxta = 1 ; // track
     rxsa = 1 ; // sector
-    transfer_byte_count = 2 ;
+    // transfer_byte_count = 2 ;
     signal_selected_drive_unitno = 0 ;
 
     // setup sequence
@@ -635,6 +773,8 @@ void RX0102uCPU_c::init() {
 void RX0102uCPU_c::go() { // execute function_code
     // program starts when transfer buffer filled
     DEBUG("go(), function=%d=%s", signal_function_code, function_code_text(signal_function_code)) ;
+    program_function_code = signal_function_code ; // stabilze against CSR changes
+    program_function_density = signal_function_density ;
 
     if (!power_switch.new_value)
         return ; // powered off
@@ -643,65 +783,81 @@ void RX0102uCPU_c::go() { // execute function_code
 
     signal_done = false ;
     signal_error = false ;
+    signal_error_word_count_overflow = false ;
     signal_transfer_request = false ;
     deleted_data_mark = false ;
-    transfer_byte_count = 0 ; // default: no data input expectedepcted
+
+    transfer_byte_count = get_transfer_byte_count(program_function_code, program_function_density) ;
+    transfer_buffer = get_transfer_buffer(program_function_code) ;
+
     rxes = 0 ;
 
     program_clear() ;
 
-    switch(signal_function_code) {
+
+    switch(program_function_code) {
 
     case RX11_CMD_FILL_BUFFER:
-        rxer = 0 ;
-        transfer_byte_count = 128 ; // buffer
+        clear_error_codes() ;
+        if (is_RX02) // byte count set by DMA word count
+            transfer_byte_count = 2*rx2wc() ; // must have been checked by rx2wc_overflow_error()
         program_steps.push_back(step_transfer_buffer_write) ; // start by data
         program_steps.push_back(step_done) ;
         break ;
-        /*cmd_fill_buffer2: // RX211
-            step_transfer_buffer_write(2) receive WC,BA
-            step_switch_to_worker // now blocking
-            step_DMA_read // read memory to trasnfer buffer
-            step_done
-        	break ;
-        */
     case RX11_CMD_EMPTY_BUFFER:
-        rxer = 0 ;
-        transfer_byte_count = 128 ; // buffer
+        clear_error_codes() ;
+        if (is_RX02) // byte count set by DMA word count
+            transfer_byte_count = 2*rx2wc() ; // must have been checked by rx2wc_overflow_error()
         program_steps.push_back(step_transfer_buffer_read) ;
         program_steps.push_back(step_done) ;
         break ;
-        /*
-        cmd_empty_buffer2: // RX211
-            step_transfer_buffer_write(2) receive WC,BA
-            step_sector_to_buffer
-            step_switch_to_worker // now blocking
-            step_DMA_write // write transfer buffer to memory
-            step_done
-        	break ;
-        */
     case RX11_CMD_READ_SECTOR:
-        rxer = 0 ;
-        transfer_byte_count = 2 ; // sector&track
+        clear_error_codes() ;
         program_steps.push_back(step_transfer_buffer_write) ; // start by disk address
         program_steps.push_back(step_seek) ;
+        program_steps.push_back(step_head_settle) ;
         program_steps.push_back(step_sector_read) ;
         program_steps.push_back(step_done) ;
         break ;
     case RX11_CMD_WRITE_SECTOR:
     case RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA:
-        rxer = 0 ;
-        deleted_data_mark = (signal_function_code == RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA) ;
-        transfer_byte_count = 2 ; // sector&track
+        clear_error_codes() ;
+        deleted_data_mark = (program_function_code == RX11_CMD_WRITE_SECTOR_WITH_DELETED_DATA) ;
         program_steps.push_back(step_transfer_buffer_write) ; // start by disk address
         program_steps.push_back(step_seek) ;
+        program_steps.push_back(step_head_settle) ;
         program_steps.push_back(step_sector_write) ;
         program_steps.push_back(step_done) ;
         break ;
-    case RX11_CMD_SET_MEDIA_DENSITY:
-        // reformat of whole disk, rx211 only
-        rxer = 0 ;
-        program_steps.push_back(step_done) ;
+    case RX211_CMD_SET_MEDIA_DENSITY:
+        clear_error_codes() ;
+        if (is_RX02) {
+            // reformat of whole disk, RX211 only
+
+            // empty file
+            signal_error = !selected_drive()->file_is_open() ;
+            if (!signal_error) {
+                selected_drive()->file_truncate() ;
+                selected_drive()->set_density(program_function_density) ;
+                // file mounted, media formattable
+                rxta = 0 ; // seek to HOME
+
+                program_steps.push_back(step_transfer_buffer_write) ; // start by key word to RXDB
+                program_steps.push_back(step_seek) ;
+                // format each track, then step put wards
+                program_steps.push_back(step_format_track) ;
+                for (unsigned i=1 ; i < selected_drive()->cylinder_count ; i++) {
+                    // rxta const == 0
+                    program_steps.push_back(step_seek_next) ;
+                    program_steps.push_back(step_format_track) ;
+                }
+            }
+            // no home to track 0
+            program_steps.push_back(step_done) ;
+        } else {
+            // noop on RX01
+            step_execute(step_done) ;
+        }
         break ;
     case RX11_CMD_READ_STATUS:
         // "drive ready bit" in RXCS only valid here or after INIT ?
@@ -710,20 +866,12 @@ void RX0102uCPU_c::go() { // execute function_code
         program_steps.push_back(step_done) ;
         // step_done sets more rxes flags
         break ;
-    case RX11_CMD_READ_ERROR_REGISTER:
-        program_steps.push_back(step_done_read_error) ;
+    case RX11_CMD_READ_ERROR_CODE:
+        if (is_RX02)
+            program_steps.push_back(step_transfer_buffer_read) ;
+        program_steps.push_back(step_done_read_error_code) ;
         break ;
-        /*
-        cmd_read_error_register2: RX211
-            rxer -> rxdb
-            step_transfer_buffer_write(2) receive WC,BA
-            step_register_dump // to own buffer
-            step_switch_to_worker // now blocking
-            step_DMA_write // write registerdump to memory
-            step_done
-        break ;
-        */
-    } // switch
+    }
     // wake up worker, start program
     controller->update_status("go() -> update_status") ;
 

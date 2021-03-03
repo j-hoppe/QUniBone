@@ -35,12 +35,12 @@
 
 #include "rx0102drive.hpp"
 
-class RX11_c ;
+class RX11211_c ;
 // by default visible to user .. not good
 class RX0102uCPU_c: public device_c {
 private:
 
-    RX11_c	*controller ; // driven by that RX11 controller
+    RX11211_c	*controller ; // driven by that RX11 controller
 
     // uCPU execute a program sequnece ofthese steps,
     // the current "step" is also the uCPUs "state"
@@ -52,9 +52,11 @@ private:
         step_head_settle, // if head has moved, it needs time to stabilize
         step_sector_write, // sector buffer to disk surface
         step_sector_read, // disk surface to sector buffer
+        step_format_track, // fill all sectors with 00s
+        step_seek_next, // step head outwards one track
         step_init_done, // INIT complete
         step_done, // idle between functions
-        step_done_read_error, // read error register into rxdb
+        step_done_read_error_code, // read error register into rxdb
         step_error // done mit error
         /* RX211
         step_DMA_read,
@@ -75,6 +77,11 @@ private:
     std::vector<enum step_e> program_steps ;
     unsigned program_counter ; // indexes current program_step
 
+
+    // Are these controller signal lines stabilized on program start or not?
+    // unsigned program_selected_drive_unitno ; // 0 or 1
+    unsigned program_function_code ; // stabilize against CSR changes
+    bool program_function_density ;
 
     void program_clear(void) ;
     void program_start(void) ;
@@ -102,17 +109,21 @@ private:
     uint16_t rxta ; // track address
     uint16_t rxsa ; // sector address
     uint16_t rxes ;
-    uint16_t set_rxes(void) ;// error and status
-    uint16_t rxer ;  // extended drive error flags
-    uint16_t  set_rxer(void) ;
+//    uint16_t rxes ;
+    uint16_t complete_rxes(void) ;// error and status
+//    uint16_t rxer ;  // extended drive error flags
+    void clear_error_codes(void) ;
+    void complete_error_codes(void) ;
 #ifdef NEEDED
     void set_drive_error(uint16_t error_code) ;
 #endif
+
 
     // data to read/write on to floppy
     uint8_t	sector_buffer[256] ; // fill empty, read_Sector write-Sector
 
     // serial command/result exchange
+    uint8_t	*transfer_buffer ; // sector buffer or extended status (RX02)
     unsigned transfer_byte_count ; // # of bytes in buffer
     unsigned transfer_byte_idx ; // idx of next byte to read/write
 
@@ -128,15 +139,34 @@ private:
 
 public:
     /***** device_c *****/
-    RX0102uCPU_c(RX11_c *controller) ;
+    RX0102uCPU_c(RX11211_c *controller) ;
     ~RX0102uCPU_c();
-    // else " undefined reference to `vtable for RX0102uCPU_c'"
+    // virtual, else " undefined reference to `vtable for RX0102uCPU_c'"
+
+    void set_RX02(bool is_RX02) ;
 
     // http://gunkies.org/wiki/RX01/02_floppy_drive
     // RX01 drive box logic is M7726,M7727
     // RX02 logic is M7744, M7745
     bool is_RX02 ;
 
+    // RX01: [0] is rxer register.
+    // RX211: only drive related values valid here
+    // are mixed with RX211 related data before DMA
+    // [0] word 1 <7:0> definitive error codes, (RX01: RXER)
+    // [1] word 1 <15:8> Word Count Register ! SET BY RX211 controller !
+    // [2] word 2 <7:0> Current track address of Drive 0
+    // [3] word 2 <15:8> Current track address of Drive 1
+    // [4] word 3 <7:0> Target Track of Current Disk Access
+    // [5] word 3 <15:8> Target Sector of Current Disk Access
+    // [6] word 4 <7> Unit Select Bit
+    // [6] word 4 <5> Head Load Bit
+    // [6] word 4 <6,4> Drive Density Bits of both Drives
+    // [6] word 4 <0> Density of Read Error Register Command
+    // [7] word 4 <15:8> track address of Selected Drive (only for 0150 error)
+    uint8_t  extended_status[8] ;
+
+    bool signal_error_word_count_overflow ;
 
     // one power switch for the whole box
     parameter_bool_c power_switch = parameter_bool_c(this, "powerswitch", "pwr",/*readonly*/
@@ -146,8 +176,11 @@ public:
     void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override; // must implement
     void on_init_changed(void) override; // must implement
     bool on_param_changed(parameter_c *param) override ;
-    void set_RX02(bool is_RX02) ;
 
+    uint8_t *get_transfer_buffer(uint8_t function_code) ;
+    unsigned get_transfer_byte_count(uint8_t function_code, bool double_density) ;
+    bool rx2wc_overflow_error(uint8_t function_code, bool double_density, uint16_t rx2wc) ;
+    uint16_t  rx2wc() ;
 
     void worker(unsigned instance) override;
 

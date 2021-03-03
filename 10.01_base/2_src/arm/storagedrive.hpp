@@ -42,70 +42,73 @@ class storagecontroller_c;
 
 class storagedrive_c: public device_c {
 private:
-	fstream f; // image file
+    fstream f; // image file
+    std::string image_fname ;
 
 public:
-	storagecontroller_c *controller; // link to parent
+    storagecontroller_c *controller; // link to parent
 
-	// identifying number at controller
-	parameter_unsigned_c unitno = parameter_unsigned_c(this, "unit", "unit", /*readonly*/
-	true, "", "%d", "Unit # of drive", 3, 10); // 3 bits = 0..7 allowed
+    // identifying number at controller
+    parameter_unsigned_c unitno = parameter_unsigned_c(this, "unit", "unit", /*readonly*/
+                                  true, "", "%d", "Unit # of drive", 3, 10); // 3 bits = 0..7 allowed
 
-	// capacity of medium (disk/tape) in bytes
-	parameter_unsigned64_c capacity = parameter_unsigned64_c(this, "capacity", "cap", /*readonly*/
-	true, "byte", "%d", "Storage capacity", 64, 10);
+    // capacity of medium (disk/tape) in bytes
+    parameter_unsigned64_c capacity = parameter_unsigned64_c(this, "capacity", "cap", /*readonly*/
+                                      true, "byte", "%d", "Storage capacity", 64, 10);
 
-	parameter_string_c image_filepath = parameter_string_c(this, "image", "img", /*readonly*/
-	false, "Path to image file. Do not add a \".gz\" for compressed archive.");
+    parameter_string_c image_filepath = parameter_string_c(this, "image", "img", /*readonly*/
+                                        false, "Path to image file. Empty to detach. \".gz\" archive also searched.");
 
-	virtual bool on_param_changed(parameter_c *param) override;
+    virtual bool on_param_changed(parameter_c *param) override;
 
 //	parameter_bool_c writeprotect = parameter_bool_c(this, "writeprotect", "wp", /*readonly*/false, "Medium is write protected, different reasons") ;
 
-	bool file_readonly;bool file_open(std::string imagefname, bool create);bool file_is_open(
-			void);
-	void file_read(uint8_t *buffer, uint64_t position, unsigned len);
-	void file_write(uint8_t *buffer, uint64_t position, unsigned len);
-	uint64_t file_size(void);
-	void file_close(void);
+    bool file_readonly;
+    bool file_open(std::string imagefname, bool create);
+    bool file_is_open(	void);
+	bool file_truncate(void) ;
+    void file_read(uint8_t *buffer, uint64_t position, unsigned len);
+    void file_write(uint8_t *buffer, uint64_t position, unsigned len);
+    uint64_t file_size(void);
+    void file_close(void);
 
-	storagedrive_c(storagecontroller_c *controller);
+    storagedrive_c(storagecontroller_c *controller);
 
 };
 
 class storagedrive_selftest_c: public storagedrive_c {
 private:
-	const char *imagefname;
-	unsigned block_size;
-	unsigned block_count;
-	uint8_t *block_buffer;
+    const char *imagefname;
+    unsigned block_size;
+    unsigned block_count;
+    uint8_t *block_buffer;
 
-	void block_buffer_fill(unsigned block_number);
-	void block_buffer_check(unsigned block_number);
+    void block_buffer_fill(unsigned block_number);
+    void block_buffer_check(unsigned block_number);
 
 public:
-	storagedrive_selftest_c(const char *imagefname, unsigned block_size, unsigned block_count) :
-			storagedrive_c(NULL) {
-		assert((block_size % 4) == 0); // whole uint32s
-		this->imagefname = imagefname;
-		this->block_size = block_size;
-		this->block_count = block_count;
+    storagedrive_selftest_c(const char *imagefname, unsigned block_size, unsigned block_count) :
+        storagedrive_c(NULL) {
+        assert((block_size % 4) == 0); // whole uint32s
+        this->imagefname = imagefname;
+        this->block_size = block_size;
+        this->block_count = block_count;
 
-		this->block_buffer = (uint8_t *) malloc(block_size);
-	}
-	~storagedrive_selftest_c() {
-		free(block_buffer);
-	}
+        this->block_buffer = (uint8_t *) malloc(block_size);
+    }
+    ~storagedrive_selftest_c() {
+        free(block_buffer);
+    }
 
-	// fill abstracts
-	virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
-		UNUSED(aclo_edge) ;
-		UNUSED(dclo_edge) ;
-	}
-	virtual void on_init_changed(void) {
-	}
+    // fill abstracts
+    virtual void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+        UNUSED(aclo_edge) ;
+        UNUSED(dclo_edge) ;
+    }
+    virtual void on_init_changed(void) {
+    }
 
-	void test(void);
+    void test(void);
 };
 
 #endif
