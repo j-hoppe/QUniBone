@@ -87,7 +87,7 @@ public:
     parameter_string_c density_name = parameter_string_c(this, "density", "d",/*readonly*/
                                       false, "SD for RX01 & RX02 FM; DD for RX02 MFM");
 
-    parameter_bool_c track0image = parameter_bool_c(this, "track0image", "t0i",/*readonly*/
+    parameter_bool_c imagetrack0 = parameter_bool_c(this, "imagetrack0", "it0",/*readonly*/
                                    false, "true: File image contains track 0-76 (std), else only 1..76");
 
 	// current head position , info only							   

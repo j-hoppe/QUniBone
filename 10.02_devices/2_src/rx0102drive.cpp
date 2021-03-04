@@ -61,7 +61,7 @@ RX0102drive_c::RX0102drive_c(RX0102uCPU_c *uCPU, bool is_RX02) :
     }
 
     // some rxdp floppy images start at track #1 instead of #0
-    track0image.value = true ;
+    imagetrack0.value = true ;
 
     // "enable" and power switch are controlled by uCPU in case box
     enabled.readonly = true ;
@@ -183,7 +183,7 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     *deleted_data_mark = deleted_data_marks[track][sector] ;
     DEBUG("sector_read(): delmark=%d, track=%d, sector=%d", (unsigned)*deleted_data_mark, (unsigned)track, (unsigned)sector) ;
 
-    if (! track0image.value) {
+    if (! imagetrack0.value) {
         // file image does not contain track 0: skip it
         if (track == 0) {
             memset(sector_buffer, 0, sector_size_bytes);
@@ -222,7 +222,7 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
 
     DEBUG("sector_write(): delmark=%d, track=%d, sector=%d", (unsigned)deleted_data_mark, (unsigned)track, (unsigned)sector) ;
 
-    if (!track0image.value) {
+    if (!imagetrack0.value) {
         // file image does not contain track 0: skip it
 
         if (track == 0) {
