@@ -133,7 +133,6 @@ private:
     uint8_t function_select ;
     bool	function_density ;
     uint8_t	csr09_10 ; //"future use"
-    bool	transfer_request ;
     bool	done ;
 
     // register interface to RX11 controller

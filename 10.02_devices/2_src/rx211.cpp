@@ -173,7 +173,6 @@ void RX211_c::reset(void) {
     intr_request.edge_detect_reset();
     interrupt_condition_prev = true ;
     state = state_base ;
-    transfer_request = false ;
     done = true ;
     extended_address = 0 ;
     rx2ba = 0 ;
@@ -247,7 +246,6 @@ void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                     // multistep Buffer DMA: RX211 operates uCPU via RXDB and does QUNIBUS DMA
                     // first BA and WC are received via RXDB, then uCPU&DMA started in background worker().
                     done = false ; // inhibit interrupts
-                    transfer_request = true ;
                     error_dma_nxm = false ;
                     if (function_select == RX11_CMD_READ_ERROR_CODE) {
                         // very special: not touched and not transferred before BA
@@ -281,24 +279,25 @@ void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
             uint16_t w  = get_register_dato_value(busreg_RX2DB);
             switch(state) {
             case state_base:
-                uCPU->rxdb_after_write(w) ; // forward to uCPU
+                uCPU->rxdb_after_write(w) ; // forward to uCPU, alls update_status()
                 break ;
             case state_wait_rx2wc:
                 dma_function_word_count = uCPU->extended_status[1] = rx2wc = w & 0xff ; // save word count
                 // in worker() test against uCPU transfer size
                 state = state_wait_rx2ba ;
-                transfer_request = true ;
+				update_status("on_after_register_access() state_wait_rx2ba -> update_status") ; // may trigger interrupt
                 break ;
             case state_wait_rx2ba:
                 rx2ba = w ; // save bus address
-                transfer_request = false ; // no further
                 state = state_dma_busy ;
+				update_status("on_after_register_access() state_dma_busy -> update_status") ; // may trigger interrupt
                 // wake up worker()
                 // do DMA! with dma_buffer and dma_cycle DATI/DATO
                 pthread_cond_signal(&on_after_register_access_cond);
                 break ;
+            case state_dma_busy:
             default:
-                assert(false); // unexpected state
+                assert(false); // Show me stray write to RX2DB
             }
         }
     default: ; // ignore write
@@ -338,20 +337,41 @@ void RX211_c::update_status(const char *debug_info) {
     tmp |= (uint16_t)uCPU->signal_selected_drive_unitno << 4 ;
     tmp |= (uint16_t)function_select << 1 ;
     tmp &= ~ BIT(3) ; // ZRXF test 11: function_select msb always 0 ???
+
     if (is_RXV21)
         tmp &= 05560 ; // RXV21: only 11,9,8,6,5,4 are read/write, almost as documented.
 
     tmp |= BIT(11); // we are RX02
 
+    // RX2DB can accept data
+    // - when controller waits for DMA wc,ba
+    // - when the uCPU waits for some function parameter
+    bool tr ;
+    switch(state) {
+    case state_base:
+        tr = uCPU->signal_transfer_request ;
+        break ;
+    case state_wait_rx2wc:
+    case state_wait_rx2ba:
+        tr = true ;
+        break ;
+    case state_dma_busy:
+    default:
+        tr = false ;
+    }
+    if (tr)
+        tmp |= BIT(7);
+
+
     if (uCPU->signal_error)
         tmp |= BIT(15);
-
-    if (transfer_request || uCPU->signal_transfer_request)
-        tmp |= BIT(7);
     if (interrupt_enable)
         tmp |= BIT(6);
     if (done && uCPU->signal_done)
         tmp |= BIT(5);
+
+
+
 
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
@@ -410,6 +430,7 @@ void RX211_c::worker_transfer_uCPU2DMA(void)
     uint16_t dma_buffer[256] ;
     uint16_t *writeptr = dma_buffer ;
     // limit DMA transfer to uCPU limit
+    assert(state == state_dma_busy) ; // CSR control
     assert(sizeof(uint16_t)*dma_function_word_count <= sizeof(dma_buffer)) ;
     unsigned bus_addr = ((unsigned) extended_address << 16) | rx2ba ;
     done = false ;
@@ -419,11 +440,10 @@ void RX211_c::worker_transfer_uCPU2DMA(void)
 
     // !! in original hardware DMA cycles and access to RXDB are synchronous.
     // !! here, first all DMA, then all RXDB is done => rx2wc different while busy
-
     // uCPU waits now for rxdb data.  abort clears _transfer_request
     for (unsigned i=0 ; uCPU->signal_transfer_request && i < dma_function_word_count ; i++) {
         // byte-word conversion
-        assert(uCPU->signal_transfer_request) ;
+        assert(uCPU->signal_transfer_request) ; // do not show these TR in CSR
         uint16_t w = uCPU->rxdb ; // LSB
         uCPU->rxdb_after_read() ; // triggers update_status()
         assert(uCPU->signal_transfer_request) ;
@@ -456,6 +476,7 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
 {
     uint16_t dma_buffer[256] ;
     uint16_t *readptr = dma_buffer ;
+    assert(state == state_dma_busy) ; // CSR control
     assert(sizeof(uint16_t)*dma_function_word_count <= sizeof(dma_buffer)) ;
 
     unsigned bus_addr = ((unsigned) extended_address << 16) | rx2ba ;
@@ -477,7 +498,7 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
     for (unsigned i=0 ; uCPU->signal_transfer_request &&  i < dma_function_word_count ; i++) {
         // byte-word conversion
         uint16_t w = *readptr++ ;
-        assert(uCPU->signal_transfer_request) ;
+        assert(uCPU->signal_transfer_request) ; // do not show these TR in CSR
         uCPU->rxdb_after_write(w & 0xff) ;// LSB, triggers update_status()
         assert(uCPU->signal_transfer_request) ;
         uCPU->rxdb_after_write(w >> 8) ;// MSB, triggers update_status()
@@ -522,7 +543,8 @@ void RX211_c::worker(unsigned instance) {
             worker_transfer_uCPU2DMA() ;
             break ;
         default:
-            assert(false) ; // unexpectedl state
+	       ARM_DEBUG_PIN0(1) ;			
+            assert(false) ; // unexpected state
         }
 
         state = state_base ;
