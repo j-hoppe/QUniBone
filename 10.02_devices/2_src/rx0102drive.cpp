@@ -89,18 +89,18 @@ bool RX0102drive_c::on_param_changed(parameter_c *param) {
         }
     } else if (param == &image_filepath) {
         // change of file image changes state
-        if (file_is_open())
-            file_close();
+        if (image->is_open())
+            image->close();
         // assume new "floppy" has no delete marks set
         memset(deleted_data_marks, 0, sizeof(deleted_data_marks)) ;
-        file_open(image_filepath.new_value, true) ; // may fail
+        image->open(image_filepath.new_value, true) ; // may fail
         // file size determines is_double_density
-        if (is_RX02 && file_is_open()) {
+        if (is_RX02 && image->is_open()) {
             // RX02: user can set density only if not file loaded
             // if file: is_double_density set by file_size
             // RX02DD ?
             unsigned single_density_image_size = 128 * cylinder_count * sector_count ; // 256.256
-            if (file_size() > single_density_image_size)
+            if (image->size() > single_density_image_size)
                 set_density(true) ;
 			else set_density(false) ;
         } 
@@ -129,7 +129,7 @@ void RX0102drive_c::set_density(bool double_density) {
 // uCPU may query the "ready/ door open state"
 // true: file image loaded: "door closed" + "floppy inserted"
 bool RX0102drive_c::check_ready(void) {
-    return file_is_open() ;
+    return image->is_open() ;
 }
 
 
@@ -195,7 +195,7 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
 
     int offset = get_sector_image_offset(track, sector) ;
     DEBUG("sector_read(): reading 0x%03x bytes from file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
-    file_read(sector_buffer, (unsigned) offset, sector_size_bytes) ;
+    image->read(sector_buffer, (unsigned) offset, sector_size_bytes) ;
     return true ;
 }
 
@@ -206,7 +206,7 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
     if (!check_ready())
         return false ; // no floppy image
 
-    if (file_readonly) {
+    if (image->is_readonly()) {
         // No means to detect write-protected floppies?
         WARNING("Write access to readonly floppy image file ignored") ;
         return true ;
@@ -234,7 +234,7 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
     }
     int offset = get_sector_image_offset(track, sector) ;
     DEBUG("sector_write(): writing 0x%03x bytes to file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
-    file_write(sector_buffer, (unsigned) offset, sector_size_bytes) ;
+    image->write(sector_buffer, (unsigned) offset, sector_size_bytes) ;
     return true ;
 }
 

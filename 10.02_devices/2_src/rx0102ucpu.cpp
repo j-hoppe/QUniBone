@@ -835,9 +835,9 @@ void RX0102uCPU_c::go() { // execute function_code
             // reformat of whole disk, RX211 only
 
             // empty file
-            signal_error = !selected_drive()->file_is_open() ;
+            signal_error = !selected_drive()->image->is_open() ;
             if (!signal_error) {
-                selected_drive()->file_truncate() ;
+                selected_drive()->image->truncate() ;
                 selected_drive()->set_density(program_function_density) ;
                 // file mounted, media formattable
                 rxta = 0 ; // seek to HOME

@@ -35,16 +35,13 @@ using namespace std;
 #include <assert.h>
 
 #include "utils.hpp"
+#include "storageimage.hpp"
 #include "device.hpp"
 #include "parameter.hpp"
 
 class storagecontroller_c;
 
 class storagedrive_c: public device_c {
-private:
-    fstream f; // image file
-    std::string image_fname ;
-
 public:
     storagecontroller_c *controller; // link to parent
 
@@ -63,16 +60,10 @@ public:
 
 //	parameter_bool_c writeprotect = parameter_bool_c(this, "writeprotect", "wp", /*readonly*/false, "Medium is write protected, different reasons") ;
 
-    bool file_readonly;
-    bool file_open(std::string imagefname, bool create);
-    bool file_is_open(	void);
-	bool file_truncate(void) ;
-    void file_read(uint8_t *buffer, uint64_t position, unsigned len);
-    void file_write(uint8_t *buffer, uint64_t position, unsigned len);
-    uint64_t file_size(void);
-    void file_close(void);
+    storageimage_binfile_c	*image ;
 
     storagedrive_c(storagecontroller_c *controller);
+	virtual ~storagedrive_c() ;
 
 };
 

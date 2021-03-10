@@ -37,8 +37,8 @@ mscp_drive_c::mscp_drive_c(storagecontroller_c *controller, uint32_t driveNumber
 }
 
 mscp_drive_c::~mscp_drive_c() {
-	if (file_is_open()) {
-		file_close();
+	if (image->is_open()) {
+		image->close();
 	}
 }
 
@@ -50,7 +50,7 @@ bool mscp_drive_c::on_param_changed(parameter_c *param) {
 		return SetDriveType(type_name.new_value.c_str());
 	} else if (&image_filepath == param) {
 		// Try to open the image file.
-		if (file_open(image_filepath.new_value, true)) {
+		if (image->open(image_filepath.new_value, true)) {
 			image_filepath.value = image_filepath.new_value;
 			UpdateCapacity();
 			return true;
@@ -85,7 +85,7 @@ uint32_t mscp_drive_c::GetBlockSize() {
 uint32_t mscp_drive_c::GetBlockCount() {
 	if (_useImageSize) {
 		// Return the image size / Block size (rounding down).
-		return file_size() / GetBlockSize();
+		return image->size() / GetBlockSize();
 	} else {
 		//
 		// Use the size defined by the drive type.
@@ -158,7 +158,7 @@ uint8_t mscp_drive_c::GetRCTCopies() {
 //  assigned to it and can thus be used by the controller.)
 //
 bool mscp_drive_c::IsAvailable() {
-	return file_is_open();
+	return image->is_open();
 }
 
 //
@@ -200,7 +200,7 @@ void mscp_drive_c::SetOffline() {
 // starting at the specified logical block.
 //
 void mscp_drive_c::Write(uint32_t blockNumber, size_t lengthInBytes, uint8_t* buffer) {
-	file_write(buffer, blockNumber * GetBlockSize(), lengthInBytes);
+	image->write(buffer, blockNumber * GetBlockSize(), lengthInBytes);
 }
 
 //
@@ -213,7 +213,7 @@ uint8_t* mscp_drive_c::Read(uint32_t blockNumber, size_t lengthInBytes) {
 
 	assert(nullptr != buffer);
 
-	file_read(buffer, blockNumber * GetBlockSize(), lengthInBytes);
+	image->read(buffer, blockNumber * GetBlockSize(), lengthInBytes);
 
 	return buffer;
 }

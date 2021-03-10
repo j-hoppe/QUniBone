@@ -1,6 +1,6 @@
-/* storagedrive.cpp: disk or tape drive, with an image file as storage medium.
+/* storageimage.cpp: bianry SimH comatible image file as storage medium.
 
- Copyright (c) 2018, Joerg Hoppe
+ Copyright (c) 2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
 
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -21,38 +21,22 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
- may-2019		JD		file_size()
- 12-nov-2018  JH      entered beta phase
+ 07-mar-2021	JH      start
 
  A storagedrive is a disk or tape drive, with an image file as storage medium.
  a couple of these are connected to a single "storagecontroler"
  supports the "attach" command
  */
 #include <assert.h>
+#include <string.h>
 
 #include <fstream>
 #include <ios>
 using namespace std;
 
 #include "logger.hpp"
-#include "storagedrive.hpp"
+#include "storageimage.hpp"
 
-storagedrive_c::storagedrive_c(storagecontroller_c *controller) :
-    device_c() {
-    this->controller = controller;
-    /*
-     // parameters for all drices
-     param_add(&unitno) ;
-     param_add(&capacity) ;
-     param_add(&image_filepath) ;
-     */
-}
-
-// implements params, so must handle "change"
-bool storagedrive_c::on_param_changed(parameter_c *param) {
-    // no own "enable" logic
-    return device_c::on_param_changed(param);
-}
 
 // http://www.cplusplus.com/doc/tutorial/files/
 
@@ -60,17 +44,17 @@ bool storagedrive_c::on_param_changed(parameter_c *param) {
 // set the file_readonly flag
 // creates file, if not existing
 // result: OK= true, else false
-bool storagedrive_c::file_open(string image_fname, bool create) {
-	this->image_fname = image_fname ; // save for re-open
+bool storageimage_binfile_c::open(string image_fname, bool create) {
+    this->image_fname = image_fname ; // save for re-open
 
     // 1st: if file not exists, try to unzip it from <image_fname>.gz
     int retries = 2 ;
     while (retries > 0) {
-        file_readonly = false;
-        if (file_is_open())
-            file_close(); // after RL11 INIT
+        readonly = false;
+        if (is_open())
+            close(); // after RL11 INIT
         if (image_fname.empty())
-			return true ; // ! is_open
+            return true ; // ! is_open
         f.open(image_fname, ios::in | ios::out | ios::binary | ios::ate);
         if (f.is_open())
             return true;
@@ -80,7 +64,7 @@ bool storagedrive_c::file_open(string image_fname, bool create) {
         // try again readonly
         f.open(image_fname, ios::in | ios::binary | ios::ate);
         if (f.is_open()) {
-            file_readonly = true;
+            readonly = true;
             return true;
         }
 
@@ -115,28 +99,28 @@ bool storagedrive_c::file_open(string image_fname, bool create) {
     f.open(image_fname, ios::out);
     f.close();
     f.open(image_fname, ios::in | ios::out | ios::binary | ios::ate);
-	if (f.is_open()) {
-		INFO("Created empty image file %s.", image_fname.c_str()) ;
-		return true ;
-	} else {
-		INFO("Creating empty image file %s FAILED.", image_fname.c_str()) ;
-	    return false;
-	}
+    if (f.is_open()) {
+        INFO("Created empty image file %s.", image_fname.c_str()) ;
+        return true ;
+    } else {
+        INFO("Creating empty image file %s FAILED.", image_fname.c_str()) ;
+        return false;
+    }
 }
 
-bool storagedrive_c::file_is_open() {
+bool storageimage_binfile_c::is_open() {
     return f.is_open();
 }
 
 // set file size to 0
-bool storagedrive_c::file_truncate() {
-	assert(file_is_open());
-	assert(!file_readonly); // caller must take care
-	
-	f.close();
-	// reopen with "trunc" option	
-	f.open(image_fname, ios::in | ios::out | ios::binary | ios::trunc);
-	return  f.is_open() ;
+bool storageimage_binfile_c::truncate() {
+    assert(is_open());
+    assert(!readonly); // caller must take care
+
+    f.close();
+    // reopen with "trunc" option
+    f.open(image_fname, ios::in | ios::out | ios::binary | ios::trunc);
+    return  f.is_open() ;
 }
 
 
@@ -144,8 +128,8 @@ bool storagedrive_c::file_truncate() {
  * if file is too short, 00s are read
  * it is assumed that buffer has at least a size of "len"
  */
-void storagedrive_c::file_read(uint8_t *buffer, uint64_t position, unsigned len) {
-    assert(file_is_open());
+void storageimage_binfile_c::read(uint8_t *buffer, uint64_t position, unsigned len) {
+    assert(is_open());
     // 1. fill the buffer with 00s
     memset(buffer, 0, len);
 
@@ -160,14 +144,14 @@ void storagedrive_c::file_read(uint8_t *buffer, uint64_t position, unsigned len)
 /* write "len" bytes from buffer into file at position "offset"
  * if file too short, it is extended
  */
-void storagedrive_c::file_write(uint8_t *buffer, uint64_t position, unsigned len) {
+void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned len) {
     int64_t write_pos = (int64_t) position;  // unsigned-> int
     const int max_chunk_size = 0x40000; //256KB: trade-off between performance and mem usage
     uint8_t *fillbuff = NULL;
     int64_t file_size, p;
 
-    assert(file_is_open());
-    assert(!file_readonly); // caller must take care
+    assert(is_open());
+    assert(!readonly); // caller must take care
 
     // enlarge file in chunks until filled up to "position"
     f.clear(); // clear fail bit
@@ -206,93 +190,17 @@ void storagedrive_c::file_write(uint8_t *buffer, uint64_t position, unsigned len
     // 3. write data
     f.write((const char*) buffer, len);
     if (f.fail())
-        ERROR("file_write() failure on %s", name.value.c_str());
+        ERROR("storageimage_binfile_c.write() failure on %s", image_fname.c_str());
     f.flush();
 }
 
-uint64_t storagedrive_c::file_size(void) {
+uint64_t storageimage_binfile_c::size(void) {
     f.seekp(0, ios::end);
     return f.tellp();
 }
 
-void storagedrive_c::file_close(void) {
-    assert(file_is_open());
+void storageimage_binfile_c::close(void) {
+    assert(is_open());
     f.close();
-    file_readonly = false;
+    readonly = false;
 }
-
-// fill buffer with test data to be placed at "file_offset"
-void storagedrive_selftest_c::block_buffer_fill(unsigned block_number) {
-    assert((block_size % 4) == 0); // whole uint32
-    for (unsigned i = 0; i < block_size / 4; i++) {
-        // i counts dwords in buffer
-        // pattern: global incrementing uint32
-        uint32_t pattern = i + (block_number * block_size / 4);
-        ((uint32_t*) block_buffer)[i] = pattern;
-    }
-}
-
-// verify pattern generated by fillbuff
-void storagedrive_selftest_c::block_buffer_check(unsigned block_number) {
-    assert((block_size % 4) == 0);	// whole uint32
-    for (unsigned i = 0; i < block_size / 4; i++) {
-        // i counts dwords in buffer
-        // pattern: global incrementing uint32
-        uint32_t pattern_expected = i + (block_number * block_size / 4);
-        uint32_t pattern_found = ((uint32_t*) block_buffer)[i];
-        if (pattern_expected != pattern_found) {
-            printf(
-                "ERROR storage_drive selftest: Block %d, dword %d: expected 0x%x, found 0x%x\n",
-                block_number, i, pattern_expected, pattern_found);
-            exit(1);
-        }
-    }
-}
-
-// self test of random access file interface
-// test file has 'block_count' blocks with 'block_size' bytes capacity each.
-void storagedrive_selftest_c::test() {
-    unsigned i;
-    bool *block_touched = (bool *) malloc(block_count * sizeof(bool)); // dyn array
-    int blocks_to_touch;
-
-    /*** fill all blocks with random accesses, until all blcoks touched ***/
-    file_open(imagefname, true);
-
-    for (i = 0; i < block_count; i++)
-        block_touched[i] = false;
-
-    blocks_to_touch = block_count;
-    while (blocks_to_touch > 0) {
-        unsigned block_number = random() % block_count;
-        block_buffer_fill(block_number);
-        file_write(block_buffer, /*position*/block_size * block_number, block_size);
-        if (!block_touched[block_number]) { // mark
-            block_touched[block_number] = true;
-            blocks_to_touch--;
-        }
-    }
-    file_close();
-
-    /*** verify all blocks with random accesses, until all blcoks touched ***/
-    file_open(imagefname, true);
-
-    for (i = 0; i < block_count; i++)
-        block_touched[i] = false;
-
-    blocks_to_touch = block_count;
-    while (blocks_to_touch > 0) {
-        unsigned block_number = random() % block_count;
-        file_read(block_buffer, /*position*/block_size * block_number, block_size);
-        block_buffer_check(block_number);
-        if (!block_touched[block_number]) { // mark
-            block_touched[block_number] = true;
-            blocks_to_touch--;
-        }
-    }
-
-    file_close();
-
-    free(block_touched);
-}
-

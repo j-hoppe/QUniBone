@@ -114,7 +114,8 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/rs232adapter.o \
 	$(OBJDIR)/dl11w.o \
 	$(OBJDIR)/m9312.o \
-	$(OBJDIR)/storagedrive.o	\
+	$(OBJDIR)/storageimage.o	\
+    $(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
     $(OBJDIR)/demo_io.o	\
     $(OBJDIR)/testcontroller.o	\
@@ -282,10 +283,13 @@ $(OBJDIR)/dl11w.o :  $(DEVICE_SRC_DIR)/dl11w.cpp $(DEVICE_SRC_DIR)/dl11w.hpp
 $(OBJDIR)/m9312.o :  $(DEVICE_SRC_DIR)/m9312.cpp $(DEVICE_SRC_DIR)/m9312.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
-$(OBJDIR)/storagedrive.o :  $(BASE_SRC_DIR)/storagedrive.cpp $(BASE_SRC_DIR)/storagedrive.hpp
+$(OBJDIR)/storageimage.o :  $(DEVICE_SRC_DIR)/storageimage.cpp $(DEVICE_SRC_DIR)/storageimage.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
-$(OBJDIR)/storagecontroller.o :  $(BASE_SRC_DIR)/storagecontroller.cpp $(BASE_SRC_DIR)/storagecontroller.hpp
+$(OBJDIR)/storagedrive.o :  $(DEVICE_SRC_DIR)/storagedrive.cpp $(DEVICE_SRC_DIR)/storagedrive.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/storagecontroller.o :  $(DEVICE_SRC_DIR)/storagecontroller.cpp $(DEVICE_SRC_DIR)/storagecontroller.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/demo_io.o :  $(DEVICE_SRC_DIR)/demo_io.cpp $(DEVICE_SRC_DIR)/demo_io.hpp

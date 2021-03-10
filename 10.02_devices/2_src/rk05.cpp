@@ -82,7 +82,7 @@ bool rk05_c::on_param_changed(parameter_c *param) {
 			drive_reset();
 		}
 	} else if (&image_filepath == param) {
-		if (file_open(image_filepath.new_value, true)) {
+		if (image->open(image_filepath.new_value, true)) {
 			_dry = true;
 			controller->on_drive_status_changed(this);
 			image_filepath.value = image_filepath.new_value;
@@ -142,7 +142,7 @@ void rk05_c::read_sector(uint32_t cylinder, uint32_t surface, uint32_t sector,
 	delay.wait_ms(10);
 
 // Read the sector into the buffer passed to us.
-	file_read(reinterpret_cast<uint8_t*>(out_buffer),
+	image->read(reinterpret_cast<uint8_t*>(out_buffer),
 			get_disk_byte_offset(cylinder, surface, sector), _geometry.Sector_Size_Bytes);
 
 // Set RWS ready now that we're done.
@@ -175,7 +175,7 @@ void rk05_c::write_sector(uint32_t cylinder, uint32_t surface, uint32_t sector,
 	delay.wait_ms(10);
 
 // Read the sector into the buffer passed to us.
-	file_write(reinterpret_cast<uint8_t*>(in_buffer),
+	image->write(reinterpret_cast<uint8_t*>(in_buffer),
 			get_disk_byte_offset(cylinder, surface, sector), _geometry.Sector_Size_Bytes);
 
 // Set RWS ready now that we're done.
@@ -252,7 +252,7 @@ void rk05_c::worker(unsigned instance) {
 			// every 1/300th of a second (or so).
 			// (1600 revs/min = 25 revs / sec = 300 sectors / sec)
 			timeout.wait_ms(3);
-			if (file_is_open()) {
+			if (image->is_open()) {
 				_sectorCount = (_sectorCount + 1) % 12;
 				_sok = true;
 				controller->on_drive_status_changed(this);
