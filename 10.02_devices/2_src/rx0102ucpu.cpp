@@ -801,6 +801,9 @@ void RX0102uCPU_c::go() { // execute function_code
         clear_error_codes() ;
         if (is_RX02) // byte count set by DMA word count
             transfer_byte_count = 2*rx2wc() ; // must have been checked by rx2wc_overflow_error()
+        // EK-0RX02-TM, 5.3.2.7: "when filling the buffer for word counts less than maximum, 
+        // the unused portion of the buffer is filled with zeros"
+        memset(sector_buffer, 0, sizeof(sector_buffer)) ; // == transfer_buffer
         program_steps.push_back(step_transfer_buffer_write) ; // start by data
         program_steps.push_back(step_done) ;
         break ;
@@ -835,9 +838,9 @@ void RX0102uCPU_c::go() { // execute function_code
             // reformat of whole disk, RX211 only
 
             // empty file
-            signal_error = !selected_drive()->image->is_open() ;
+            signal_error = !selected_drive()->image_is_open() ;
             if (!signal_error) {
-                selected_drive()->image->truncate() ;
+                selected_drive()->image_truncate() ;
                 selected_drive()->set_density(program_function_density) ;
                 // file mounted, media formattable
                 rxta = 0 ; // seek to HOME

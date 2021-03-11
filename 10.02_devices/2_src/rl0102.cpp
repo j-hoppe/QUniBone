@@ -218,7 +218,7 @@ void RL0102_c::state_load_cartridge() {
 	if (runstop_button.value == true && cover_open.value == false) {
 		// LOAD released: start spinning, if file image OK
 		// this test is repeated endlessly if button pressed and filename illegal
-		if (image->open(image_filepath.value, /*create*/true)) {
+		if (image_open(image_filepath.value, /*create*/true)) {
 			fault_lamp.value = false;
 			change_state(RL0102_STATE_spin_up);
 			return; // no wait
@@ -230,8 +230,8 @@ void RL0102_c::state_load_cartridge() {
 	} else {
 		// load cartridge: unlock file
 		fault_lamp.value = false;
-		if (image->is_open())
-			image->close();
+		if (image_is_open())
+			image_close();
 	}
 	state_timeout.wait_ms(100);
 }
@@ -265,7 +265,7 @@ void RL0102_c::state_spin_up() {
 
 	load_lamp.value = 0;
 	ready_lamp.value = 0;
-	writeprotect_lamp.value = writeprotect_button.value || image->is_readonly();
+	writeprotect_lamp.value = writeprotect_button.value || image_is_readonly();
 	image_filepath.readonly = true; // "door locked", disk can not be changed
 
 	state_timeout.wait_ms(calcperiod_ms);
@@ -319,7 +319,7 @@ void RL0102_c::state_seek() {
 
 	load_lamp.value = 0;
 	ready_lamp.value = 0;
-	writeprotect_lamp.value = writeprotect_button.value || image->is_readonly();
+	writeprotect_lamp.value = writeprotect_button.value || image_is_readonly();
 
 	// need delay for head search (ZRLI, test 9)
 	// here done BEFORE cylinder search ...
@@ -386,7 +386,7 @@ void RL0102_c::state_lock_on() {
 
 	load_lamp.value = 0;
 	ready_lamp.value = 1;
-	writeprotect_lamp.value = writeprotect_button.value || image->is_readonly();
+	writeprotect_lamp.value = writeprotect_button.value || image_is_readonly();
 
 	// fast polling, if ZRLI tests time of 0 cly seek with head switch
 	state_timeout.wait_ms(1);
@@ -419,7 +419,7 @@ void RL0102_c::state_spin_down() {
 
 	load_lamp.value = 0;
 	ready_lamp.value = 0;
-	writeprotect_lamp.value = writeprotect_button.value || image->is_readonly();
+	writeprotect_lamp.value = writeprotect_button.value || image_is_readonly();
 	image_filepath.readonly = true; // "door locked", disk can not be changed
 
 	state_timeout.wait_ms(calcperiod_ms);
@@ -463,7 +463,7 @@ void RL0102_c::update_status_word(bool new_drive_ready_line, bool new_drive_erro
 		tmp |= RL0102_STATUS_WGE; // write not possible
 		new_drive_error_line = true;
 	}
-	if (image->is_readonly() || writeprotect_button.value == true) {
+	if (image_is_readonly() || writeprotect_button.value == true) {
 		// writeprotect_lamp.value = true ; not here!!
 		tmp |= RL0102_STATUS_WL;
 	}
@@ -580,7 +580,7 @@ bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_
 
 	// access image file
 	// LSB saved before MSB -> word/byte conversion on ARM (little endian) is easy
-	image->read((uint8_t *) buffer, offset, sector_size_bytes);
+	image_read((uint8_t *) buffer, offset, sector_size_bytes);
 	DEBUG("File Read 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
 			sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
 			(unsigned )(buffer[1]));
@@ -602,7 +602,7 @@ bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size
 	assert(buffer_size_words * 2 >= sector_size_bytes);
 
 	// error: write can not be executed, different reasons
-	if (image->is_readonly() || writeprotect_button.value == true || !drive_ready_line) {
+	if (image_is_readonly() || writeprotect_button.value == true || !drive_ready_line) {
 		error_wge = true;
 		update_status_word();
 		return true; // function did not fail, WGE is valid result
@@ -622,7 +622,7 @@ bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size
 
 	// access image file
 	// LSB saved before MSB -> word/byte conversion on ARM (little endian) is easy
-	image->write((uint8_t *) buffer, offset, sector_size_bytes);
+	image_write((uint8_t *) buffer, offset, sector_size_bytes);
 	DEBUG("File Write 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
 			sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
 			(unsigned )(buffer[1]));

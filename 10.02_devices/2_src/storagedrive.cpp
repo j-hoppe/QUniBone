@@ -41,6 +41,9 @@ using namespace std;
 
 storagedrive_c::storagedrive_c(storagecontroller_c *controller) :
     device_c() {
+		
+	memset(zeros, 0, sizeof(zeros)); 
+	
     this->controller = controller;
     /*
      // parameters for all drices
@@ -48,13 +51,13 @@ storagedrive_c::storagedrive_c(storagecontroller_c *controller) :
      param_add(&capacity) ;
      param_add(&image_filepath) ;
      */
-     
-	image = new storageimage_binfile_c() ;
-	// or pure "shared" directoy, or syncronizing share<->binary image
+
+    image = new storageimage_binfile_c() ;
+    // or pure "shared" directoy, or syncronizing share<->binary image
 }
-	
-storagedrive_c::~storagedrive_c(){
-	delete image ;
+
+storagedrive_c::~storagedrive_c() {
+    delete image ;
 }
 
 // implements params, so must handle "change"
@@ -62,6 +65,58 @@ bool storagedrive_c::on_param_changed(parameter_c *param) {
     // no own "enable" logic
     return device_c::on_param_changed(param);
 }
+
+// wrap actual image driver
+bool storagedrive_c::image_open(std::string imagefname, bool create) {
+    return image->open(imagefname, create) ;
+}
+
+void storagedrive_c::image_close(void) {
+    image->close() ;
+}
+
+bool storagedrive_c::image_is_open(void) {
+    return image->is_open() ;
+}
+
+bool storagedrive_c::image_is_readonly() {
+    return image->is_readonly() ;
+}
+
+
+bool storagedrive_c::image_truncate(void) {
+    return image->truncate() ;
+}
+
+uint64_t storagedrive_c::image_size(void) {
+    return image->size() ;
+}
+
+void storagedrive_c::image_read(uint8_t *buffer, uint64_t position, unsigned len) {
+    image->read(buffer, position, len) ;
+}
+
+void storagedrive_c::image_write(uint8_t *buffer, uint64_t position, unsigned len) {
+    image->write(buffer, position, len) ;
+}
+// Service function for disk drive who need to clear unwritten bytes in last block of transaction
+// Sometimes when writing incomplete disk blocks, the remaining bytes must be filled with 00s
+// Some disk are guaranteed to write only whole blocks, then always unused_byte_count=0
+// (test with MSCP, KED under RT11)
+void storagedrive_c::image_clear_remaining_block_bytes(unsigned block_size_bytes, uint64_t position, unsigned len) {
+    // asume last transaction worte "len" bytes to offset "position"
+    uint64_t unused_block_bytes_start = position + len ; // first unused
+    // round to block end
+    // example for calculation: blocks of 0x100, written to pos=0x100, len=0xfd -> must clear 1fe,1ff
+    uint64_t unused_block_bytes_end = ((unused_block_bytes_start + block_size_bytes - 1) / block_size_bytes) * block_size_bytes ;
+    assert(unused_block_bytes_end >= unused_block_bytes_start) ;
+    unsigned unused_byte_count = unused_block_bytes_end - unused_block_bytes_start ;
+    if (unused_byte_count > 0) {
+		assert(sizeof(zeros) >= unused_byte_count) ;
+        image_write(zeros,/*pos=*/unused_block_bytes_start, unused_byte_count) ;
+	}
+}
+
 
 
 
@@ -102,7 +157,7 @@ void storagedrive_selftest_c::test() {
     int blocks_to_touch;
 
     /*** fill all blocks with random accesses, until all blcoks touched ***/
-    image->open(imagefname, true);
+    image_open(imagefname, true);
 
     for (i = 0; i < block_count; i++)
         block_touched[i] = false;
@@ -111,16 +166,16 @@ void storagedrive_selftest_c::test() {
     while (blocks_to_touch > 0) {
         unsigned block_number = random() % block_count;
         block_buffer_fill(block_number);
-        image->write(block_buffer, /*position*/block_size * block_number, block_size);
+        image_write(block_buffer, /*position*/block_size * block_number, block_size);
         if (!block_touched[block_number]) { // mark
             block_touched[block_number] = true;
             blocks_to_touch--;
         }
     }
-    image->close();
+    image_close();
 
     /*** verify all blocks with random accesses, until all blcoks touched ***/
-    image->open(imagefname, true);
+    image_open(imagefname, true);
 
     for (i = 0; i < block_count; i++)
         block_touched[i] = false;
@@ -128,7 +183,7 @@ void storagedrive_selftest_c::test() {
     blocks_to_touch = block_count;
     while (blocks_to_touch > 0) {
         unsigned block_number = random() % block_count;
-        image->read(block_buffer, /*position*/block_size * block_number, block_size);
+        image_read(block_buffer, /*position*/block_size * block_number, block_size);
         block_buffer_check(block_number);
         if (!block_touched[block_number]) { // mark
             block_touched[block_number] = true;
@@ -136,7 +191,7 @@ void storagedrive_selftest_c::test() {
         }
     }
 
-    image->close();
+    image_close();
 
     free(block_touched);
 }

@@ -42,6 +42,13 @@ using namespace std;
 class storagecontroller_c;
 
 class storagedrive_c: public device_c {
+private:
+	uint8_t	zeros[4096] ; // a block of 00s
+	
+    // several implemenatation of the "magnetic surface" possible
+    // hide from devices
+    storageimage_binfile_c	*image ;
+
 public:
     storagecontroller_c *controller; // link to parent
 
@@ -60,11 +67,21 @@ public:
 
 //	parameter_bool_c writeprotect = parameter_bool_c(this, "writeprotect", "wp", /*readonly*/false, "Medium is write protected, different reasons") ;
 
-    storageimage_binfile_c	*image ;
-
     storagedrive_c(storagecontroller_c *controller);
-	virtual ~storagedrive_c() ;
+    virtual ~storagedrive_c() ;
 
+
+
+    // wrap actual image driver
+    bool image_open(std::string imagefname, bool create) ;
+    void image_close(void) ;
+    bool image_is_open(void) ;
+	bool image_is_readonly() ;
+    bool image_truncate(void) ;
+    uint64_t image_size(void) ;
+    void image_read(uint8_t *buffer, uint64_t position, unsigned len) ;
+    void image_write(uint8_t *buffer, uint64_t position, unsigned len) ;
+	void image_clear_remaining_block_bytes(unsigned block_size_bytes, uint64_t position, unsigned len) ;
 };
 
 class storagedrive_selftest_c: public storagedrive_c {
