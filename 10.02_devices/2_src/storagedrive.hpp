@@ -39,6 +39,7 @@ using namespace std;
 #include "device.hpp"
 #include "parameter.hpp"
 
+
 class storagecontroller_c;
 
 class storagedrive_c: public device_c {

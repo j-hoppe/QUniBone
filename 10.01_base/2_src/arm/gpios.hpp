@@ -37,47 +37,47 @@
 
 // device for a set of 32 gpio pins
 typedef struct {
-	unsigned gpios_in_use; // so much pins from this bank are in use
-	uint32_t registerrange_addr_unmapped; //unmapped 	start addr of GPIo register range
-	unsigned registerrange_size;
+    unsigned gpios_in_use; // so much pins from this bank are in use
+    uint32_t registerrange_addr_unmapped; //unmapped 	start addr of GPIo register range
+    unsigned registerrange_size;
 
-	// start addr of register bank, mapped into memory
-	volatile uint8_t *registerrange_start_addr;
+    // start addr of register bank, mapped into memory
+    volatile uint8_t *registerrange_start_addr;
 
-	// address of Output Enable Register, mapped into memory.
-	// bit<i> = 1: pin i is output, 0 = input
-	volatile uint32_t *oe_addr;
+    // address of Output Enable Register, mapped into memory.
+    // bit<i> = 1: pin i is output, 0 = input
+    volatile uint32_t *oe_addr;
 
-	// Address of DATAIN register. Reflects the GPIO pin voltage levels.
-	volatile uint32_t *datain_addr;
+    // Address of DATAIN register. Reflects the GPIO pin voltage levels.
+    volatile uint32_t *datain_addr;
 
-	// Address of DATAOUT register. Reflects the GPIO output pin voltage levels.
-	volatile uint32_t *dataout_addr;
+    // Address of DATAOUT register. Reflects the GPIO output pin voltage levels.
+    volatile uint32_t *dataout_addr;
 
-	uint32_t cur_dataout_val; // cached value of dataout register
-	// access to this is much faster than the GPIO dataut itself.
+    uint32_t cur_dataout_val; // cached value of dataout register
+    // access to this is much faster than the GPIO dataut itself.
 
 // mapped address of "set pin" register
-	// bit<i> := 1: gpio pin i is set to H level
-	volatile uint32_t *setdataout_addr;
+    // bit<i> := 1: gpio pin i is set to H level
+    volatile uint32_t *setdataout_addr;
 
-	// mapped address of "clear pin" register
-	// bit<i> := 1: gpio pin i is set to H level
-	volatile uint32_t *clrdataout_addr;
+    // mapped address of "clear pin" register
+    // bit<i> := 1: gpio pin i is set to H level
+    volatile uint32_t *clrdataout_addr;
 
 } gpio_bank_t;
 
 /* access addresses for on gpio pin */
 typedef struct {
-	char name[80];
-	unsigned tag; // marker for processing
-	int internal;  // 1 = used internally, for P9.41, P).42 collision
-	int direction;
-	unsigned bank_idx; // GPIO=0,1,2,3
-	gpio_bank_t *bank; // GPIO=0,1,2,3
-	unsigned pin_in_bank; // 0..31
-	unsigned pin_in_bank_mask; // mask with bit 'gpio_pin_in_bank' set
-	unsigned linear_no; // linear index in /sys/class/gpio= 32*bank + pin_in_bnak
+    char name[80];
+    unsigned tag; // marker for processing
+    int internal;  // 1 = used internally, for P9.41, P).42 collision
+    int direction;
+    unsigned bank_idx; // GPIO=0,1,2,3
+    gpio_bank_t *bank; // GPIO=0,1,2,3
+    unsigned pin_in_bank; // 0..31
+    unsigned pin_in_bank_mask; // mask with bit 'gpio_pin_in_bank' set
+    unsigned linear_no; // linear index in /sys/class/gpio= 32*bank + pin_in_bnak
 
 } gpio_config_t;
 
@@ -97,33 +97,33 @@ typedef struct {
 
 class gpios_c: public logsource_c {
 private:
-	void bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr);
-	gpio_config_t *config(const char *name, int direction, unsigned bank_idx,
-			unsigned pin_in_bank);
-	void export_pin(gpio_config_t *pin);
+    void bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr);
+    gpio_config_t *config(const char *name, int direction, unsigned bank_idx,
+                          unsigned pin_in_bank);
+    void export_pin(gpio_config_t *pin);
 
 public:
 
-	gpios_c();
-	// list of gpio register banks
-	gpio_bank_t banks[4];
+    gpios_c();
+    // list of gpio register banks
+    gpio_bank_t banks[4];
 
-	// list of pins pins
-	gpio_config_t *pins[MAX_GPIOCOUNT + 1];
+    // list of pins pins
+    gpio_config_t *pins[MAX_GPIOCOUNT + 1];
 
-	// mapped start addresses of register space for GPIOs
-	volatile void *registerrange_start_addr[4];
+    // mapped start addresses of register space for GPIOs
+    volatile void *registerrange_start_addr[4];
 
-	gpio_config_t *led[4], *swtch[4], *button, *reg_enable, *bus_enable, *i2c_panel_reset, *activity_led=NULL,
-			*reg_addr[3], *reg_write, *reg_datin[8], *reg_datout[8], *collision_p9_41,
-			*collision_p9_42;
+    gpio_config_t *led[4], *swtch[4], *button, *reg_enable, *bus_enable, *i2c_panel_reset, *qunibus_led=NULL,
+                                                                                            *reg_addr[3], *reg_write, *reg_datin[8], *reg_datout[8], *collision_p9_41,
+                                                                                            *collision_p9_42;
 
-	unsigned cmdline_leds ; // as set on call to application via cmdline options
+    unsigned cmdline_leds ; // as set on call to application via cmdline options
 
-	void init(void);
-	void set_leds(unsigned number) ;
-	void test_toggle(gpio_config_t *gpio);
-	void test_loopback(void);
+    void init(void);
+    void set_leds(unsigned number) ;
+    void test_toggle(gpio_config_t *gpio);
+    void test_loopback(void);
 };
 extern gpios_c *gpios; // singleton
 
@@ -148,6 +148,32 @@ extern gpios_c *gpios; // singleton
  	(!! ( *((gpio)->bank->dataout_addr) & (gpio)->pin_in_bank_mask ) )	\
  	: (!! ( *((gpio)->bank->datain_addr) & (gpio)->pin_in_bank_mask ) )	\
 	)
+
+
+/*** a LED which shines at least a certain time on activation (monoflop) ***/
+#include <thread>
+
+class activity_led_c {
+private:
+    unsigned minimal_on_time_ms = 100 ; // default: 100ms ON on every pulse
+    uint8_t led_idx = 0 ; // use LED0
+    bool cmd_on = false; 
+    bool cmd_off = true; // start dark
+    
+    bool waiter_terminated = false;
+    void waiter_func() ;
+    std::thread waiter = std::thread(&activity_led_c::waiter_func, this) ;
+public:
+    activity_led_c() ;
+    ~activity_led_c() ;
+	
+    bool enabled ;
+    // set concurrently to thread
+    void set(bool onoff) ;
+} ;
+// global LED for all drive accesses
+extern activity_led_c	drive_activity_led ; // singleton
+
 
 
 #endif // _GPIOS_H_

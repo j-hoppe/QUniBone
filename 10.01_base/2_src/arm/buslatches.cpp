@@ -77,8 +77,8 @@ void buslatches_c::output_enable(bool enable) {
 	GPIO_SETVAL(gpios->bus_enable, enable);
 
 	// tie LED to driver enable via software
-	if (gpios->activity_led) 
-		GPIO_SETVAL(gpios->activity_led, !enable);
+	if (gpios->qunibus_led) 
+		GPIO_SETVAL(gpios->qunibus_led, !enable);
 		
 	cur_output_enable = enable;
 }
