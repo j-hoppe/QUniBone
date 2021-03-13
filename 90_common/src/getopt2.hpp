@@ -124,7 +124,7 @@ public:
 
 	void init(bool _ignore_case);
 
-	int stringcmp(string& s1, string& s2);
+	int stringcmp(string s1, string s2);
 
 	getopt_option_descr_c *define(string short_option_name, string long_option_name,
 			string fix_args_csv, string opt_args_csv, string default_args, string info,

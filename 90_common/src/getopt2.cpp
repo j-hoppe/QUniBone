@@ -135,7 +135,7 @@ void getopt_c::init(bool _ignore_case) {
 }
 
 /* compare string with regard to "ignore_case*/
-int getopt_c::stringcmp(string& s1, string& s2) {
+int getopt_c::stringcmp(string s1, string s2) {
 	if (this->ignore_case)
 		return strcasecmp(s1.c_str(), s2.c_str());
 	else
