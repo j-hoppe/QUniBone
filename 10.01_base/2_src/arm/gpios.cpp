@@ -64,6 +64,7 @@ gpios_c::gpios_c() {
     log_label = "GPIOS";
 
     cmdline_leds = 0 ; // is set before init()
+    leds_for_debug = false ;
 }
 
 /* fill the 4 gpio_banks with values and
@@ -198,20 +199,22 @@ void gpios_c::init() {
         if (banks[n].gpios_in_use > 0)
             banks[n].cur_dataout_val = *(banks[n].dataout_addr);
 
-    // set the 4 LEDs to OFF
-    // shared with LEDs
-    ARM_DEBUG_PIN0(0)
-    ;
-    ARM_DEBUG_PIN1(0)
-    ;
-    ARM_DEBUG_PIN2(0)
-    ;
-    ARM_DEBUG_PIN3(0)
-    ;
-    // call with commandline "--leds 15" to keep DEBUG PINS == 0
-    set_leds(cmdline_leds) ;
-    if (qunibus_led) // default: OFF
-        GPIO_SETVAL(qunibus_led, 1) ;
+    if (leds_for_debug) {
+        // shared with LEDs
+        ARM_DEBUG_PIN0(0)
+        ;
+        ARM_DEBUG_PIN1(0)
+        ;
+        ARM_DEBUG_PIN2(0)
+        ;
+        ARM_DEBUG_PIN3(0)
+        ;
+    } else {
+        // set the 4 LEDs to OFF
+        set_leds(cmdline_leds) ;
+        if (qunibus_led) // default: OFF
+            GPIO_SETVAL(qunibus_led, 1) ;
+    }
 }
 
 // display a number on the 4 LEDs
@@ -272,9 +275,6 @@ void gpios_c::test_loopback(void) {
 }
 
 
-
-activity_led_c	drive_activity_led ; // singleton
-
 void activity_led_c::waiter_func() {
     // loop until terminated
     while (!waiter_terminated) {
@@ -282,7 +282,7 @@ void activity_led_c::waiter_func() {
         std::this_thread::sleep_for(std::chrono::milliseconds(minimal_on_time_ms/2));
         while (enabled && (cmd_on || cmd_off)) {
             if (cmd_on) {
-				// if ON: ON for at least some time (monoflop)
+                // if ON: ON for at least some time (monoflop)
                 cmd_on=false ; // ack, atomic
 //printf("O\n") ;
                 GPIO_SETVAL(gpios->led[led_idx], 0) ; // ON
@@ -302,8 +302,8 @@ activity_led_c::activity_led_c() {
     waiter_terminated = false ;
     cmd_on = false ;
     cmd_off = true ; // start dark
-    enabled = true ;
-	minimal_on_time_ms = 100 ;
+    enabled = false ;
+    minimal_on_time_ms = 100 ;
 }
 
 
@@ -313,11 +313,11 @@ activity_led_c::~activity_led_c() {
 }
 
 void activity_led_c::set(bool onoff) {
-	// atomic commands
+    // atomic commands
     if (onoff)
         cmd_on = true ;
-    else 
-		cmd_off = true ;
+    else
+        cmd_off = true ;
 }
 
 

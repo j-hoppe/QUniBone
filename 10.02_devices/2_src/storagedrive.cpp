@@ -94,15 +94,15 @@ uint64_t storagedrive_c::image_size(void) {
 }
 
 void storagedrive_c::image_read(uint8_t *buffer, uint64_t position, unsigned len) {
-	drive_activity_led.set(true) ; // indicate only read/write access
+	gpios->drive_activity_led.set(true) ; // indicate only read/write access
     image->read(buffer, position, len) ;
-	drive_activity_led.set(false) ;
+	gpios->drive_activity_led.set(false) ;
 }
 
 void storagedrive_c::image_write(uint8_t *buffer, uint64_t position, unsigned len) {
-	drive_activity_led.set(true) ;
+	gpios->drive_activity_led.set(true) ;
     image->write(buffer, position, len) ;
-	drive_activity_led.set(false) ;
+	gpios->drive_activity_led.set(false) ;
 }
 // Service function for disk drive who need to clear unwritten bytes in last block of transaction
 // Sometimes when writing incomplete disk blocks, the remaining bytes must be filled with 00s

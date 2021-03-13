@@ -35,6 +35,31 @@
 #include "logsource.hpp"
 #include "bitcalc.h"
 
+
+/*** a LED which shines at least a certain time on activation (monoflop) ***/
+#include <thread>
+
+class activity_led_c {
+private:
+    unsigned minimal_on_time_ms = 100 ; // default: 100ms ON on every pulse
+    uint8_t led_idx = 0 ; // use LED0
+    bool cmd_on = false; 
+    bool cmd_off = true; // start dark
+    
+    bool waiter_terminated = false;
+    void waiter_func() ;
+    std::thread waiter = std::thread(&activity_led_c::waiter_func, this) ;
+public:
+    activity_led_c() ;
+    ~activity_led_c() ;
+	
+    bool enabled = false ;
+    // set concurrently to thread
+    void set(bool onoff) ;
+} ;
+
+
+/*** Low elvel GPIO stuff ***/
 // device for a set of 32 gpio pins
 typedef struct {
     unsigned gpios_in_use; // so much pins from this bank are in use
@@ -95,6 +120,9 @@ typedef struct {
 #define ARM_DEBUG_PIN3(val)	GPIO_SETVAL(gpios->led[3], !!(val))
 #define ARM_DEBUG_PIN(n,val) GPIO_SETVAL(gpios->led[n], !!(val))
 
+
+
+
 class gpios_c: public logsource_c {
 private:
     void bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr);
@@ -119,6 +147,10 @@ public:
                                                                                             *collision_p9_42;
 
     unsigned cmdline_leds ; // as set on call to application via cmdline options
+    bool leds_for_debug = false ;
+
+	// global LED for all drive accesses
+	activity_led_c	drive_activity_led ; // singleton
 
     void init(void);
     void set_leds(unsigned number) ;
@@ -148,32 +180,6 @@ extern gpios_c *gpios; // singleton
  	(!! ( *((gpio)->bank->dataout_addr) & (gpio)->pin_in_bank_mask ) )	\
  	: (!! ( *((gpio)->bank->datain_addr) & (gpio)->pin_in_bank_mask ) )	\
 	)
-
-
-/*** a LED which shines at least a certain time on activation (monoflop) ***/
-#include <thread>
-
-class activity_led_c {
-private:
-    unsigned minimal_on_time_ms = 100 ; // default: 100ms ON on every pulse
-    uint8_t led_idx = 0 ; // use LED0
-    bool cmd_on = false; 
-    bool cmd_off = true; // start dark
-    
-    bool waiter_terminated = false;
-    void waiter_func() ;
-    std::thread waiter = std::thread(&activity_led_c::waiter_func, this) ;
-public:
-    activity_led_c() ;
-    ~activity_led_c() ;
-	
-    bool enabled ;
-    // set concurrently to thread
-    void set(bool onoff) ;
-} ;
-// global LED for all drive accesses
-extern activity_led_c	drive_activity_led ; // singleton
-
 
 
 #endif // _GPIOS_H_

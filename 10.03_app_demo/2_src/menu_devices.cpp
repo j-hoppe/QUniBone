@@ -36,7 +36,7 @@
 #include "application.hpp" // own
 
 #include "pru.hpp"
-//#include "gpios.hpp"
+#include "gpios.hpp"
 #include "buslatches.hpp"
 #include "mailbox.h"
 #include "iopageregister.h"
@@ -138,6 +138,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	// assert(qunibus->arbitrator_client) ; // External Bus Arbitrator required
 	hardware_startup(pru_c::PRUCODE_EMULATION);
 	// now PRU executing QBUS/UNIBUS master/slave code, physical PDP-11 CPU as arbitrator required.
+	gpios->drive_activity_led.enabled = !gpios->leds_for_debug ;
 	buslatches.output_enable(true);
 	
 	// devices need physical or emulated CPU Arbitrator 
@@ -634,6 +635,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 
 	demo_io->enabled.set(false);
 	delete demo_io;
+
+	gpios->drive_activity_led.enabled = false ;
 
 	qunibusadapter->enabled.set(false);
 
