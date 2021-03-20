@@ -123,6 +123,10 @@ void application_c::menu_buslatches(const char *menu_code) {
 	char s_opcode[256], s_param[256];
 	int n_fields;
 
+	// Bypass central adddress-width-test
+	if (!qunibus->addr_width)
+		qunibus->set_addr_width(22) ; 
+
 	// These test need active bus drivers
 	hardware_startup(pru_c::PRUCODE_TEST);
 	buslatches.output_enable(true);
