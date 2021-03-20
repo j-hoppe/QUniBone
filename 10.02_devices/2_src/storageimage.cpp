@@ -76,7 +76,7 @@ bool storageimage_binfile_c::open(string image_fname, bool create) {
             if (FILE *fz = fopen(compressed_image_fname.c_str(), "r")) {
                 fclose(fz);
                 string uncompress_cmd = "zcat " + compressed_image_fname + " >" + image_fname ;
-                printf("Only compressed image file %s found, expanding \"%s\" ...", image_fname.c_str(), uncompress_cmd.c_str()) ;
+                printf("Only compressed image file %s found, expanding \"%s\" ...\n", image_fname.c_str(), uncompress_cmd.c_str()) ;
                 int ret = system(uncompress_cmd.c_str()) ;
                 if (ret != 0) {
                     printf(" FAILED!\n") ;
