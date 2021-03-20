@@ -49,7 +49,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
     while(1) {
         // normally process states in high speed loop.
         // some long states return so main() can process other SMs
-        // MUST return to mian() if !EVENT_IS_ACKED, so PRU checks for AMR2PPRU opcodes on devcie register access!
+        // MUST return to main() if !EVENT_IS_ACKED, so PRU checks for AMR2PPRU opcodes on devcie register access!
         switch(state) {
         case state_data_slave_stop:
         case state_data_slave_start:
@@ -71,7 +71,6 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
 
             //	  if (!(latch2val & BIT(6))) // pulse when not BS7
             //		  PRU_DEBUG_PIN0(1);
-
 
             // DO NOT EVALUATED WTBT for early DIN/DOUT decision ... perhaps later optimization
             state = state_data_slave_dindout_start; //
@@ -103,6 +102,10 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
 
                 buslatches_setbyte(0, val & 0xff);					// DAL7..0
                 buslatches_setbyte(1, (val >> 8) & 0xff);			// DAL15..8
+                // DAL21 must be negated to indicate "no parity".
+                // Implicitely true, as master removes address from DAL after SYNC, and we don't set DAL21 with other vlaues
+				
+                // "setbyte(2,0) only once, see above
                 buslatches_setbits(4, BIT(3)+BIT(6), 0xff); 			 // REF=1: more DIN allowed, RPLY
 
                 // RPLY asserted while ARM processes iopage register event, else timeout

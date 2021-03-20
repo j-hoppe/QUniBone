@@ -287,6 +287,10 @@ uint8_t sm_arb_worker_device(uint8_t granted_requests_mask) {
         intr_vector = mailbox.intr.vector[intr_idx];
         buslatches_setbyte(0, intr_vector & 0xff);					// DAL7..0
         buslatches_setbyte(1, (intr_vector >> 8) & 0xff);			// DAL15..8
+		// DAL21 must be negated to indicate "no parity".
+		// Implicitely true, as master removes address from DAL after SYNC, and we don't set DAL21 with other vlaues
+		//		buslatches_setbits(2, 0x3f, 0) ;  // clr DAL21..16, keep BS7: "no parity support"
+        
         sm_arb.intr_level_index = intr_idx; // to be returned to ARM on complete
 
         sm_arb.state = state_arbitration_intr_complete ; // wait for CPU to ack

@@ -266,8 +266,11 @@ statemachine_state_func sm_dma_state_dout_start() {
 
     buslatches_setbyte(0, data & 0xff); // DATA[0..7] = DAL<7..0> = latch[0]
     buslatches_setbyte(1, data >> 8); // DATA[8..15]] = DAL<15..8> = latch[1]
+    
     if (sm_dma.first_data_portion) {
         // only once before DOUT
+		buslatches_setbyte(2, 0) ;	// clr DAL21..16, BS7: "no parity support"
+		// DOUT: BS7 negated for all data cycles, no need to remember.
         sm_dma.first_data_portion=false ;
         if (is_datob)
             buslatches_setbits(4, BIT(4)+BIT(5), BIT(4)); // assert WTBT, negate BS7
