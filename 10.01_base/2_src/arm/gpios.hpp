@@ -37,25 +37,27 @@
 
 
 /*** a LED which shines at least a certain time on activation (monoflop) ***/
+#include <mutex>
 #include <thread>
 
 class activity_led_c {
 private:
+    static const unsigned led_count = 4 ;
+    std::mutex m ;
+    unsigned cycle_time_ms = 50 ; // polling intervall and granularity
     unsigned minimal_on_time_ms = 100 ; // default: 100ms ON on every pulse
-    uint8_t led_idx = 0 ; // use LED0
-    bool cmd_on = false; 
-    bool cmd_off = true; // start dark
-    
+    volatile unsigned cycles[led_count] ; // LED on if > 0. acessed in thread
+
     bool waiter_terminated = false;
     void waiter_func() ;
     std::thread waiter = std::thread(&activity_led_c::waiter_func, this) ;
 public:
     activity_led_c() ;
     ~activity_led_c() ;
-	
+
     bool enabled = false ;
     // set concurrently to thread
-    void set(bool onoff) ;
+    void set(unsigned led_idx, bool onoff) ;
 } ;
 
 
@@ -149,8 +151,8 @@ public:
     unsigned cmdline_leds ; // as set on call to application via cmdline options
     bool leds_for_debug = false ;
 
-	// global LED for all drive accesses
-	activity_led_c	drive_activity_led ; // singleton
+    // global LED for all drive accesses
+    activity_led_c	drive_activity_led ; // singleton
 
     void init(void);
     void set_leds(unsigned number) ;

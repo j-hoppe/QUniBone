@@ -279,20 +279,16 @@ void activity_led_c::waiter_func() {
     // loop until terminated
     while (!waiter_terminated) {
         // polling frequency
-        std::this_thread::sleep_for(std::chrono::milliseconds(minimal_on_time_ms/2));
-        while (enabled && (cmd_on || cmd_off)) {
-            if (cmd_on) {
-                // if ON: ON for at least some time (monoflop)
-                cmd_on=false ; // ack, atomic
-//printf("O\n") ;
-                GPIO_SETVAL(gpios->led[led_idx], 0) ; // ON
-                std::this_thread::sleep_for(std::chrono::milliseconds(minimal_on_time_ms));
-                // more ON/OFF may have occured now
-            }
-            if (cmd_off && !cmd_on) { // ON may have occured again
-                cmd_off=false ; //ack, atomic
-//printf("-\n") ;
-                GPIO_SETVAL(gpios->led[led_idx], 1) ; // OFF
+        std::this_thread::sleep_for(std::chrono::milliseconds(cycle_time_ms));
+        for (unsigned led_idx=0 ; led_idx < led_count ; led_idx++) {
+            if (cycles[led_idx]) {
+                const std::lock_guard<std::mutex> lock(m); // cycles[]
+                // it is ON, or will change
+                cycles[led_idx]-- ;
+                if (cycles[led_idx]) // just switched ON, or still ON
+                    GPIO_SETVAL(gpios->led[led_idx], 0) ; // ON
+                else
+                    GPIO_SETVAL(gpios->led[led_idx], 1) ; // now OFF
             }
         }
     }
@@ -300,8 +296,8 @@ void activity_led_c::waiter_func() {
 
 activity_led_c::activity_led_c() {
     waiter_terminated = false ;
-    cmd_on = false ;
-    cmd_off = true ; // start dark
+    for (unsigned led_idx=0 ; led_idx < led_count ; led_idx++)
+        cycles[led_idx] = 1 ; // will go off when thread waiter_func() starts
     enabled = false ;
     minimal_on_time_ms = 100 ;
 }
@@ -312,12 +308,17 @@ activity_led_c::~activity_led_c() {
     waiter.join() ;
 }
 
-void activity_led_c::set(bool onoff) {
+
+// a "set" pusles for 100ms, a "clear" does nothing
+void activity_led_c::set(unsigned led_idx, bool onoff) {
+    const std::lock_guard<std::mutex> lock(m); // cycles[]
+    assert(led_idx < led_count) ;
     // atomic commands
     if (onoff)
-        cmd_on = true ;
-    else
-        cmd_off = true ;
+        // ON: load counter. "+1": pre-decrement in thread
+        cycles[led_idx] = (minimal_on_time_ms / cycle_time_ms) + 1 ;
+//    else
+//        cycles[led_idx] = 0 ; // still active until counted down
 }
 
 

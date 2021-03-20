@@ -83,6 +83,7 @@ uda_c::uda_c() :
     {
         mscp_drive_c *drive = new mscp_drive_c(this, i);
         drive->unitno.value = i;
+        drive->activity_led.value = i ; // default: LED = unitno
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
         drive->parent = this;
@@ -1046,6 +1047,9 @@ uda_c::DMARead(
     }
     else
     {
+//    ARM_DEBUG_PIN0(1) ;
+//printf("UDA.DMARead NXM: address=%07o,len=%d words, failing addr=%07o",
+//		address, lengthInBytes >> 1, dma_request.qunibus_end_addr ) ;
         return nullptr;     
     }
 } 

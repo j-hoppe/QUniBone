@@ -144,6 +144,7 @@ RL11_c::RL11_c(void) :
     for (i = 0; i < drivecount; i++) {
         RL0102_c *drive = new RL0102_c(this);
         drive->unitno.value = i; // set the number plug
+        drive->activity_led.value = i ; // default: LED = unitno
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
         drive->parent = this; // link drive to controller

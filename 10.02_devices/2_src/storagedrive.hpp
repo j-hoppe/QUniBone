@@ -44,8 +44,8 @@ class storagecontroller_c;
 
 class storagedrive_c: public device_c {
 private:
-	uint8_t	zeros[4096] ; // a block of 00s
-	
+    uint8_t	zeros[4096] ; // a block of 00s
+
     // several implemenatation of the "magnetic surface" possible
     // hide from devices
     storageimage_binfile_c	*image ;
@@ -64,6 +64,9 @@ public:
     parameter_string_c image_filepath = parameter_string_c(this, "image", "img", /*readonly*/
                                         false, "Path to image file. Empty to detach. \".gz\" archive also searched.");
 
+    parameter_unsigned_c activity_led = parameter_unsigned_c(this, "activityled", "al", /*readonly*/
+                                        false, "", "%d", "Number of LED to used for activity display.", 8, 10);
+
     virtual bool on_param_changed(parameter_c *param) override;
 
 //	parameter_bool_c writeprotect = parameter_bool_c(this, "writeprotect", "wp", /*readonly*/false, "Medium is write protected, different reasons") ;
@@ -77,12 +80,14 @@ public:
     bool image_open(std::string imagefname, bool create) ;
     void image_close(void) ;
     bool image_is_open(void) ;
-	bool image_is_readonly() ;
+    bool image_is_readonly() ;
     bool image_truncate(void) ;
     uint64_t image_size(void) ;
     void image_read(uint8_t *buffer, uint64_t position, unsigned len) ;
     void image_write(uint8_t *buffer, uint64_t position, unsigned len) ;
-	void image_clear_remaining_block_bytes(unsigned block_size_bytes, uint64_t position, unsigned len) ;
+    void image_clear_remaining_block_bytes(unsigned block_size_bytes, uint64_t position, unsigned len) ;
+
+    void set_activity_led(bool onoff) ;
 };
 
 class storagedrive_selftest_c: public storagedrive_c {

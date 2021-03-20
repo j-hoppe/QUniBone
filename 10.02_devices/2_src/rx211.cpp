@@ -98,6 +98,7 @@ RX211_c::RX211_c(void) : storagecontroller_c()
     for (i = 0; i < drivecount; i++) {
         RX0102drive_c *drive = new RX0102drive_c(uCPU,true);
         drive->unitno.value = i; // set the number plug
+        drive->activity_led.value = i ; // default: LED = unitno
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
         drive->parent = this; // link drive to controller
@@ -543,7 +544,6 @@ void RX211_c::worker(unsigned instance) {
             worker_transfer_uCPU2DMA() ;
             break ;
         default:
-	       ARM_DEBUG_PIN0(1) ;			
             assert(false) ; // unexpected state
         }
 

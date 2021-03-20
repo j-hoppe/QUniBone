@@ -94,6 +94,7 @@ RX11_c::RX11_c(void) :    storagecontroller_c() {
     for (i = 0; i < drivecount; i++) {
         RX0102drive_c *drive = new RX0102drive_c(uCPU, false);
         drive->unitno.value = i; // set the number plug
+        drive->activity_led.value = i ; // default: LED = unitno
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
         drive->parent = this; // link drive to controller

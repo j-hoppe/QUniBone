@@ -102,6 +102,7 @@ rk11_c::rk11_c() :
     {
         rk05_c *drive = new rk05_c(this);
         drive->unitno.value = i;
+        drive->activity_led.value = i ; // default: LED = unitno
         drive->name.value = name.value + std::to_string(i);
         drive->log_label = drive->name.value;
         drive->parent = this;

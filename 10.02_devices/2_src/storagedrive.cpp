@@ -42,9 +42,9 @@ using namespace std;
 
 storagedrive_c::storagedrive_c(storagecontroller_c *controller) :
     device_c() {
-		
-	memset(zeros, 0, sizeof(zeros)); 
-	
+
+    memset(zeros, 0, sizeof(zeros));
+
     this->controller = controller;
     /*
      // parameters for all drices
@@ -94,15 +94,15 @@ uint64_t storagedrive_c::image_size(void) {
 }
 
 void storagedrive_c::image_read(uint8_t *buffer, uint64_t position, unsigned len) {
-	gpios->drive_activity_led.set(true) ; // indicate only read/write access
+    set_activity_led(true) ; // indicate only read/write access
     image->read(buffer, position, len) ;
-	gpios->drive_activity_led.set(false) ;
+    set_activity_led(false) ;
 }
 
 void storagedrive_c::image_write(uint8_t *buffer, uint64_t position, unsigned len) {
-	gpios->drive_activity_led.set(true) ;
+    set_activity_led(true) ;
     image->write(buffer, position, len) ;
-	gpios->drive_activity_led.set(false) ;
+    set_activity_led(false) ;
 }
 // Service function for disk drive who need to clear unwritten bytes in last block of transaction
 // Sometimes when writing incomplete disk blocks, the remaining bytes must be filled with 00s
@@ -117,11 +117,17 @@ void storagedrive_c::image_clear_remaining_block_bytes(unsigned block_size_bytes
     assert(unused_block_bytes_end >= unused_block_bytes_start) ;
     unsigned unused_byte_count = unused_block_bytes_end - unused_block_bytes_start ;
     if (unused_byte_count > 0) {
-		assert(sizeof(zeros) >= unused_byte_count) ;
+        assert(sizeof(zeros) >= unused_byte_count) ;
         image_write(zeros,/*pos=*/unused_block_bytes_start, unused_byte_count) ;
-	}
+    }
 }
 
+void storagedrive_c::set_activity_led(bool onoff) {
+    // only 4 leds: if larger number, then supress display
+    if (activity_led.value >= 4)
+        return ;
+    gpios->drive_activity_led.set(activity_led.value, onoff) ;
+}
 
 
 
