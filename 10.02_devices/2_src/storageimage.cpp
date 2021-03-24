@@ -82,7 +82,7 @@ bool storageimage_binfile_c::open(string image_fname, bool create) {
                     printf(" FAILED!\n") ;
                     retries = 0 ; // not again
                 } else
-                    printf(" complete.\n") ;
+                    printf("... complete.\n") ;
 
             } else
                 retries = 0 ; // not again
