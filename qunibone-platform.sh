@@ -124,14 +124,12 @@ function link4dir() {
 # if QBone: copy 5_applications_q/* to 5_applications,
 
 echo "Copying 5_applications$QUNIBONE_PLATFORM_SUFFIX to 5_applications"
+# (recursive move faster, but complicate directory merge)
 cp -f -a $HOME/10.03_app_demo/5_applications$QUNIBONE_PLATFORM_SUFFIX/* $HOME/10.03_app_demo/5_applications
 
 # In any case: remove 5_applications_u and 5_applications_q
+rm -f -R  $HOME/10.03_app_demo/5_applications_u
 rm -f -R  $HOME/10.03_app_demo/5_applications_q
-# while QBone is under Beta test, keep the UniBone apps for evaluation.
-if [ "$QUNIBONE_PLATFORM" != "QBUS" ] ; then
-  rm -f -R  $HOME/10.03_app_demo/5_applications_u
-fi
 
 # Generating shortcuts for demo scripts in ~ home directory
 find $HOME/10.03_app_demo/5_applications -name \*.sh -exec ln -sf {} $HOME \;
