@@ -50,6 +50,7 @@ uda_c::uda_c() :
     name.value = "uda";  
     type_name.value = "UDA50";
     type_name.readonly = false; 
+    base_addr.readonly = false;
     log_label = "uda";
     _22bitDMA = twenty_two_bit_DMA.value = (qunibus->addr_width == 22); 
 
@@ -107,7 +108,7 @@ bool uda_c::on_param_changed(parameter_c *param)
     {
         dma_request.set_priority_slot(priority_slot.new_value);
         intr_request.set_priority_slot(priority_slot.new_value);
-    } 
+    }
     else if (param == &intr_level) 
     {
         intr_request.set_level(intr_level.new_value);
@@ -523,12 +524,15 @@ uda_c::update_SA(uint16_t value)
 //  is owned by the caller.
 //  On failure, nullptr is returned.  This indicates that the ring is
 //  empty or that an attempt to access non-existent memory occurred.
-//  TODO: Need to handle NXM cases properly. 
+//  The error pointer is set to true if an error occurred during the 
+//  operation -- due to non-existent memory or invalid data.  
+//  (In this case nullptr will also be returned.)
 //
 Message*
-uda_c::GetNextCommand(void)
+uda_c::GetNextCommand(bool* error) 
 {
     timeout_c timer;
+    *error = false;
  
     // Grab the next descriptor being pointed to    
     uint32_t descriptorAddress = 
@@ -545,9 +549,15 @@ uda_c::GetNextCommand(void)
                 sizeof(Descriptor),
                 sizeof(Descriptor))));
 
-    // TODO: if NULL is returned after retry assume a bus error and handle it appropriately.
-    assert(cmdDescriptor != nullptr);
-
+    // A null command descriptor indicates an NXM condition; we set SA to the appropriate
+    // error code and reset the port.
+    if (!cmdDescriptor)
+    {
+        PortError(PORT_ERROR_PACKET_READ);
+        *error = true;
+        return nullptr;
+    }
+ 
     // Check owner bit: if set, ownership has been passed to us, in which case
     // we can attempt to pull the actual message from memory.
     if (cmdDescriptor->Word1.Fields.Ownership)
@@ -570,14 +580,26 @@ uda_c::GetNextCommand(void)
                 messageAddress - 4,
                 success);
        
-        assert(messageLength > 0 && messageLength < MAX_MESSAGE_LENGTH);
-        
+        if (!success || messageLength <= 0 || messageLength >= MAX_MESSAGE_LENGTH)
+        {
+            PortError(PORT_ERROR_RING_READ);
+            *error = true;
+            return nullptr;
+        }     
+   
         std::unique_ptr<Message> cmdMessage(
             reinterpret_cast<Message*>(
                 DMARead(
                     messageAddress - 4,
                     messageLength + 4, 
                     sizeof(Message)))); 
+
+        if (!cmdMessage)
+        {
+            PortError(PORT_ERROR_RING_READ);
+            *error = true;
+            return nullptr;
+        }
 
         //
         // Handle Ring Transitions (from full to not-full) and associated
@@ -610,6 +632,13 @@ uda_c::GetNextCommand(void)
                             sizeof(Descriptor),
                             sizeof(Descriptor))));
 
+                if (!previousDescriptor)
+                {
+                    PortError(PORT_ERROR_RING_READ);
+                    *error = true;
+                    return nullptr;
+                }
+
                 if (previousDescriptor->Word1.Fields.Ownership)
                 {
                     // We own the previous descriptor, so the ring was previously
@@ -626,10 +655,15 @@ uda_c::GetNextCommand(void)
         //
         cmdDescriptor->Word1.Fields.Ownership = 0;
         cmdDescriptor->Word1.Fields.Flag = 1;
-        DMAWrite(
+        if (!DMAWrite(
             descriptorAddress,
             sizeof(Descriptor),
-            reinterpret_cast<uint8_t*>(cmdDescriptor.get()));     
+            reinterpret_cast<uint8_t*>(cmdDescriptor.get())))
+        {
+            PortError(PORT_ERROR_RING_WRITE);
+            *error = true;
+            return nullptr;
+        }
 
         //
         // Move to the next descriptor in the ring for next time.
@@ -838,6 +872,18 @@ uint16_t
 uda_c::GetControllerClassModel()
 {
     return 0x0102;   // Class 1 (mass storage), model 2 (UDA50)
+}
+
+//
+// PortError():
+//  Sets the SA register to the specified error code and resets the port.
+//
+void
+uda_c::PortError(uint16_t error)
+{
+    DEBUG("Resetting port due to error o%o", error);
+    update_SA(PORT_ERROR | error);
+    StateTransition(InitializationStep::Uninitialized);
 }
 
 //

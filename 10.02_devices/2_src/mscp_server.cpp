@@ -203,7 +203,16 @@ mscp_server::Poll(void)
         int msgCount = 0;
         while (!_abort_polling && _pollState != PollingState::InitRestart)
         {
-            shared_ptr<Message> message(_port->GetNextCommand());
+            bool error = false;
+            shared_ptr<Message> message(_port->GetNextCommand(&error));
+            if (error)
+            {
+                DEBUG("Error while reading messages, returning to idle state.");
+                // The lords of STL decreed that queue should have no "clear" method
+                // so we do this garbage instead:
+                messages = std::queue<shared_ptr<Message>>(); 
+                break; 
+            }
             if (nullptr == message)
             {
                 DEBUG("End of command ring; %d messages to be executed.", msgCount);

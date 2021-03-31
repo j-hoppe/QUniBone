@@ -34,6 +34,13 @@
 #define STEP4    0x4000
 #define STEP1_22_BIT 0x200
 
+// Port-generic fatal error codes (AA-L621A-TK, p. 7-1)
+#define PORT_ERROR                 0x8000
+#define PORT_ERROR_PACKET_READ     1
+#define PORT_ERROR_PACKET_WRITE    2
+#define PORT_ERROR_RING_READ       6
+#define PORT_ERROR_RING_WRITE      7 
+
 // TODO: this currently assumes a little-endian machine!
 #pragma pack(push,1)
 struct Message
@@ -92,9 +99,10 @@ public:
 
     //
     // Returns the next command message from the command ring, if any.
-    // Returns NULL if the ring is empty.
+    // Returns NULL if the ring is empty.  error is set to true if
+    // an error occurred while reading the message.
     //
-    Message* GetNextCommand(void);
+    Message* GetNextCommand(bool* error);
 
     //
     // Posts a response message to the response ring and memory
@@ -111,6 +119,7 @@ public:
 private:
     // TODO: consolidate these private/public groups here 
     void Reset(void);
+    void PortError(uint16_t error); 
     void Interrupt(uint16_t sa_value); 
     void Interrupt(void);
 
