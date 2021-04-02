@@ -16,13 +16,20 @@ class mscp_drive_c;
 
 // Builds a uint32_t containing the status, flags, and endcode for a response message,
 // used to simplify returning the appropriate status bits from command functions.
-#define STATUS(status, modifier, flags) ((flags) << 8) | (((status) | ((modifier) * 0x20)) << 16)
+// This looks like:
+// 31           15           0
+// |subcode|code|flags|unused|
+// The upper 16 bits correspond to the subcode/code field returned in the MSCP end message.
+//
+#define STATUS(code, subcode, flags) ((flags) << 8) | ((((code) & 0x1f) | (((subcode) & 0x7ff) << 5)) << 16)
 
 #define GET_STATUS(status) (((status) >> 16) & 0xffff)
 #define GET_FLAGS(status) (((status) >> 8) & 0xff)
 
 #define MAX_CREDITS 14
 #define INIT_CREDITS 1
+
+#define HEADER_OFFSET 4
 
 //
 // ControlMessageHeader encapsulates the standard MSCP control
@@ -125,6 +132,19 @@ enum UnitOfflineSubcodes
     DUPLICATE_UNIT = 0x4,
     UNIT_DISABLED = 0x8,
     EXCLUSIVE = 0x10,
+};
+
+enum HostBufferAccessSubcodes
+{
+    CAUSE_UNAVAILABLE = 0x0,
+    ODD_TRANSFER_ADDRESS = 0x1,
+    ODD_BYTE_COUNT = 0x2,
+    NXM = 0x3,
+    HOST_PARITY_ERROR = 0x4,
+    INVALID_PTE = 0x5,
+    INVALID_BUFFER_NAME = 0x6,
+    BUFFER_LENGTH_VIOLATION = 0x7,
+    ACL_VIOLATION = 0x8,
 };
 
 enum MessageTypes

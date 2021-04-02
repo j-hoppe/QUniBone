@@ -25,13 +25,15 @@
          braindead implementation like this can saturate the Unibus.
 
     TODO:
-    Some commands aren't checked as thoroughly for errors as they could be,
-    and at this time NXM (attempts to address non-existent memory) are
-    almost completely unhandled.
-
-    
+    - Some commands aren't checked as thoroughly for errors as they could be.
+    - Not all Invalid Command responses include the subcode data (which should,
+      per section 5.5 of the MSCP spec, be the byte offset of the offending data
+      in the invalid message.)  This is only really useful for diagnostic purposes
+      and so the lack of it should not normally cause issues.
+    - Same for the "flag" field, this is entirely unpopulated. 
 */
 #include <assert.h>
+#include <cstddef>
 #include <pthread.h>
 #include <stdio.h>
 #include <memory>
@@ -69,15 +71,15 @@ mscp_server::mscp_server(
         polling_mutex(PTHREAD_MUTEX_INITIALIZER),
         _credits(INIT_CREDITS) 
 {
-	set_workers_count(0) ; // no std worker()
-	name.value = "mscp_server" ;
-	type_name.value = "mscp_server_c" ;
-	log_label = "MSSVR" ;
+    set_workers_count(0) ; // no std worker()
+    name.value = "mscp_server" ;
+    type_name.value = "mscp_server_c" ;
+    log_label = "MSSVR" ;
     // Alias the port pointer.  We do not own the port, we merely reference it.
     _port = port;
 
-	enabled.set(true) ; 
-	enabled.readonly = true ; // always active
+    enabled.set(true) ; 
+    enabled.readonly = true ; // always active
 
     StartPollingThread();
 }
@@ -89,13 +91,15 @@ mscp_server::~mscp_server()
 }
 
 
-bool mscp_server::on_param_changed(parameter_c *param) {
-	// no own parameter or "enable" logic
-	if (param == &enabled) {
-		// accpet, but do not react on enable/disable, always active
-		return true ;
-	}
-	return device_c::on_param_changed(param) ; // more actions (for enable)
+bool mscp_server::on_param_changed(parameter_c *param) 
+{
+    // no own parameter or "enable" logic
+    if (param == &enabled) 
+    {
+        // accept, but do not react on enable/disable, always active
+        return true ;
+    }
+    return device_c::on_param_changed(param) ; // more actions (for enable)
 }
 
 
@@ -203,7 +207,16 @@ mscp_server::Poll(void)
         int msgCount = 0;
         while (!_abort_polling && _pollState != PollingState::InitRestart)
         {
-            shared_ptr<Message> message(_port->GetNextCommand());
+            bool error = false;
+            shared_ptr<Message> message(_port->GetNextCommand(&error));
+            if (error)
+            {
+                DEBUG("Error while reading messages, returning to idle state.");
+                // The lords of STL decreed that queue should have no "clear" method
+                // so we do this garbage instead:
+                messages = std::queue<shared_ptr<Message>>(); 
+                break; 
+            }
             if (nullptr == message)
             {
                 DEBUG("End of command ring; %d messages to be executed.", msgCount);
@@ -240,6 +253,7 @@ mscp_server::Poll(void)
                 header->Reserved,
                 header->ReferenceNumber);
 
+            bool protocolError = false;
             uint32_t cmdStatus = 0;
             uint16_t modifiers = header->Word3.Command.Modifiers;
 
@@ -302,8 +316,15 @@ mscp_server::Poll(void)
                     break;
 
                 default:
-                    FATAL("Unimplemented MSCP command 0x%x", header->Word3.Command.Opcode);
+                    DEBUG("Unimplemented MSCP command 0x%x", header->Word3.Command.Opcode);
+                    protocolError = true;
                     break;
+            }
+
+            if (protocolError)
+            {
+                uint16_t subCode = offsetof(ControlMessageHeader, Word3) + HEADER_OFFSET;
+                cmdStatus = STATUS(Status::INVALID_COMMAND, subCode, 0);
             }
 
             DEBUG("cmd 0x%x st 0x%x fl 0x%x", cmdStatus, GET_STATUS(cmdStatus), GET_FLAGS(cmdStatus));
@@ -314,10 +335,10 @@ mscp_server::Poll(void)
             header->Word3.End.Status = GET_STATUS(cmdStatus);
             header->Word3.End.Flags = GET_FLAGS(cmdStatus);
 
-            // Set the End code properly -- for an Invalid Command response
+            // Set the End code properly -- for a protocol error, 
             // this is just the End code, for all others it's the End code
-            // or'd with the opcode.
-            if ((GET_STATUS(cmdStatus) & 0x1f) == Status::INVALID_COMMAND)
+            // or'd with the original opcode.
+            if (protocolError)
             {
                  // Just the END code, no opcode
                  header->Word3.End.Endcode = Endcodes::END;
@@ -865,8 +886,8 @@ mscp_server::SetUnitCharacteristicsInternal(
     {
         bool alreadyOnline = drive->IsOnline();
         drive->SetOnline();
-        return STATUS(Status::SUCCESS | 
-            (alreadyOnline ? SuccessSubcodes::ALREADY_ONLINE : SuccessSubcodes::NORMAL), 0, 0); 
+        return STATUS(Status::SUCCESS,  
+            (alreadyOnline ? SuccessSubcodes::ALREADY_ONLINE : SuccessSubcodes::NORMAL), 0); 
     }
     else
     {
@@ -933,19 +954,22 @@ mscp_server::DoDiskTransfer(
     // Check that the LBN is valid
     if (params->LBN >= drive->GetBlockCount() + drive->GetRCTBlockCount())
     {
-        return STATUS(Status::INVALID_COMMAND + (0x1c << 8), 0, 0); // TODO: set sub-code
+        uint16_t subCode = offsetof(ReadWriteEraseParameters, LBN) + HEADER_OFFSET;
+        return STATUS(Status::INVALID_COMMAND, subCode, 0);
     }
 
-    // Check byte count: 
+    // Check byte count:  
     if (params->ByteCount > ((drive->GetBlockCount() + drive->GetRCTBlockCount()) - params->LBN) * drive->GetBlockSize())
     {
-        return STATUS(Status::INVALID_COMMAND + (0x0c << 8), 0, 0); // TODO: as above
+        uint16_t subCode = offsetof(ReadWriteEraseParameters, ByteCount) + HEADER_OFFSET;
+        return STATUS(Status::INVALID_COMMAND, subCode, 0);
     }
 
     // If this is an RCT access, byte count must equal the block size.
     if (rctAccess && params->ByteCount != drive->GetBlockSize())
     {
-        return STATUS(Status::INVALID_COMMAND + (0x0c << 8), 0, 0); // TODO: again
+        uint16_t subCode = offsetof(ReadWriteEraseParameters, ByteCount) + HEADER_OFFSET;
+        return STATUS(Status::INVALID_COMMAND, subCode, 0);
     }
 
     //
@@ -977,10 +1001,14 @@ mscp_server::DoDiskTransfer(
                 params->BufferPhysicalAddress & 0x00ffffff,
                 params->ByteCount,
                 params->ByteCount));
+ 
+            if (!memBuffer)
+            {
+                return STATUS(Status::HOST_BUFFER_ACCESS_ERROR, HostBufferAccessSubcodes::NXM, 0);
+            }
   
             if (!memcmp(diskBuffer.get(), memBuffer.get(), params->ByteCount))
             {
-                // TODO: maybe not do an early return, make code not as ugly?  Hm.
                 return STATUS(Status::COMPARE_ERROR, 0, 0);
             }
         }
@@ -1017,10 +1045,13 @@ mscp_server::DoDiskTransfer(
                 diskBuffer.reset(drive->Read(params->LBN, params->ByteCount));
             }
 
-            _port->DMAWrite(
+            if (!_port->DMAWrite(
                 params->BufferPhysicalAddress & 0x00ffffff,
                 params->ByteCount,
-                diskBuffer.get());
+                diskBuffer.get()))
+            {
+                return STATUS(Status::HOST_BUFFER_ACCESS_ERROR, HostBufferAccessSubcodes::NXM, 0);
+            }
 
         }
         break;
@@ -1031,6 +1062,11 @@ mscp_server::DoDiskTransfer(
                 params->BufferPhysicalAddress & 0x00ffffff,
                 params->ByteCount,
                 params->ByteCount));
+
+            if (!memBuffer)
+            {
+                return STATUS(Status::HOST_BUFFER_ACCESS_ERROR, HostBufferAccessSubcodes::NXM, 0);
+            }
  
             if (rctAccess)
             {
