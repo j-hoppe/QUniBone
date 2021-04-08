@@ -1,6 +1,6 @@
 /* tuning.h: Constants to adapt QBUS/UNIBUS functions
 
- Copyright (c) 2019-2020, Joerg Hoppe
+ Copyright (c) 2019-2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
 
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -96,18 +96,9 @@
 
 
 #elif defined(TUNING_QBONE_TEST)
-/*
-RN1,2 (DATIN) :   22 Ohm
-RN3 <1:6>(REGADR):   22 Ohm
-RN3 <7:8>(REGWRITE): 22 Ohm
-R14,R18 (REGWRITE TERM): none
-RN4,RN5 (DATOUT inline): 22
-RN9,RN10 [[/DATOUT]] end) -> none
-*/
-/* Limit for QBone with 22 Ohm inline terminators */
-#define BUSLATCHES_GETBYTE_DELAY	7 // 6: errors (LA attached)
-#define BUSLATCHES_SETBITS_DELAY	5 // 0  
-#define BUSLATCHES_SETBYTE_DELAY	6 // 1 // more critical than setbits
+#define BUSLATCHES_GETBYTE_DELAY	7
+#define BUSLATCHES_DATOUT_DELAY	1	// extra PCB delay PRU0 DATOUT
+#define BUSLATCHES_WRITE_DELAY	0	// extra PCB  delay PRU_WRITE
 
 
 #elif defined(TUNING_QBONE_PRODUCTION)

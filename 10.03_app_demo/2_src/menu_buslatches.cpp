@@ -118,6 +118,7 @@ static void buslatches_m9302_sack_test() {
 void application_c::menu_buslatches(const char *menu_code) {
 	bool show_help = true; // show cmds on first screen, then only on error or request
 	bool show_inputs = true; // query and show state of all latches
+	bool stop_on_error = true ;
 	bool ready;
 	char *s_choice;
 	char s_opcode[256], s_param[256];
@@ -170,10 +171,12 @@ void application_c::menu_buslatches(const char *menu_code) {
 			printf("<id> r      Random values\n");
 			printf("* o|z|t|r   As above, test on all R/W registers, without ADDR mux test.\n");
 			printf("* 0|1       All OFF, all ON\n");
+			printf("soe <0|1>   disable/enable \"stop on error\" for continous self tests (is %s).\n",
+						stop_on_error ? "ENABLED":"NOT ENABLED");
 #if defined(UNIBUS)
 			printf("gst         M9302 GRANT/SACK turnaround test\n");
 #endif
-			printf("o <0|1>     Enable/disable DS8641 " QUNIBUS_NAME " output drivers.\n");
+			printf("o <0|1>     disable/enable DS8641 " QUNIBUS_NAME " output drivers.\n");
 			printf("              Drivers are currently %s.\n",
 					buslatches.cur_output_enable ? "ENABLED" : "NOT ENABLED");
 			printf("a           Show all\n");
@@ -232,13 +235,13 @@ void application_c::menu_buslatches(const char *menu_code) {
 		}
 	} else if (n_fields == 2 && strchr("*", s_opcode[0])) {
 		if (!strcasecmp(s_param, "o")) {
-			buslatches.test_simple_pattern_multi(2);
+			buslatches.test_simple_pattern_multi(2, stop_on_error);
 		} else if (!strcasecmp(s_param, "z")) {
-			buslatches.test_simple_pattern_multi(3);
+			buslatches.test_simple_pattern_multi(3, stop_on_error);
 		} else if (!strcasecmp(s_param, "t")) {
-			buslatches.test_simple_pattern_multi(4);
+			buslatches.test_simple_pattern_multi(4, stop_on_error);
 		} else if (!strcasecmp(s_param, "r")) {
-			buslatches.test_simple_pattern_multi(5);  
+			buslatches.test_simple_pattern_multi(5, stop_on_error);
 		} else if (!strcasecmp(s_param, "0")) {
 			for (unsigned reg_sel = 0; reg_sel < 8; reg_sel++)
 				buslatches[reg_sel]->setval(0xff, 0);
@@ -251,6 +254,8 @@ void application_c::menu_buslatches(const char *menu_code) {
 			printf("Syntax error: *  <pattern>.\n");
 			show_help = true;
 		}
+	} else if (n_fields == 2 && !strcasecmp(s_opcode, "soe")) {
+		stop_on_error = strtol(s_param, NULL, 10);
 #if defined(UNIBUS)			
 	} else if (!strcasecmp(s_opcode, "gst")) {
 		buslatches_m9302_sack_test();

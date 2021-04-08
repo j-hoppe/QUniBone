@@ -245,11 +245,12 @@ void buslatches_c::exerciser_random_order() {
 // always reg0..7 are read&written, but muxed ADDR in 3,4,5 are ignored
 // because of "rw_bitmask" == 0
 // DOES NOT TEST MUXED ADDR
-void buslatches_c::test_simple_pattern_multi(unsigned pattern) {
+void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_error) {
 	unsigned pass_no; // global test number counter
 	uint64_t total_errors, total_tests;
 	unsigned reg_sel; // register address
 	unsigned testval[BUSLATCHES_COUNT]; // test data for all latches
+	const char * stop_phrase = stop_on_error? "stops on error or by ^C":"stop with ^C" ;
 #if defined(UNIBUS)
 #define QUPHRASE ""
 #else
@@ -261,19 +262,19 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern) {
 //		break;
 	case 2:
 		printf(
-				"Highspeed \"moving ones\" in register latches" QUPHRASE ", stop with ^C.\n");
+				"Highspeed \"moving ones\" in register latches" QUPHRASE ", %s.\n", stop_phrase);
 		break;
 	case 3:
 		printf(
-				"Highspeed \"moving zeros\" in register latches" QUPHRASE ", stop with ^C.\n");
+				"Highspeed \"moving zeros\" in register latches" QUPHRASE ", %s.\n", stop_phrase);
 		break;
 	case 4:
 		printf(
-				"Highspeed toggle 0x00 - 0xff in register latches" QUPHRASE ", stop with ^C.\n");
+				"Highspeed toggle 0x00 - 0xff in register latches" QUPHRASE ", %s.\n", stop_phrase);
 		break;
 	case 5:
 		printf(
-				"Highspeed random values in register latches" QUPHRASE ", stop with ^C.\n");
+				"Highspeed random values in register latches" QUPHRASE ", %s.\n", stop_phrase);
 		break;
 	default:
 		printf("Error: unknown test pattern %u.\n", pattern);
@@ -286,8 +287,7 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern) {
 	// Setup ^C catcher
 	SIGINTcatchnext();
 	// high speed loop
-	while (total_errors == 0 && !SIGINTreceived) {
-//	while (!SIGINTreceived) {
+	while ((!stop_on_error || (total_errors == 0)) && !SIGINTreceived) {
 		// 1 cycle = 8 bits of 8 registers
 		// some tests are no-op because of reduced bitwidth
 

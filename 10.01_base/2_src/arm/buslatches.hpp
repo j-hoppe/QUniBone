@@ -94,7 +94,7 @@ public:
 	void exerciser_random_order();
 
 	void test_simple_pattern(unsigned pattern, buslatch_c *bl);
-	void test_simple_pattern_multi(unsigned pattern);
+	void test_simple_pattern_multi(unsigned pattern, bool stop_on_error);
 
 	void test_timing(uint8_t addr_0_7, uint8_t addr_8_15, uint8_t data_0_7, uint8_t data_8_15);
 
