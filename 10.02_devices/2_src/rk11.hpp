@@ -22,6 +22,7 @@ using namespace std;
 class rk11_c: public storagecontroller_c
 {
 private:
+	
 
     // RK11 Registers (see Table 1-1 of manual):
     qunibusdevice_register_t *RKDS_reg;  // Drive Status Register
@@ -59,7 +60,7 @@ private:
     // Control/Status Register (RKCS) bits
     bool _go;		// Causes controller to execute function in _function when set
     uint16_t _function; // The function to perform (3 bits)
-    uint16_t _mex;      // Extended address bits for transfer (2 bits)
+    uint16_t _mex;      // Extended address bits for transfer (2 bits). noop on 16bit DMA RKV11
     bool _ide;          // Interrupt on done when set
     bool _rdy;          // Whether the controller is ready to process a command	
     bool _sse;          // Whether to stop on a soft error
@@ -161,6 +162,7 @@ public:
     rk11_c();
     virtual ~rk11_c();    
 
+	bool	is_rkv11 ; // QBUS version?
 
     // background worker function
     void worker(unsigned instance) override;
@@ -177,5 +179,12 @@ public:
   
     void on_drive_status_changed(storagedrive_c* drive);
 };
+
+// QBUS Mutant
+class rkv11_c: public rk11_c {
+public:
+    rkv11_c(void) ;
+} ;
+
 
 #endif

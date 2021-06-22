@@ -26,6 +26,7 @@ rk11_c::rk11_c() :
     name.value = "rk";
     type_name.value = "RK11";
     log_label = "rk";
+	is_rkv11 = false ;
 
 	// base addr, intr-vector, intr level
 	set_default_bus_params(0777400, 10, 0220, 5) ;
@@ -56,9 +57,8 @@ rk11_c::rk11_c() :
     RKCS_reg->active_on_dati = false;
     RKCS_reg->active_on_dato = true;
     RKCS_reg->reset_value = 0x0080;	// RDY high after INIT
-    RKCS_reg->writable_bits = 0x0f7f;
+	RKCS_reg->writable_bits = 0x0f7f; // also read/write on 16 bit dna RKV11
 
-    // Word Count Register (read/write)
     RKWC_reg = &(this->registers[3]); // @  base addr + 6
     strcpy(RKWC_reg->name, "RKWC");
     RKWC_reg->active_on_dati = false;
@@ -117,6 +117,18 @@ rk11_c::~rk11_c()
         delete storagedrives[i];
     }
 }
+
+// RLV11 is only 18 bit capable, and has an (unimplementedd) maintenance mode.
+rkv11_c::rkv11_c(): rk11_c() {
+	is_rkv11 = true ;
+
+    type_name.value = "RKV11";
+    log_label = "rk";
+
+    // INTR level 4 instead of RK11s 5 
+	set_default_bus_params(0777400, 10, 0220, 4) ;
+}
+
 
 // return false, if illegal parameter value.
 // verify "new_value", must output error messages
@@ -757,6 +769,9 @@ void rk11_c::on_after_register_access(
                         // Stow command data for this operation so that if RKCS gets changed
                         // mid-op weird things won't happen.
                         //
+                        if (is_rkv11) // mex implmeneted but ignored
+							_new_command.address = get_register_dato_value(RKBA_reg) ;
+						else
                         _new_command.address = get_register_dato_value(RKBA_reg) | (_mex << 16);
                         _new_command.drive = selected_drive();
                         _new_command.function = _function;

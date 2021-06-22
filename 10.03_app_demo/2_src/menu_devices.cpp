@@ -173,7 +173,12 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 #endif
 	paneldriver->reset(); // reset I2C, restart worker()
 	// create RK11 + drives
+#if defined(UNIBUS)
 	rk11_c *RK11 = new rk11_c();
+#elif defined(QBUS)
+	rkv11_c *RK11 = new rkv11_c();
+#endif
+
 	// Create UDA50
 	uda_c *UDA50 = new uda_c();
 	// Create SLU+ LTC
