@@ -173,7 +173,7 @@ void application_c::parse_commandline(int argc, char **argv) {
                          "read commands from file \"testseq\" and execute line by line", "", "");
 #if defined(QBUS)
     getopt_parser.define("aw", "addresswidth", "addresswidth", "", "",
-                         "Force address width of QBUS: 16, 18, 22.\nUse if auto-probing not desired.", "",
+                         "Mandatory address width of QBUS CPU: 16, 18, 22.\nCan not be auto-probed from backplane address width.", "",
                          "", "", "");
 #endif
     getopt_parser.define("leds", "leds", "ledcode", "", "",

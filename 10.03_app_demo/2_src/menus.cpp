@@ -123,7 +123,7 @@ bool application_c::emulate_memory(uint32_t endaddr) {
 	else {
 		// Emulate all unimplemented memory behind physical
 		if (endaddr == 0)
-			endaddr = qunibus->iopage_start_addr-2 ;
+			endaddr = qunibus->iopage_start_addr-1 ;
 		if (ddrmem->set_range(first_invalid_addr,  endaddr)) {
 			emulated_memory_start_addr = first_invalid_addr;
 			emulated_memory_end_addr = endaddr;

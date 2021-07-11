@@ -159,12 +159,10 @@ uint8_t emulated_addr_write_b(uint32_t addr, uint8_t b) {
 // Todo as fast response to INIT bus signal
 // 7,6 usecs for 256 loop
 void iopageregisters_reset_values() {
-PRU_DEBUG_PIN0(1);
 	unsigned i ;
 	pru_iopage_register_t *regptr = pru_iopage_registers.registers ;
 	for (i=0 ; i < MAX_IOPAGE_REGISTER_COUNT ; i++, regptr++)
 		regptr->value = regptr->reset_value ;
-PRU_DEBUG_PIN0(0);
 }
 
 

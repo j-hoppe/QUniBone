@@ -28,7 +28,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 12-nov-2018    JH  entered beta phase
 
 Statemachine for execution of slave DATO* or DATI* cycles.
-All references "PDP11BUS handbook 1979"
 
 */
 #include <stdlib.h>
@@ -58,8 +57,12 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
             uint32_t addr;
             latch2val = buslatches_getbyte(2);
             //	  latch3val = buslatches_getbyte(3); // SYNC latched signals
-            if (! (latch2val & BIT(7)))
+            if (! (latch2val & BIT(7))) {
+#ifdef TUNING_ODT_HALT_DETECTION
+            sm_data_slave.console_cycle_active = false ;
+#endif
                 return state_data_slave_stop; // no SYNC, or refresh cycle
+            }
             // SYNC: DAL is latched
             latch0val = buslatches_getbyte(0);
             latch1val = buslatches_getbyte(1);
@@ -71,6 +74,36 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
 
             //	  if (!(latch2val & BIT(6))) // pulse when not BS7
             //		  PRU_DEBUG_PIN0(1);
+            
+#ifdef TUNING_ODT_HALT_DETECTION
+            if ( !sm_data_slave.console_cycle_active) {
+                // Check only once per SYNC, else counter running.
+                // valid cycle started: recognize ODT HALT: Microcode is then accessing the UART for user interaction
+                // Trigger on repeated DIN/DOUT access to UART without other QBUS cycles in between.
+                // In normal code execution always program fetches to other addresses are seen.
+                // ! May also trigger on *cached* code loops !
+                uint32_t	uart_mask = QUNIBUS_IOPAGE_ADDR_BITMASK | 0017770 ; // iopage local address with bit0:2 don't care
+                uint32_t	uart_addr = QUNIBUS_IOPAGE_ADDR_BITMASK | 0177560 ; // UART base addr + BS7
+                if ((addr & uart_mask) == (uart_addr & uart_mask) ) {
+                    // din/dout to uart.
+                    sm_data_slave.console_cycle_active = true ;
+					switch(sm_data_slave.console_continuous_accesses) {
+					// console_continuous_accesses counts 0, 1	(signal!), 2, 2 ...
+					case 0: 
+						sm_data_slave.console_continuous_accesses++ ;
+						break ;
+    				case 1: 
+                        // only one pulse on transition! then reset by PRU activity again
+                        PRU_DEBUG_PIN0(1) ; // signal to LA
+						sm_data_slave.console_continuous_accesses++ ;
+						break ;
+					default: ; // 2 forever
+                    }
+                } else
+                    sm_data_slave.console_continuous_accesses = 0 ;
+            }
+#endif
+
 
             // DO NOT EVALUATED WTBT for early DIN/DOUT decision ... perhaps later optimization
             state = state_data_slave_dindout_start; //
@@ -89,7 +122,9 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 return state_data_slave_stop; // master aborted, or other device accepted (missing SYNC cycle?)
             }
 
+
             if (latch4val & BIT(1)) { // DIN?
+
                 // fast return of present value, then long delay
                 // until ARM is ready when event acked
                 uint16_t val;
@@ -104,7 +139,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 buslatches_setbyte(1, (val >> 8) & 0xff);			// DAL15..8
                 // DAL21 must be negated to indicate "no parity".
                 // Implicitely true, as master removes address from DAL after SYNC, and we don't set DAL21 with other vlaues
-				
+
                 // "setbyte(2,0) only once, see above
                 buslatches_setbits(4, BIT(3)+BIT(6), 0xff); 			 // REF=1: more DIN allowed, RPLY
 
@@ -118,7 +153,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 uint32_t addr = sm_data_slave.addr;
                 uint8_t emulated_addr_res ;
                 // access to DAL in latches[0,1,2] transparent
-                buslatches_setbyte(3, BIT(0)) ; // unlatch DAL
+                buslatches_setbyte(3, BIT(0)) ; // unlatch DAL to see data
                 if (latch4val & BIT(4)) { // WTBT? byte access!
                     uint8_t b;
 
@@ -168,7 +203,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
             if (latch4val  & BIT(1)) { // DIN?
                 state = state_data_slave_din_single_complete; // wait for master to negate DIN
             } else if (!EVENT_IS_ACKED(mailbox, deviceregister)) {
-				return state_data_slave_din_single_complete; //  main(): check for ARM EVENT_ACK			 
+                return state_data_slave_din_single_complete; //  main(): check for ARM EVENT_ACK
 //                state = state_data_slave_din_single_complete; // wait for ARM to process device register access
             } else {
                 buslatches_setbits(4, BIT(3)+BIT(6), 0); // RPLY=0, ARM-elongated cycle finished.  REF=0, cleanup
@@ -193,7 +228,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
             if (latch4val & BIT(2)) { // DOUT?
                 state = state_data_slave_dout_single_complete; // wait for master to negate DOUT
             } else if (!EVENT_IS_ACKED(mailbox, deviceregister)) {
-  				  return state_data_slave_dout_single_complete; //  main(): check for ARM EVENT_ACK            
+                return state_data_slave_dout_single_complete; //  main(): check for ARM EVENT_ACK
 //                state = state_data_slave_dout_single_complete; // wait for ARM to process device register access
             } else {
                 buslatches_setbits(4, BIT(3)+BIT(6), 0); // RPLY=0, ARM-elongated cycle finished.  REF=0, cleanup

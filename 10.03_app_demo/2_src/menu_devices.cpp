@@ -242,7 +242,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 			} else
 				printf("    NO " QUNIBUS_NAME " memory installed ... device test limited!\n");
 			printf("\n");
-			printf("m i [<endaddr>]      Install (emulate) max " QUNIBUS_NAME " memory, or until by <endaddr>\n");
+			printf("m i [<endaddr>]      Install (emulate) max " QUNIBUS_NAME " memory, or up to including odd <endaddr>\n");
 			printf("m f [word]           Fill " QUNIBUS_NAME " memory (with 0 or other octal value)\n");
 			printf("m d                  Dump " QUNIBUS_NAME " memory to disk\n");
 			printf(

@@ -2,7 +2,7 @@
 
 /* pru1_statemachine_slave.h: state machine for execution of slave DATO* or DATI* cycles
 
- Copyright (c) 2018-2019, Joerg Hoppe
+ Copyright (c) 2018-2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
 
  Permission is hereby granted, free of charge, to any person obtaining a
@@ -47,6 +47,10 @@ typedef struct {
     enum states_data_slave_enum state;
     uint16_t        val;                            // prefetched memory content
     uint32_t        addr;                           // latched address
+#ifdef TUNING_ODT_HALT_DETECTION
+    bool  	       console_cycle_active ;		// accesses to 17756x: SYNC active
+    uint8_t       console_continuous_accesses ; // accesses to 17756x : counts sync cycle
+#endif
 } statemachine_data_slave_t;
 
 

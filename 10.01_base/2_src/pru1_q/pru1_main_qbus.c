@@ -1,6 +1,6 @@
 /* pru1_main_qbus.c: main loop with mailbox cmd interface. QBUS devices with opt. phys. PDP-11 CPU.
 
- Copyright (c) 2018-2019, Joerg Hoppe
+ Copyright (c) 2018-2021, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
 
  Permission is hereby granted, free of charge, to any person obtaining a
