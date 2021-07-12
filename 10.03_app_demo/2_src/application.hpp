@@ -75,7 +75,7 @@ public:
 
 	// QUniBone should emulate this address range
 	uint32_t emulated_memory_start_addr; // even
-	uint32_t emulated_memory_end_addr; // must be odd (last byte)
+	uint32_t emulated_memory_end_addr; // even (last word)
 
 	void print_arbitration_info(		const char *indent);
 	char *getchoice(const char *menu_code);

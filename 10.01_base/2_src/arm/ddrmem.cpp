@@ -216,13 +216,13 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 	// addresses must fit page borders
 	else if (qunibus_startaddr % 2)
 		WARNING("Start addr %s is no word address", qunibus->addr2text(qunibus_startaddr));
-	else if (! (qunibus_endaddr % 2) )
-		WARNING("End addr %s must be odd", qunibus->addr2text(qunibus_endaddr));
+	else if (qunibus_endaddr % 2)
+		WARNING("End addr %s is no word address", qunibus->addr2text(qunibus_endaddr));
 	else {
 		// mark pages in address range as "memory emulation"
 		pru_iopage_registers->memory_start_addr = qunibus_startaddr ;
-		// endaddr is even, limit_addr first invalid address -> endaddr+1 included for DATOB
-		pru_iopage_registers->memory_limit_addr = qunibus_endaddr+1 ;
+		// endaddr is even, limit_addr is first invalid address -> endaddr+2 included for DATOB
+		pru_iopage_registers->memory_limit_addr = qunibus_endaddr+2 ;
 		error = false ;		
 	}
 	return !error;
