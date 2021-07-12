@@ -32,7 +32,7 @@
 #elif defined(QBUS)
 //#define TUNING_QBONE_TEST
 #define TUNING_QBONE_PRODUCTION
-#define TUNING_ODT_HALT_DETECTION	1	// trigger PRU_DEBUG_PIN0 on Microcode ODT HALT
+//#define TUNING_ODT_HALT_DETECTION	1	// trigger PRU_DEBUG_PIN0 on Microcode ODT HALT
 #endif
 
 
