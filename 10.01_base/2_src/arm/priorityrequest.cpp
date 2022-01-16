@@ -21,7 +21,7 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
- jul-2019     JH      start: multiple parallel arbitration levels	 
+ jul-2019     JH      start: multiple parallel arbitration levels
  */
 
 #include <assert.h>
@@ -52,7 +52,8 @@ void priority_request_c::set_priority_slot(uint8_t priority_slot) {
 		return ; // called on every on_param_change()
 	qunibusdevice_c *ubdevice = qunibusdevice_c::find_by_request_slot(priority_slot);
 	if (ubdevice && ubdevice != this->device) {
-			WARNING("Slot %u already used by device %s", (unsigned) priority_slot, ubdevice->name.value.c_str());
+            WARNING("Slot %u requested by device %s, already used by %s", (unsigned) priority_slot,
+                      this->device->name.value.c_str(), ubdevice->name.value.c_str());
 		}
 	this->priority_slot = priority_slot;
 	// todo: check for collision with all other devices, all other requests
@@ -108,5 +109,4 @@ void intr_request_c::set_vector(uint16_t vector) {
 	assert((vector & 3) == 0); // multiple of 2 words
 	this->vector = vector;
 }
-
 
