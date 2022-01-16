@@ -84,6 +84,7 @@ RX11_c::RX11_c(void) :    storagecontroller_c() {
     log_label = "rx";
 
     // base addr, intr-vector, intr level
+    // default params identical to RX211, but different slot to prevent priority slot warning
     set_default_bus_params(0777170, 16, 0264, 5);
 
     // Both drives are controlled by a single micro processor inside the double-drive box.
