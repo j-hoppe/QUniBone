@@ -108,7 +108,7 @@ void buslatches_setbits_helper(uint32_t val /* R14 */, uint32_t reg_sel /* R15 *
 	// compiles to  SBBO &... : 2 cycles ?
 
 	__R30 |= (1 << 11);
-	__delay_cycles(3+BUSLATCHES_WRITE_DELAY); // can be shortened when CPLD shift regsiter is faster
+	__delay_cycles(3+BUSLATCHES_WRITE_DELAY); // can be shortened when CPLD shift register is faster
 }
 
 
@@ -175,11 +175,11 @@ void xbuslatches_setbits_helper(uint32_t val /* R14 */, uint32_t reg_sel /* R15 
 
 /* special logic for latched ADDR register 3,4,5(partly)
  Value is written via DAL in reg 0,1,2 with SYNC mux.
- Only for selftest purposes, Lots of side effects!
+ Only for self-test purposes, Lots of side effects!
  */
 void buslatches_setbits_mux_helper(uint32_t reg_sel, uint32_t bitmask, uint32_t val) {
 	// save state of DAL lines, SYNC and HALT
-	// do not toch HALT
+	// do not touch HALT
 	uint8_t saved_reg0_val = buslatches_getbyte(0) ;
 	uint8_t saved_reg1_val = buslatches_getbyte(1) ;
 	uint8_t saved_reg2_val = buslatches_getbyte(2) ;
@@ -195,7 +195,7 @@ void buslatches_setbits_mux_helper(uint32_t reg_sel, uint32_t bitmask, uint32_t 
 	case 4: // <ADDR15:8>
 		data_reg1_val = (data_reg1_val & ~bitmask) | (val & bitmask) ;
 		break;
-	case 5: // ADDR<21:16>,BS7,WTBT. WTBT not lacthed on SYNC
+	case 5: // ADDR<21:16>,BS7,WTBT. WTBT not latched on SYNC
 		data_reg2_val = (data_reg2_val & ~bitmask) | (val & bitmask) ;
 		// write bit7 WTBT of reg 5 directly,
 		buslatches_setbits(5, 0xc0, val) ; // write BS7, WTBT directly onto BUS
@@ -213,7 +213,7 @@ void buslatches_setbits_mux_helper(uint32_t reg_sel, uint32_t bitmask, uint32_t 
 	buslatches_setbyte(0, saved_reg0_val) ;
 	buslatches_setbyte(1, saved_reg1_val) ;
 	buslatches_setbits(2, 0xff, saved_reg2_val) ;
-	// ad hoc deleay to pass selftest. signal run time to following "readbyte()" ?
+	// ad hoc delay to pass self-test. signal run time to following "readbyte()" ?
 	__delay_cycles(NANOSECS(10)) ; 
 
 }
@@ -251,7 +251,7 @@ void buslatches_reset() {
  */
 
 
-// capsules byte, bit and multiplexe accesses. 
+// capsules byte, bit and multiplexes accesses.
 // Arbitrary use of byte and bit access
 // MAcro for speed reasons? code size!
  #define xexerciser_latch_set(addr,val) do {		\

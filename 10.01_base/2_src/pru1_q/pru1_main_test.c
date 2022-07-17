@@ -56,7 +56,7 @@
 //#include "pru1_statemachine_intr_master.h"
 #include "pru1_statemachine_data_slave.h"
 
-// Supress warnings about using void * as function pointers
+// Suppress warnings about using void * as function pointers
 //		sm_slave_state = (statemachine_state_func)&sm_data_slave_start;
 // while (sm_slave_state = sm_slave_state()) << usage
 #pragma diag_push

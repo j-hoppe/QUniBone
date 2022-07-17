@@ -49,7 +49,7 @@ typedef void * (*statemachine_state_func)(void);
 #define MILLION 1000000L
 #define BILLION (1000L * MILLION)
 
-// cycles equivalent to given amount of nano seconds
+// cycles equivalent to given amount of nanoseconds
 #define NANOSECS(n) ( (n) / 5)
 #define MICROSECS(n) ( (n) * 1000 / 5)
 #define MILLISECS(n) ( (n) * 1000000 / 5)
@@ -57,7 +57,7 @@ typedef void * (*statemachine_state_func)(void);
 #define BIT(n) (1 << (n))
 
 /* The single global timeout uses the CYCLECOUNT counter
- * cycle is counting upward at 200MHz, stopps at 0xff.fff
+ * cycle is counting upward at 200MHz, stops at 0xff.fff
  * CTR_EN must be 1. clearing only if CTR_EN = 0
  * can only by reset when  CTR_EN = 0
  * TIMEOUT_INTERNAL_CYCLES counts cycles to process
@@ -74,18 +74,18 @@ typedef void * (*statemachine_state_func)(void);
  while (!TIMEOUT_REACHED) ;
  }
  *
- * Enhancement: save address of CYLCE in cosntant btabel C28, see
+ * Enhancement: save address of CYLCE in constant btabel C28, see
  http://theembeddedkitchen.net/beaglelogic-building-a-logic-analyzer-with-the-prus-part-1/449
  * ALTERNATIVE 1:
  * The Industrial Ethernet module has a general purpose time and compare registers:
- * 32 bit Counter is permanetly running cyclic through overlfow
+ * 32 bit Counter is permanently running cyclic through overflow
  * TIMEOUT_SET:  compare0 = counter + delay, clear compare0 flag
- *	Error, if rollaround: Compare0 < counter    !!!!
+ *	Error, if roll around: Compare0 < counter    !!!!
  * TIMEOUT_REACHED: test CMP_HIT0 flag set in IEP_TMR_CMP_STS
  * reset counter on match
- * This way 8 differnet timeouts could be programmed
+ * This way 8 different timeouts could be programmed
  * COUNTER reset on start of statemachine??
- * dann nur compare0 nutzbar
+ * then only compare0 can be used
  * counter overflow auf 2^32 5ns =  21 sek
 
  * ALTERNATIVE 2:
@@ -98,7 +98,7 @@ typedef void * (*statemachine_state_func)(void);
 #define PRU_DEBUG_PIN0(val) ( (val) ? (__R30 |= (1 << 12) ) : (__R30 &= ~(1<< 12)) )
 
 // set PRU1_13 to 0 or 1. BBB must have "eMMC trace cut"!
-// PinMUX: Temporarly change this
+// PinMUX: Temporarily change this
 // 		0x084 0x07 // Force constant level on eMMC CMD pin. P8.20 output gpio1_31, pulldown, mode=7
 //	to this
 // 		0x084 0x05 // PRU1_13 on P8.20: pr1_pru1_pru_r30_13, fast, output, pulldown, mode=5

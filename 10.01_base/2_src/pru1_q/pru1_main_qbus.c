@@ -63,7 +63,7 @@
 //#include "pru1_statemachine_intr_master.h"
 //#include "pru1_statemachine_intr_slave.h"
 
-// supress warnigns about using void * as function pointers
+// suppress warnings about using void * as function pointers
 //	sm_slave_state = (statemachine_state_func)&sm_data_slave_start;
 // while (sm_slave_state = sm_slave_state()) << usage
 #pragma diag_push
@@ -139,7 +139,7 @@ void main(void) {
 			while ((sm_data_slave.state = sm_data_slave_func(sm_data_slave.state)) /* ! stopped*/
 					&& EVENT_IS_ACKED(mailbox, deviceregister)) {
 				// throws signals to ARM,
-				// Acess to internal registers may issue ARM2PRU opcode, so exit loop then
+				// Access to internal registers may issue ARM2PRU opcode, so exit loop then
 				;// execute complete slave cycle, then check NPR/INTR
 				}
 			// signal INT or PWR FAIL to ARM
@@ -155,7 +155,7 @@ void main(void) {
 				// forward un-requested IOAKI/DMGI to IOAKO/DMGO for other cards on neighbor slots
 				sm_arb.device_forwarded_grant_mask = cpu_grant_mask
 						& ~sm_arb.device_request_signalled_mask;
-				// Any write to IAKO4..7 setzs QBUS IAKO
+				// Any write to IAKO4..7 sets QBUS IAKO
 				buslatches_setbits(7, PRIORITY_ARBITRATION_BIT_MASK, sm_arb.device_forwarded_grant_mask)
 				;
 				// "A device may not accept a grant (assert SACK) after it passes the grant"
@@ -185,7 +185,7 @@ void main(void) {
 					// no: when running, SACK is set, no new GRANTs
 				}
 				// else if (granted_request & PRIORITY_ARBITRATION_INTR_MASK) {
-				// No separate state machone for device side of INTR, handled in sm_arb 
+				// No separate state machine for device side of INTR, handled in sm_arb
 			}
 			
 		} else {
@@ -213,7 +213,7 @@ void main(void) {
 		}
 #endif
 		// process ARM commands in master and slave mode
-		// standard operation may be interrupt by other requests
+		// standard operation may be interrupted by other requests
 		if (arm2pru_req_cached = mailbox.arm2pru_req) {
 			// not ARM2PRU_NONE
 			switch (arm2pru_req_cached) {
@@ -225,7 +225,7 @@ void main(void) {
 				if (mailbox.dma.cpu_access) {
 					// Emulated CPU: no NPR/NPG/SACK protocol
 					sm_arb.cpu_request = 1;
-//PRU_DEBUG_PIN0_PULSE(50) ; // CPU20 performace
+//PRU_DEBUG_PIN0_PULSE(50) ; // CPU20 performance
 				} else {
 					// Emulated device: raise request for emulated or physical Arbitrator.
 					sm_arb.device_request_mask |= PRIORITY_ARBITRATION_BIT_NP;
@@ -239,10 +239,10 @@ void main(void) {
 				// by ARM, if access to "active" register triggers INTR.
 				sm_arb.device_request_mask |= mailbox.intr.priority_arbitration_bit;
 				// sm_arb evaluates this, extern Arbitrator raises Grant/performs INTR protocol,
-				// vector of GRANted level is transfered to ARM
+				// vector of GRANted level is transferred to ARM
 
 				// Atomically change state in a device's associates interrupt register.
-				// The Interupt Register is set immediately. No wait for INTR GRANT,
+				// The Interrupt Register is set immediately. No wait for INTR GRANT,
 				// INTR level may be blocked.
 				if (mailbox.intr.iopage_register_handle)
 					pru_iopage_registers.registers[mailbox.intr.iopage_register_handle].value =
@@ -254,7 +254,7 @@ void main(void) {
 				// cancels one or more INTR requests. If already Granted, the GRANT is forwarded,
 				// and canceled by reaching a "SACK turnaround terminator" or "No SACK TIMEOUT" in the arbitrator.
 				sm_arb.device_request_mask &= ~mailbox.intr.priority_arbitration_bit;
-				// no completion event, could interfer with other INTRs?
+				// no completion event, could interfere with other INTRs?
 				mailbox.arm2pru_req = ARM2PRU_NONE;  // done
 				break;
 			case ARM2PRU_ARB_GRANT_INTR_REQUESTS:

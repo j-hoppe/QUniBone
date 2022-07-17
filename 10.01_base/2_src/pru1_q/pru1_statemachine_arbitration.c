@@ -39,7 +39,7 @@
  3. PRU monitors IN GRANT lines BG4567,NPG.
  IN state of idle requests is forwarded to BG|NPG OUT liens,
  to be processed by other QBUS cards.
- BG*|NPG IN state line of active request cleares BR*|NPR line,
+ BG*|NPG IN state line of active request clears BR*|NPR line,
  sets SACK, and starts INTR or DMA state machine.
  4. INTR or DMA sent a signal on compelte to PRU.
  PRU may then start next request on same (completed) BR*|NPR level.
@@ -54,7 +54,7 @@
  else if PRI < 4 and BR4 is reived, assert BG4
 
 
- If PRU detectes a BGINn which it not requested, it passes it to BGOUTn
+ If PRU detects a BGINn which it not requested, it passes it to BGOUTn
  "passing the grant"
  if PRU detects BGIN which was requests, it "blocks the GRANT" )sets SACK and
  transmit the INT (BG*) or becomes
@@ -65,19 +65,19 @@
  Device may take bus if SYNC==0 && RPLY==0
 
  Device timing: assert DMR, wait for DMGI, assert SACK, wait for NPG==0,
- data cycles, set SACK=0 after last RPLY, set neagte SYNC 200ns max after negate SACK
+ data cycles, set SACK=0 after last RPLY, set negate SYNC 200ns max after negate SACK
 
- BBSY is set before SACK is released. SACK is relased imemdiatley after BBSY,
- enabling next arbitration in parallel to curretn data transfer
- "Only the device with helds SACk asserted can assert BBSY
+ BBSY is set before SACK is released. SACK is released immediately after BBSY,
+ enabling next arbitration in parallel to current data transfer
+ "Only the device which holds SACk asserted can assert BBSY
 
 
  Several arbitration "workers" which set request, monitor or generate GRANT signals
  and allocate SACK.
- Which worker to use depends on wether a physical PDP-11 CPU is Arbitrator,
- the Arbitrator is implmented here (CPU emulation),
+ Which worker to use depends on whether a physical PDP-11 CPU is Arbitrator,
+ the Arbitrator is implemented here (CPU emulation),
  or DMA should be possible always
- (even if some other CPU monitr is holding SACK (11/34).
+ (even if some other CPU monitor is holding SACK (11/34).
  */
 
 #define _PRU1_STATEMACHINE_ARBITRATION_C_
@@ -226,7 +226,7 @@ uint8_t sm_arb_worker_device(uint8_t granted_requests_mask) {
         return 0 ; // wait, nothing yet granted
     }
     case state_arbitration_dma_grant_rply_sync_wait:
-        // "3. The DMA Bus Master device asserts TSACK 0 ns minimun after the
+        // "3. The DMA Bus Master device asserts TSACK 0 ns minimum after the
         // assertion  of  RDMGI; 0 ns minimum after the negation of RSYNC;
         // and  0ns minimum after the  negation of RRPLY."
         if ( buslatches_getbyte(4) & (BIT(0) + BIT(3)))
@@ -265,7 +265,7 @@ uint8_t sm_arb_worker_device(uint8_t granted_requests_mask) {
             return 0 ; // DIN not yet set despite RPLY missing?
         // "5. The Bus Slave negates IRQ and asserts TRPLY 0 ns minimum after
         // the assertion of RIAKI. Note that the Bus Slave must assert
-        // TRPLY 8000 ns maximun after RDIN to avoid a Bus Timeout."
+        // TRPLY 8000 ns maximum after RDIN to avoid a Bus Timeout."
 
         // one of our INTR requests was granted and not forwarded:
         // (device_grant_mask has only 1 bit set, CPLD2!)
@@ -281,14 +281,14 @@ uint8_t sm_arb_worker_device(uint8_t granted_requests_mask) {
         // because vectors are constrained to addresses between 0 and
         // 777, only bits TDAL<08:02> are involved and no others should
         // be asserted."
-        // now transfer INTR vector for interupt of GRANTed level.
+        // now transfer INTR vector for interrupt of GRANTed level.
         // vector and ARM context have been setup by ARM before ARM2PRU_INTR already
         intr_idx = PRIORITY_ARBITRATION_INTR_BIT2IDX(sm_arb.device_grant_mask);
         intr_vector = mailbox.intr.vector[intr_idx];
         buslatches_setbyte(0, intr_vector & 0xff);					// DAL7..0
         buslatches_setbyte(1, (intr_vector >> 8) & 0xff);			// DAL15..8
 		// DAL21 must be negated to indicate "no parity".
-		// Implicitely true, as master removes address from DAL after SYNC, and we don't set DAL21 with other vlaues
+		// Implicitly true, as master removes address from DAL after SYNC, and we don't set DAL21 with other vlaues
 		//		buslatches_setbits(2, 0x3f, 0) ;  // clr DAL21..16, keep BS7: "no parity support"
         
         sm_arb.intr_level_index = intr_idx; // to be returned to ARM on complete

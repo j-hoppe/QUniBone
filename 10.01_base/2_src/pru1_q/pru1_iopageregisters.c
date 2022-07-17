@@ -48,7 +48,7 @@ pru_iopage_registers_t pru_iopage_registers;
  * result 2 = iopage, 1 = memory, 0 = register not implemented
  * for "active" registers:
  * put prepared register value onto bus, then set mailbox event to ARM
- * for post processing. SSYN must remain asserted until ARM is complete
+ * for post-processing. SSYN must remain asserted until ARM is complete
  * addr: with encoded BS7 bit
  */
 uint8_t emulated_addr_read(uint32_t addr, uint16_t *val) {
@@ -92,7 +92,7 @@ uint8_t emulated_addr_write_w(uint32_t addr, uint16_t w) {
 	if (addr < pru_iopage_registers.memory_limit_addr && addr >= pru_iopage_registers.memory_start_addr) {
 		// speed priority on memory access: test for end_addr first
 		// addr in allowed memory range, not in I/O page
-   		// no check wether addr is even (A00=0)
+   		// no check whether addr is even (A00=0)
 		// write 16 bits
 		DDRMEM_MEMSET_W(addr, w);
 		return 1;

@@ -32,7 +32,7 @@
 
 // Transfers a block of worst as data cycles
 typedef struct {
-	uint8_t state_timeout; // timeout occured?
+	uint8_t state_timeout; // timeout occurred?
 	uint16_t *dataptr; // points to current word in mailbox.words[] ;
 	uint16_t words_left; // # of words left to transfer
 	uint32_t block_end_addr	; // last address of a DATBI/DATBO transfer.

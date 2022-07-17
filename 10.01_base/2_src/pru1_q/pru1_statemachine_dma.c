@@ -29,7 +29,7 @@
  Statemachines to execute multiple master DATO or DATI cycles.
  All references "LSI-11 BUS SPEC DEC STANDARD 160 REV A"
 
- Master reponds to INIT by stopping transactions.
+ Master responds to INIT by stopping transactions.
  new state
 
  Start: setup dma mailbox setup with
@@ -288,7 +288,7 @@ statemachine_state_func sm_dma_state_dout_start() {
     if (is_datob) {
         // A00=1: upper byte, A00=0: lower byte
         uint8_t b = (addr & 1) ? (data >> 8) : (data & 0xff);
-        internal = emulated_addr_write_b(addr, b); // always sucessful, addr already tested
+        internal = emulated_addr_write_b(addr, b); // always successful, addr already tested
     } else
         // DATO
         internal = emulated_addr_write_w(addr, data);
@@ -436,7 +436,7 @@ static statemachine_state_func sm_dma_state_99() {
     // 250 ns since RPLY already passed, see sate _11 and _21
 
     // 2 reasons to terminate transfer
-    // - BUS timeout at curent address
+    // - BUS timeout at current address
     // - last word transferred
 
     if (sm_dma.state_timeout) {
@@ -485,7 +485,7 @@ static statemachine_state_func sm_dma_state_99() {
         PRU2ARM_INTERRUPT
         ;
     }
-//		PRU_DEBUG_PIN0_PULSE(50) ;  // CPU20 performace
+//		PRU_DEBUG_PIN0_PULSE(50) ;  // CPU20 performance
 
     return NULL; // now stopped
 }

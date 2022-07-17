@@ -131,7 +131,7 @@ enum states_data_slave_enum  sm_data_slave_func(enum states_data_slave_enum  /**
                 uint8_t emulated_addr_res = emulated_addr_read(sm_data_slave.addr, &val) ;
 
                 if (!emulated_addr_res) { // read val from iopage register
-                    return state_data_slave_stop; // non existing address
+                    return state_data_slave_stop; // non-existing address
                 }
                 //		  PRU_DEBUG_PIN0(1);
 
