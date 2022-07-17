@@ -132,7 +132,7 @@ public:
 } ;
 
 
-// map for each memory address, wheter to trace or not
+// map for each memory address, whether to trace or not
 class tracer_c {
 public:
     bool enabled ; // to be evaluated?

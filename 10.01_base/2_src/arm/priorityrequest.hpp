@@ -31,7 +31,7 @@
  => 5 Priority Arbitration Levels encoded with index 0..4
  2. Priority within one request level
  Priority for Requests of same level given by backplane slot.
- Backplane closests to CPU is granted first => highest priority
+ Backplane closest to CPU is granted first => highest priority
 
  So priority of a request is given by two coordinates: level and slot.
 
@@ -77,7 +77,7 @@ private:
 	uint8_t priority_slot; // backplane priority_slot which triggered request
 public:
 	// better make state variables volatile, accessed by qunibusadapter::worker
-	volatile bool executing_on_PRU; // true between schedule to PRU and compelte signal
+	volatile bool executing_on_PRU; // true between schedule to PRU and complete signal
 	volatile bool complete;
 
 	// PRU -> signal -> worker() -> request -> device. INTR/DMA
@@ -108,7 +108,7 @@ public:
 
 	bool is_cpu_access; // true if DMA is CPU memory access
 
-	// DMA transaction are divided in to smaller DAT transfer "chunks" 
+	// DMA transaction are divided into smaller DAT transfer "chunks"
 	uint32_t chunk_max_words; // max is PRU capacity PRU_MAX_DMA_WORDCOUNT (512)
 	uint32_t chunk_qunibus_start_addr; // current chunk
 	uint32_t chunk_words; // size of current chunks
@@ -120,7 +120,7 @@ public:
 		return buffer + (chunk_qunibus_start_addr - qunibus_start_addr) / 2;
 	}
 
-	// words already transfered in previous chunks
+	// words already transferred in previous chunks
 	uint32_t wordcount_completed_chunks(void) {
 		return (chunk_qunibus_start_addr - qunibus_start_addr) / 2;
 	}

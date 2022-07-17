@@ -75,7 +75,7 @@ typedef struct qunibusdevice_register_struct {
 	// if register is "active": flipflops behind address
 	// active registers have different latches for DATI and DATO cycles,
 	// and represent status/command information.
-	volatile uint16_t active_dati_flipflops; // latch acessed by DATI
+	volatile uint16_t active_dati_flipflops; // latch accessed by DATI
 	volatile uint16_t active_dato_flipflops;
 } qunibusdevice_register_t;
 

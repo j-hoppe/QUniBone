@@ -156,7 +156,7 @@ uint64_t flexi_timeout_c::get_resolution_ns() {
 	return BILLION * res.tv_sec + res.tv_nsec;
 }
 
-// current time in nanosecons
+// current time in nanoseconds
 
 void flexi_timeout_c::start_ns(uint64_t duration_ns) {
 	if (timeout_controller->mode == world_time) {
@@ -296,7 +296,7 @@ void flexi_timeout_controller_c::set_mode(enum flexi_timeout_c::mode new_mode) {
 		}
 
 		// Threads wait for semaphores.
-		// as the app stopps calingstep() now, they'd freeze forever.
+		// as the app stops calingstep() now, they'd freeze forever.
 		// so signal all.
 		mode = flexi_timeout_c::world_time; // before signaling waiters, they may wait() immediately again
 		std::multimap<uint64_t, flexi_timeout_c*>::iterator it = emu_timeout_wait_list.begin();
@@ -461,9 +461,9 @@ private:
 
 	uint64_t totaltick_ns; // total ticks issued to timeout_controller
 
-	// Stimualte time_controller with step() until totaltick_ns reaches end_total_ticks_ns.
+	// Stimulate time_controller with step() until totaltick_ns reaches end_total_ticks_ns.
 	// step duration is 0.. max.
-	// speed_factor_percent: 0..100: emulated ticks faster then real time
+	// speed_factor_percent: 0..100: emulated ticks faster than real time
 	//	e.g.: 200 -> emulated time double as fast as world time
 	//		50: -> emulated time half as fast as world time
 	void emulated_random_steps(uint64_t end_total_ticks_ns, unsigned max_step_duration_ns,

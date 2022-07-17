@@ -74,7 +74,7 @@ public:
 	enum prucode_enum {
 		PRUCODE_EOD = 0, // special marker: end of dictionary
 		PRUCODE_NONE = 0, // no code running, RPU reset
-		PRUCODE_TEST = 1,	// only selftest functions
+		PRUCODE_TEST = 1,	// only self-test functions
 		PRUCODE_EMULATION = 2 // regular QBUS/UNIBUS operation
 	// with or without physical CPU for arbitration
 	};

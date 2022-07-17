@@ -56,7 +56,7 @@ public:
 	}
 
 	virtual void set_val(unsigned value) override {
-		// all other are single bit signals: get from wire_info
+		// all others are single bit signals: get from wire_info
 		buslatches_wire_info_t *wi = buslatches_wire_info_get(name, /*is_input*/false);
 		if (wi) { // writable
 			buslatches[wi->reg_sel]->setval(1 << wi->bit_nr, value << wi->bit_nr);
@@ -65,7 +65,7 @@ public:
 
 	virtual unsigned get_val() override {
 		unsigned result=0;
-		// all other are single bit signals: get from wire_info
+		// all others are single bit signals: get from wire_info
 		buslatches_wire_info_t *wi = buslatches_wire_info_get(name, /*is_input*/true);
 		if (wi) { // readable
 			uint8_t latchval = buslatches[wi->reg_sel]->getval();

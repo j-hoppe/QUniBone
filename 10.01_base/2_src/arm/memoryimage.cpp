@@ -49,7 +49,7 @@
 #include "logger.hpp"
 #include "memoryimage.hpp" // own
 
-// single multi purpose memory image buffer
+// single multipurpose memory image buffer
 memoryimage_c *membuffer;
 
 // add integer to all addresses
@@ -97,7 +97,7 @@ unsigned memoryimage_c::get_word_count(void) {
 	return result;
 }
 
-// return first and last valid adddres
+// return first and last valid address
 // first > last: no data set
 void memoryimage_c::get_addr_range(unsigned *first, unsigned* last) {
 	unsigned _first = 0x3ffff;
@@ -501,8 +501,8 @@ bool memoryimage_c::load_macro11_listing(const char *fname, codelabel_map_c *cod
 		map_address_pending = MEMORY_ADDRESS_INVALID;
 		while (!ready) {
 			// scan line word-wise
-			// label - address detctionb: 2 cases, see above
-			// case 1: label without addr in smae line, assing first following label
+			// label - address detection: 2 cases, see above
+			// case 1: label without addr in same line, passing first following label
 			// case 2: label in same line with <addr> <code...>
 			while (*tp && isspace(*tp))
 				tp++; // skip white space
@@ -513,14 +513,14 @@ bool memoryimage_c::load_macro11_listing(const char *fname, codelabel_map_c *cod
 				// is string. no number => label case 2: label in row with addr/data?
 				char *s = nxt_token(&tp);
 				if (*tp != ':' || *s == '8' || *s == '9') {
-					// exculde non-label strings.
+					// exclude non-label strings.
 					// labels must be followed by ':'
-					// local labels beginning with 0..7 already interpeted numeric
+					// local labels beginning with 0..7 already interpreted numeric
 				} else if (map_address_pending != MEMORY_ADDRESS_INVALID) {
 					// case 2: address left of label in same line
 					if (codelabels) {
 						codelabels->add(s, map_address_pending);
-						map_address_pending = MEMORY_ADDRESS_INVALID; // address assignedto label
+						map_address_pending = MEMORY_ADDRESS_INVALID; // address assigned to label
 					}
 				} else {
 					// case 1: label without addr in same line

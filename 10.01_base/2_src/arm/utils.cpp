@@ -59,7 +59,7 @@ rolling_text_buffers_c rolling_text_buffers ;
  */
 void strcpy_s(char *dest, int len, const char *src) {
 	strncpy(dest, src, len - 1);
-	dest[len - 1] = 0; // termiante if truncated
+	dest[len - 1] = 0; // terminate if truncated
 }
 
 /*********************************
@@ -293,7 +293,7 @@ bool str_decode_escapes(char *result, unsigned result_size, char *encoded) {
 			continue;
 		case 'x': // hex: \xnn
 			rp++; // eat "x"
-			// in contrast to the standard, max 2 hex digits are evaualted, not arbitrary amount.
+			// in contrast to the standard, max 2 hex digits are evaluated, not arbitrary amount.
 			// this makes it easy to write "L 200" as "L\x20200".
 			// Else \xnnnn may eat following chars not meant as part of the hex sequence
 			// convert and skip arbitrary count of hex characters

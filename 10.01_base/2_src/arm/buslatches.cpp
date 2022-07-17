@@ -418,7 +418,7 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_erro
 }
 
 /* stress test on highspeed timing
- * PRU generates max speed reaed/write sequences on
+ * PRU generates max speed read/write sequences on
  // ADDR<0:7>, ADDR <8:15>, DATA<0:7> and <DATA8:15>
  */
 void buslatches_c::test_timing(uint8_t addr_0_7, uint8_t addr_8_15, uint8_t data_0_7,
@@ -447,7 +447,7 @@ void buslatches_c::test_timing(uint8_t addr_0_7, uint8_t addr_8_15, uint8_t data
 	while (!SIGINTreceived) {
 		timeout.wait_ms(0);
 	}
-// stop PRU loop by settting something != ARM2PRU_BUSLATCH_TEST
+// stop PRU loop by setting something != ARM2PRU_BUSLATCH_TEST
 	mailbox->arm2pru_req = ARM2PRU_BUSLATCH_INIT; //
 	timeout.wait_ms(1);
 	if (mailbox->arm2pru_req != ARM2PRU_NONE)

@@ -248,7 +248,7 @@ void application_c::menu_main(void) {
 		printf("\n\n");
 		printf("*** QUniBone " QUNIBUS_NAME " technology demonstrator build %s\n", compile_timestamp);
 		printf("\n");
-		// printf("a <0/1>     Setup test for Aribitrator: 0 =none, 1 = client to active PDP-11 CPU.\n");
+		// printf("a <0/1>     Setup test for Arbitrator: 0 =none, 1 = client to active PDP-11 CPU.\n");
 		printf("tg          Test of single non-PRU GPIO pins\n");
 		printf("tp          Test I2C paneldriver\n");
 		//printf("tx          Test of mailbox to PRU1\n");

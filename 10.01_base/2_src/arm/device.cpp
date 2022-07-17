@@ -150,7 +150,7 @@ bool device_c::on_param_changed(parameter_c *param) {
 	}
 	// all devices forward their "on_param_changed" to parent classes,
 	// until a class rejects a value.
-	// device_c is the grand parent and produces "OK" for unknown or passive parameters
+	// device_c is the grandparent and produces "OK" for unknown or passive parameters
 	return true;
 }
 
@@ -333,7 +333,7 @@ void device_c::workers_stop(void) {
 						status);
 		}
 
-		// !! If crosscompling: this causes a crash in the worker thread
+		// !! If crosscompiling: this causes a crash in the worker thread
 		// !! at pthread_cond_wait() or other cancellation points.
 		// !! No problem for compiles build on BBB itself.
 		status = pthread_join(worker_instance->pthread, NULL);

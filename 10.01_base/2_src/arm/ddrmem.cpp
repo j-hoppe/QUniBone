@@ -103,7 +103,7 @@ bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) {
 // THEN also PMI accesses must be redirected the same way.
 //
 // This is something not existent on real PDP11s with separate memory bus:
-// The M9312 in IO UNIBUS cannot manipulated addresses on the Memory BUS.
+// The M9312 in IO UNIBUS cannot manipulate addresses on the Memory BUS.
 void ddrmem_c::set_pmi_address_overlay(uint32_t address_overlay) {
 	this->pmi_address_overlay = address_overlay ;
 }
@@ -229,7 +229,7 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 }
 
 // implement an QBUS/UNIBUS memory card with DDR memory
-// PRU act as slave to qunibus master cycles
+// PRU acts as slave to qunibus master cycles
 void ddrmem_c::unibus_slave(uint32_t startaddr, uint32_t endaddr) {
 
 	char *s, buf[20]; // dummy

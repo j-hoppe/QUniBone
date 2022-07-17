@@ -44,9 +44,9 @@ class activity_led_c {
 private:
     static const unsigned led_count = 4 ;
     std::mutex m ;
-    unsigned cycle_time_ms = 50 ; // polling intervall and granularity
+    unsigned cycle_time_ms = 50 ; // polling interval and granularity
     unsigned minimal_on_time_ms = 100 ; // default: 100ms ON on every pulse
-    volatile unsigned cycles[led_count] ; // LED on if > 0. acessed in thread
+    volatile unsigned cycles[led_count] ; // LED on if > 0. accessed in thread
 
     bool waiter_terminated = false;
     void waiter_func() ;
@@ -61,7 +61,7 @@ public:
 } ;
 
 
-/*** Low elvel GPIO stuff ***/
+/*** Low level GPIO stuff ***/
 // device for a set of 32 gpio pins
 typedef struct {
     unsigned gpios_in_use; // so much pins from this bank are in use
@@ -163,7 +163,7 @@ extern gpios_c *gpios; // singleton
 
 // merges the bits of unshifted_val into the gpio output register
 // of bank[idx]. target position is given by bitpos, bitfield size by bitmask
-// This macro is optimized assuming that writing a memorymapped GPIO register
+// This macro is optimized assuming that writing a memory mapped GPIO register
 // takes much longer than ARM internal operations.
 #define GPIO_OUTPUTBITS(bank,bitpos,bitmask,unshifted_val) do {	\
 		unsigned tmp = (bank)->cur_dataout_val ; \

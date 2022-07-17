@@ -75,7 +75,7 @@ public:
 };
 
 // oscillate single bit of a multi-bit signal.
-// runs for timeout_ms or throws expection on ^C
+// runs for timeout_ms or throws exception on ^C
 void qunibus_signal_c::oscillate_bit(unsigned bitmask, unsigned timeout_ms) {
 	timeout_c timeout;
 	unsigned count;
