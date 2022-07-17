@@ -26,7 +26,7 @@
  12-nov-2018  JH      entered beta phase
 
  qunibusadapter
- connects multiple "devices" with qunibus-interface implmented by PRU
+ connects multiple "devices" with qunibus-interface implemented by PRU
 
  - A thread waits for Register Interrupts and routes them to the
  correct controller
@@ -37,9 +37,9 @@
  Controllers -> QBUS/UNIBUS
  - allows controllers and memory to register and deregister
  in the deviceregister tables  (devices.h)
- Distrubutes INIT to all registered controllers.
+ Distributes INIT to all registered controllers.
 
- recieves DMA and INTR request from many devices
+ receives DMA and INTR request from many devices
  Issues only one INTR or one DMA to the PRU
  (INTR parallel with DMA not possible,
  multiple INTR levels in parallel not possible)
@@ -180,12 +180,12 @@ bool qunibusadapter_c::register_device(qunibusdevice_c& device) {
         register_handle = pru_iopage_registers->register_handles[i];
         assert(register_handle < MAX_IOPAGE_REGISTER_COUNT || register_handle == IOPAGE_REGISTER_HANDLE_ROM);
         if (register_handle != 0 && register_handle != IOPAGE_REGISTER_HANDLE_ROM)
-            // device registers may decdoe into ROM space, M9312
+            // device registers may decode into ROM space, M9312
             register_handle_used[register_handle] = true;
     }
     // allocate new handles for registers of device
     // we could try to find a "hole" of size device->register_count, but simply add to the end
-    // find highest handle uses so far.
+    // find the highest handle uses so far.
     register_handle = 0; // biggest handle in use
     // handle#0 not to be used!
     for (i = 1; i < MAX_IOPAGE_REGISTER_COUNT; i++)
@@ -358,7 +358,7 @@ void qunibusadapter_c::request_schedule(priority_request_c& request) {
     priority_request_level_c *prl = &request_levels[request.level_index];
     // DEBUG("request_schedule") ;
 
-    // a device may reraise on of its own interrupts, but not an DMA on same slot
+    // a device may re-raise on of its own interrupts, but not an DMA on same slot
     if (dynamic_cast<dma_request_c *>(&request)) {
         if (prl->slot_request[request.priority_slot] != NULL)
             FATAL("Concurrent DMA requested for slot %d.", (unsigned )request.priority_slot);
@@ -518,12 +518,12 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
         dmareq->executing_on_PRU = true;
 
         /* if DMA is done in multiple chunks,
-         then after PRU is complete, we don not call "active_complete() to remove the request.
-         Instead we leave it active, with transferred data clipped from buffer start.
+         then after PRU is complete, we do not call "active_complete() to remove the request.
+         Instead, we leave it active, with transferred data clipped from buffer start.
          the "complete" signal will relaunch the remaining dma request automatically
          we need a new address "chunk_start_addr" in dma_request_c
 
-         As side effect, a higher priorized device may be serviced before the next chunk is transmitted,
+         As side effect, a higher prioritized device may be serviced before the next chunk is transmitted,
          This is intended and prevents data loss.
          */
 
@@ -548,7 +548,7 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
             priority_level_idx_to_arbitration_bit[intrreq->level_index];
 
         // start on PRU
-        // PRU have got arbitration for an INTR of different level in the mean time:
+        // PRU have got arbitration for an INTR of different level in the meantime:
         // assert(mailbox->events.event_intr == 0) would trigger
         mailbox_execute(ARM2PRU_INTR);
         intrreq->executing_on_PRU = true; // waiting for GRANT
@@ -559,7 +559,7 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index) {
     /* when PRU is finished, the worker() gets a signal,
      then worker_device_dma_chunk_complete_event() or worker_intr_complete_event() is called.
      On INTR or last DMA chunk, the request is completed.
-     It is removed from the slot schedule table and request->complete_conmd is signaled
+     It is removed from the slot schedule table and request->complete_cond is signaled
      to DMA() or INTR()
      */
 }
@@ -632,7 +632,7 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
     pthread_mutex_lock(&requests_mutex); // lock schedule table operations
 
     // In contrast to re-raised INTR, overlapping DMA requests from same board
-    // must not be ignored (different DATA situation) and are an device implementation error.
+    // must not be ignored (different DATA situation) and are a device implementation error.
     // If a device indeed has multiple DMA channels, it must use different pseudo-slots.
     priority_request_level_c *prl = &request_levels[PRIORITY_LEVEL_INDEX_NPR];
     assert(prl->slot_request[dma_request.priority_slot] == NULL); // not scheduled or prev completed
@@ -644,7 +644,7 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
     dma_request.qunibus_control = qunibus_cycle;
     dma_request.qunibus_start_addr = unibus_addr;
     dma_request.chunk_qunibus_start_addr = unibus_addr;
-    dma_request.qunibus_end_addr = 0; // last transfered addr, or error position
+    dma_request.qunibus_end_addr = 0; // last transferred addr, or error position
     dma_request.buffer = buffer;
     dma_request.wordcount = wordcount;
     dma_request.chunk_max_words = PRU_MAX_DMA_WORDCOUNT; // PRU limit, maybe less
@@ -670,7 +670,7 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
         // NO wait for PRU signal, instead busy waiting. CPU thread blocked.
         // Reason: SPEED. CPU does high frequency single word accesses.
         bool completed = false;
-// ARM_DEBUG_PIN1(1); // CPU20 performace
+// ARM_DEBUG_PIN1(1); // CPU20 performance
         do {
             // CPU thread is now spinning
             // wait until CPU access scheduled and processed on PRU
@@ -692,7 +692,7 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
                 completed = true;
             pthread_mutex_unlock(&requests_mutex); //&dma_request.complete_mutex);
         } while (!completed);
-//ARM_DEBUG_PIN1(0); // CPU20 performace
+//ARM_DEBUG_PIN1(0); // CPU20 performance
 
     } else if (blocking) {
         pthread_mutex_lock(&dma_request.complete_mutex);
@@ -715,9 +715,9 @@ void qunibusadapter_c::cpu_DATA_transfer(dma_request_c& cpu_data_transfer_reques
     // no PRU->ARM signal on complete
     cpu_data_transfer_request.is_cpu_access = true;
     // CPU memory access is serialized with DMA,
-    // but less then all other device DMA requests
+    // but less than all other device DMA requests
     // so set "priority_slot to max=31, despite a CPU plugs into left most slot 0
-    // Also less then INTR, thats implementend in PRU statemachine_arbitration_master()
+    // Also less than INTR, that's implemented in PRU statemachine_arbitration_master()
     cpu_data_transfer_request.priority_slot = 31;
     // "blocking" flag not used
     DMA(cpu_data_transfer_request, true, unibus_control, qunibus_cycle, buffer, 1);
@@ -727,7 +727,7 @@ void qunibusadapter_c::cpu_DATA_transfer(dma_request_c& cpu_data_transfer_reques
 // one of its registers, the "interrupt register".
 // interrupt_register' may be NULL if none.
 // INTR() is NOT BLOCKING: it returns immediately.
-// the actual interrupt vector is transfered when CPU interrupt level is lowered enough and
+// the actual interrupt vector is transferred when CPU interrupt level is lowered enough and
 // other arbitration rules apply, which may never be the case.
 // While pending, device may call INTR() again, causing waiting PRU requests to be modified.
 
@@ -756,10 +756,10 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
         intr_request_c *scheduled_intr_req =
             dynamic_cast<intr_request_c *>(prl->slot_request[intr_request.priority_slot]);
         assert(scheduled_intr_req);
-        // A device may re-raised a pending INTR again
+        // A device may re-raise a pending INTR again
         // (quite normal situation when other ISRs block, CPU overload)
         // A re-raise will be ignored.
-        // ! Another device MAY NOT reraise an INTR with same slot/level
+        // ! Another device MAY NOT re-raise an INTR with same slot/level
         // ! (else complete signals may be routed to wrong device)
         assert(scheduled_intr_req->device == intr_request.device);
         assert(scheduled_intr_req->vector == intr_request.vector);
@@ -793,7 +793,7 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
     if (interrupt_register && request_is_blocking_active(intr_request.level_index)) {
         DEBUG("INTR() delayed, IR now");
         //	one or more another requests are handled by PRU: INTR signal delayed by Arbitrator,
-        // write intr register asynchronically here.
+        // write intr register asynchronously here.
         intr_request.device->set_register_dati_value(interrupt_register,
                 interrupt_register_value, __func__);
         intr_request.interrupt_register = NULL; // don't do a 2nd  time
@@ -828,10 +828,10 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
 }
 
 /* A device may cancel an INTR request, if not yet GRANTed by Arbitrator.
- Maybe useful if device sees INTR is not handeled by Arbitrator due to
+ Maybe useful if device sees INTR is not handled by Arbitrator due to
  blocked interrupt of this level.
  Relevance of this usage pattern unclear, but used in KW11 diag, ZDLDI0 Test 17.
- After cancelation, ARM receives NO completion event from PRU.
+ After cancellation, ARM receives NO completion event from PRU.
  */
 void qunibusadapter_c::cancel_INTR(intr_request_c& intr_request) {
     uint8_t level_index = intr_request.level_index; // alias
@@ -873,7 +873,7 @@ void qunibusadapter_c::worker_init_event() {
     unsigned device_handle;
     qunibusdevice_c *device;
     // notify device on change of INIT line
-    // device register values are already resetto "reset_value" by PRU
+    // device register values are already reset to "reset_value" by PRU
     DEBUG("worker_init_event(): INIT %s", line_INIT ? "asserted" : "negated");
     for (device_handle = 0; device_handle <= MAX_DEVICE_HANDLE; device_handle++)
         if ((device = devices[device_handle])) {
@@ -1012,7 +1012,7 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     // fix PRU data struct: remove IOPAGE bit from mailbox struct, was set im mailbox_execute()
     mailbox->dma.startaddr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
     mailbox->dma.cur_addr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
-    dmareq->qunibus_end_addr = mailbox->dma.cur_addr; // track emnd of trasnmission, eror position
+    dmareq->qunibus_end_addr = mailbox->dma.cur_addr; // track end of transmission, error position
     unsigned wordcount_transferred = dmareq->wordcount_completed_chunks()
                                      + mailbox->dma.wordcount;
     assert(wordcount_transferred <= dmareq->wordcount);
@@ -1227,7 +1227,7 @@ void qunibusadapter_c::worker(unsigned instance) {
             }
 
 			// QBUS: INIT is a short pulse, PDP11 may execute many opcodes after RESET until
-			// we receive event INIT and execute device initalization.
+			// we receive event INIT and execute device initialization.
 			// PDP11 CPU state is out of sync with device state in that time, but CPU sees device
 			// only via SSYN/RPLY halted deviceregister accesses. So make sure pending INIT are processed before register access
             if (!EVENT_IS_ACKED(*mailbox, deviceregister) && EVENT_IS_ACKED(*mailbox, init)) {
@@ -1364,7 +1364,7 @@ void qunibusadapter_c::debug_init() {
     // count events both on ARM and PRU, must be same!
 }
 
-// look into data strucures
+// look into data structures
 void qunibusadapter_c::debug_snapshot(void) {
     // copy PRU mailbox state to space visible in Debugger (why necessary?)
     memcpy(&mailbox_snapshot, (void *) mailbox, sizeof(mailbox_t));

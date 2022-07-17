@@ -67,7 +67,7 @@ qunibus_c::~qunibus_c() {
 	delete dma_request;
 }
 
-// recalc memory and iopage limtis
+// recalc memory and iopage limits
 void qunibus_c::set_addr_width(unsigned addr_width) {
 	switch (addr_width) {
 	case 18:
@@ -465,7 +465,7 @@ bool qunibus_c::get_arbitrator_active(void) {
 // mailbox.dma.words already filled
 // if result = timeout: =
 // 0 = bus time, error address =  mailbox->dma.cur_addr
-// 1 = all transfered
+// 1 = all transferred
 // A limit for time used by DMA can be compiled-in
 bool qunibus_c::dma(bool blocking, uint8_t qunibus_cycle, uint32_t startaddr, uint16_t *buffer,
 		unsigned wordcount) {
@@ -514,7 +514,7 @@ uint32_t qunibus_c::test_sizer(void) {
 // write a subset of words[] with QBUS/UNIBUS DMA:
 // all words from start_addr to including end_addr
 //
-// DMA blocksize can be choosen arbitrarily
+// DMA blocksize can be chosen arbitrarily
 void qunibus_c::mem_write(uint16_t *words, unsigned unibus_start_addr, unsigned unibus_end_addr,
 bool *timeout) {
 	unsigned wordcount = (unibus_end_addr - unibus_start_addr) / 2 + 1;
@@ -529,7 +529,7 @@ bool *timeout) {
 
 // Read a subset of words[] with QBUS/UNIBUS DMA
 // all words from start_addr to including end_addr
-// DMA blocksize can be choosen arbitrarily
+// DMA blocksize can be chosen arbitrarily
 // arbitration_active: if 1, perform NPR/NPG/SACK resp. DMR/DMG/SACK arbitration before mem accesses
 void qunibus_c::mem_read(uint16_t *words, uint32_t unibus_start_addr, uint32_t unibus_end_addr,
 bool *timeout) {
