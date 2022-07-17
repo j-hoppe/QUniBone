@@ -151,7 +151,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
         n_fields = sscanf(s_choice, "%s %s %s %s %s %s", s_opcode, s_param[0], s_param[1], 
             s_param[2], s_param[3], s_param[4]);
 
-        // in each case, setup mailbox with memroy range to emulate
+        // in each case, setup mailbox with memory range to emulate
         if (!strcasecmp(s_opcode, "q")) {
             ready = true;
         }
