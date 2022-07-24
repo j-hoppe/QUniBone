@@ -20,6 +20,7 @@
  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+ 24-Jul-2022  JH      worker running all the time
  16-Nov-2018  JH      created
  */
 
@@ -46,6 +47,7 @@ void application_c::menu_panel(const char *menu_code) {
 	char s_opcode[256], s_param[3][256];
 
 	paneldriver->reset(); // reset I2C, restart worker()
+  	printf("Start worker().\n");
 
 	while (!ready) {
 
@@ -162,5 +164,8 @@ void application_c::menu_panel(const char *menu_code) {
 			show_help = true;
 		}
 	}
+    paneldriver->enabled.set(false); // worker_stop();
+	printf("Worker stopped.\n");
+
 }
 

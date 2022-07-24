@@ -453,12 +453,12 @@ void paneldriver_c::worker(unsigned instance) {
 	}
 }
 
+// test, requires running worker()
 void paneldriver_c::test_moving_ones(void) {
 	timeout_c timeout;
 	unsigned delay_ms = 500; // longer than worker period!
 
 	INFO("Light lamps one by one. Starting worker().");
-	reset(); // reset I2C, restart worker()
 
 	clear_all_outputs();
 	timeout.wait_ms(delay_ms);
@@ -473,19 +473,16 @@ void paneldriver_c::test_moving_ones(void) {
 	clear_all_outputs();
 	timeout.wait_ms(delay_ms);
 	// all "OFF" on exit
-	enabled.set(false); // worker_stop();
-	INFO("Worker stopped.");
 
 }
 
+// test, requires running worker()
 void paneldriver_c::test_manual_loopback(void) {
 	timeout_c timeout;
 	vector<panelcontrol_c *>::iterator it;
 
 	INFO("Manual loopback test, stop with ^C");
 	INFO("Copy state of all inputs to associated output.");
-	INFO("Start worker().");
-	reset(); // reset I2C, restart worker()
 
 	// Setup ^C catcher
 	SIGINTcatchnext();
@@ -495,8 +492,5 @@ void paneldriver_c::test_manual_loopback(void) {
 				(*it)->associate->value = (*it)->value;
 		timeout.wait_ms(10);
 	}
-	enabled.set(false); // worker_stop();
-	INFO("Worker stopped.");
-
 }
 
