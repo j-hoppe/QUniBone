@@ -87,10 +87,10 @@ public:
 
 
     // several ways to set an empty or filled buffer
-    void set(uint8_t *data, unsigned size) {
-        set_size(size) ;
+    void set(uint8_t *src_data, unsigned src_size) {
+        set_size(src_size) ;
         assert(_data != nullptr) ;
-        memcpy(_data, data, size);
+        memcpy(_data, src_data, src_size);
     }
 
     // copy data_ptr
