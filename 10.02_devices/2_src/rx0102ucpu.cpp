@@ -675,11 +675,11 @@ unsigned	RX0102uCPU_c::get_transfer_byte_count(uint8_t function_code, bool doubl
 
 // Check wether rx2wc is too large for current transfer len
 // if true: abort function and update RXCS status
-bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t function_code, bool double_density, uint16_t rx2wc) {
+bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t _function_code, bool _double_density, uint16_t _rx2wc) {
     assert(is_RX02) ;
-    unsigned _transfer_byte_count = get_transfer_byte_count(function_code, double_density) ;
+    unsigned _transfer_byte_count = get_transfer_byte_count(_function_code, _double_density) ;
 
-    if (rx2wc > _transfer_byte_count) {
+    if (_rx2wc > _transfer_byte_count) {
         signal_error = signal_error_word_count_overflow = true ;
         extended_status[0] = 0230 ;
         step_execute(step_done) ;
