@@ -65,7 +65,8 @@ void application_c::menu_interrupts(const char *menu_code) {
     ready = false;
     test_loaded = false;
     while (!ready) {
-        if (show_help) {
+		// no menu display when reading script
+        if (show_help && !script_active()) {
             show_help = false; // only once
             printf("\n");
             printf("*** Test of " QUNIBUS_NAME " interrupts.\n");
@@ -134,9 +135,9 @@ void application_c::menu_interrupts(const char *menu_code) {
             qunibus->powercycle();
 #if defined(QBUS)				
 		} else if (!strcasecmp(s_opcode, "h") && n_fields == 2) {
-			uint16_t active ;
-			qunibus->parse_word(s_param[0], &active) ;				
-			qunibus->set_halt(active) ;
+			uint16_t _active ;
+			qunibus->parse_word(s_param[0], &_active) ;				
+			qunibus->set_halt(_active) ;
 #endif				
         } else if (!strcasecmp(s_opcode, "m") && n_fields == 1) {
             emulate_memory();

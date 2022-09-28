@@ -109,7 +109,7 @@
 #include "getopt2.hpp"
 
 /*
- * first intialize, only once!
+ * first initialize, only once!
  * NO FREE() HERE !
  */
 
@@ -568,10 +568,10 @@ string getopt_c::getoptionsyntax(getopt_option_descr_c& odesc, int style)
 	return buffer.str();
 }
 
-getopt_printer_c::getopt_printer_c(ostream& stream, unsigned linelen, unsigned indent) {
-	this->stream = &stream;
-	this->linelen = linelen;
-	this->indent = indent;
+getopt_printer_c::getopt_printer_c(ostream& _stream, unsigned _linelen, unsigned _indent) {
+	stream = &_stream;
+	linelen = _linelen;
+	indent = _indent;
 }
 
 // add as string to outline. if overflow, flush and continue with indent

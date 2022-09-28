@@ -204,7 +204,7 @@ void device_c::worker_init_realtime_priority(enum worker_priority_e priority) {
 	switch (priority) {
 	case rt_max:
 		// 1. assert path exists
-		if (!fileExists(rtperiod_path)) {
+		if (!file_exists(&rtperiod_path)) {
 			WARNING("kernel param %s not found.\n"
 					"Verify \"uname -a\" shows a \"PREEMPT RT\" kernel build!",
 					rtperiod_path.c_str());
@@ -333,7 +333,7 @@ void device_c::workers_stop(void) {
 						status);
 		}
 
-		// !! If crosscompling: this causes a crash in the worker thread
+		// !! If crosscompiling: this causes a crash in the worker thread
 		// !! at pthread_cond_wait() or other cancellation points.
 		// !! No problem for compiles build on BBB itself.
 		status = pthread_join(worker_instance->pthread, NULL);

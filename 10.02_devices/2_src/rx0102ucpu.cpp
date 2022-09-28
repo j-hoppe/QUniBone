@@ -42,11 +42,9 @@ using namespace std;
 
 // link uCPU to its RX controller
 // RX01/02 type defined later by caller
-RX0102uCPU_c::RX0102uCPU_c(RX11211_c *controller): device_c(), controller(controller) {
+RX0102uCPU_c::RX0102uCPU_c(RX11211_c *_controller): device_c(), controller(_controller) {
 
     signal_function_density	= false ; // const for RX01
-
-
 
     // init
     power_switch.set(0) ;
@@ -585,8 +583,8 @@ bool RX0102uCPU_c::on_param_changed(parameter_c *param) {
 
 // set logic type and type of attached drives
 // last step of construction after drives have been assigned
-void RX0102uCPU_c::set_RX02(bool is_RX02) {
-    this->is_RX02 = is_RX02 ;
+void RX0102uCPU_c::set_RX02(bool _is_RX02) {
+    is_RX02 = _is_RX02 ;
     for (unsigned i=0 ; i < drives.size() ; i++) {
         RX0102drive_c *drive = drives[i] ;
         if (! is_RX02) {
@@ -679,9 +677,9 @@ unsigned	RX0102uCPU_c::get_transfer_byte_count(uint8_t function_code, bool doubl
 // if true: abort function and update RXCS status
 bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t function_code, bool double_density, uint16_t rx2wc) {
     assert(is_RX02) ;
-    unsigned transfer_byte_count = get_transfer_byte_count(function_code, double_density) ;
+    unsigned _transfer_byte_count = get_transfer_byte_count(function_code, double_density) ;
 
-    if (rx2wc > transfer_byte_count) {
+    if (rx2wc > _transfer_byte_count) {
         signal_error = signal_error_word_count_overflow = true ;
         extended_status[0] = 0230 ;
         step_execute(step_done) ;

@@ -104,8 +104,8 @@ bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) {
 //
 // This is something not existent on real PDP11s with separate memory bus:
 // The M9312 in IO UNIBUS cannot manipulated addresses on the Memory BUS.
-void ddrmem_c::set_pmi_address_overlay(uint32_t address_overlay) {
-	this->pmi_address_overlay = address_overlay ;
+void ddrmem_c::set_pmi_address_overlay(uint32_t _address_overlay) {
+	pmi_address_overlay = _address_overlay ;
 }
 
 

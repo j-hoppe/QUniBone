@@ -89,19 +89,20 @@ bool qunibusdevice_c::on_param_changed(parameter_c *param) {
 }
 
 // define default values for device BASE address and INTR
-void qunibusdevice_c::set_default_bus_params(uint32_t default_base_addr,
-		unsigned default_priority_slot, unsigned default_intr_vector,
-		unsigned default_intr_level) {
-	assert(default_priority_slot <= PRIORITY_SLOT_COUNT); // bitmask!
+void qunibusdevice_c::set_default_bus_params(uint32_t _default_base_addr,
+		unsigned _default_priority_slot, unsigned _default_intr_vector,
+		unsigned _default_intr_level) {
+	assert(_default_priority_slot <= PRIORITY_SLOT_COUNT); // bitmask!
 
 	// make proper 16/18/22 bit IOpage address: start + addr<12:0>
 	if (qunibus->addr_width == 0)
 		FATAL("Address width of " QUNIBUS_NAME " not yet known!") ;
-	default_base_addr = qunibus->iopage_start_addr + (default_base_addr & 0x1fff) ;
-	this->default_base_addr = default_base_addr;
-	this->default_priority_slot = default_priority_slot;
-	this->default_intr_vector = this->intr_vector.new_value = default_intr_vector;
-	this->default_intr_level = this->intr_level.new_value = default_intr_level;
+	_default_base_addr = qunibus->iopage_start_addr + (_default_base_addr & 0x1fff) ;
+	default_base_addr = _default_base_addr;
+	default_priority_slot = _default_priority_slot;
+	default_intr_vector = this->intr_vector.new_value = _default_intr_vector;
+	default_intr_level = this->intr_level.new_value = _default_intr_level;
+	// call device.on_param_change(), may be supressed
 	base_addr.set(default_base_addr);
 	priority_slot.set(default_priority_slot);
 	intr_vector.set(default_intr_vector);
@@ -123,11 +124,11 @@ void qunibusdevice_c::uninstall(void) {
 	qunibusadapter->unregister_device(*this);
 }
 
-qunibusdevice_register_t *qunibusdevice_c::register_by_name(string name) {
+qunibusdevice_register_t *qunibusdevice_c::register_by_name(string _name) {
 	unsigned i;
 	for (i = 0; i < register_count; i++) {
 		qunibusdevice_register_t *reg = &(registers[i]);
-		if (reg->name && !strcasecmp(name.c_str(), reg->name))
+		if (reg->name && !strcasecmp(_name.c_str(), reg->name))
 			return reg;
 	}
 	return NULL;

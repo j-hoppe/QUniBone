@@ -34,7 +34,7 @@
 // QBUS dal lines
 class qunibus_signal_dal_c: public qunibus_signal_c {
 public:
-	qunibus_signal_dal_c(const char *name):qunibus_signal_c(name,22) {};
+	qunibus_signal_dal_c(const char *_name):qunibus_signal_c(_name,22) {};
 	virtual void set_val(unsigned value) override {
 		buslatches[0]->setval(0xff, value); // DAL<0:7>
 		buslatches[1]->setval(0xff, value >> 8); // DAL<8:15>
@@ -55,8 +55,8 @@ class qunibus_signal_bit_sync_latched_c: public qunibus_signal_bit_c {
 	qunibus_signal_bit_c *sync_signal = nullptr;
 
 public:
-	qunibus_signal_bit_sync_latched_c(const char *name, qunibus_signal_bit_c *sync): qunibus_signal_bit_c(name) {
-		this->sync_signal = sync;
+	qunibus_signal_bit_sync_latched_c(const char *_name, qunibus_signal_bit_c *_sync): qunibus_signal_bit_c(_name) {
+		sync_signal = _sync;
 	}
 	virtual void set_val(unsigned value) override {
 		bool cur_sync_val = sync_signal->get_val() ;

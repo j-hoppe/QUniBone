@@ -67,9 +67,9 @@ qunibus_c::~qunibus_c() {
 	delete dma_request;
 }
 
-// recalc memory and iopage limtis
-void qunibus_c::set_addr_width(unsigned addr_width) {
-	switch (addr_width) {
+// recalc memory and iopage limits
+void qunibus_c::set_addr_width(unsigned _addr_width) {
+	switch (_addr_width) {
 	case 18:
 		addr_space_word_count = 0x20000; // 128 KWord = 256 KByte
 		iopage_start_addr = 0760000;
@@ -87,7 +87,7 @@ void qunibus_c::set_addr_width(unsigned addr_width) {
 	default:
 		FATAL("Address width of %d bits invalid!", addr_width);
 	}
-	this->addr_width = addr_width;
+	addr_width = _addr_width;
 	addr_space_byte_count = 2 * addr_space_word_count;
 }
 
@@ -516,13 +516,13 @@ uint32_t qunibus_c::test_sizer(void) {
 //
 // DMA blocksize can be choosen arbitrarily
 void qunibus_c::mem_write(uint16_t *words, unsigned unibus_start_addr, unsigned unibus_end_addr,
-bool *timeout) {
+bool *result_timeout) {
 	unsigned wordcount = (unibus_end_addr - unibus_start_addr) / 2 + 1;
 	uint16_t *buffer_start_addr = words + unibus_start_addr / 2;
 	assert(pru->prucode_id == pru_c::PRUCODE_EMULATION);
-	*timeout = !dma(true, QUNIBUS_CYCLE_DATO, unibus_start_addr, buffer_start_addr, wordcount);
-	if (*timeout) {
-		printf("\nWrite timeout @ %s\n", qunibus->addr2text(mailbox->dma.cur_addr));
+	*result_timeout = !dma(true, QUNIBUS_CYCLE_DATO, unibus_start_addr, buffer_start_addr, wordcount);
+	if (*result_timeout) {
+		printf("\nWrite result_timeout @ %s\n", qunibus->addr2text(mailbox->dma.cur_addr));
 		return;
 	}
 }
@@ -532,21 +532,21 @@ bool *timeout) {
 // DMA blocksize can be choosen arbitrarily
 // arbitration_active: if 1, perform NPR/NPG/SACK resp. DMR/DMG/SACK arbitration before mem accesses
 void qunibus_c::mem_read(uint16_t *words, uint32_t unibus_start_addr, uint32_t unibus_end_addr,
-bool *timeout) {
+bool *result_timeout) {
 	unsigned wordcount = (unibus_end_addr - unibus_start_addr) / 2 + 1;
 	uint16_t *buffer_start_addr = words + unibus_start_addr / 2;
 	assert(pru->prucode_id == pru_c::PRUCODE_EMULATION);
 
-	*timeout = !dma(true, QUNIBUS_CYCLE_DATI, unibus_start_addr, buffer_start_addr, wordcount);
-	if (*timeout) {
-		printf("\nRead timeout @ %s\n", qunibus->addr2text(mailbox->dma.cur_addr));
+	*result_timeout = !dma(true, QUNIBUS_CYCLE_DATI, unibus_start_addr, buffer_start_addr, wordcount);
+	if (*result_timeout) {
+		printf("\nRead result_timeout @ %s\n", qunibus->addr2text(mailbox->dma.cur_addr));
 		return;
 	}
 }
 
 // read or write
 void qunibus_c::mem_access_random(uint8_t unibus_control, uint16_t *words,
-		uint32_t unibus_start_addr, uint32_t unibus_end_addr, bool *timeout,
+		uint32_t unibus_start_addr, uint32_t unibus_end_addr, bool *result_timeout,
 		uint32_t *block_counter) {
 	uint32_t block_unibus_start_addr, block_unibus_end_addr;
 	// in average, make 16 sub transactions 
@@ -570,10 +570,10 @@ void qunibus_c::mem_access_random(uint8_t unibus_control, uint16_t *words,
 		assert(block_unibus_end_addr <= unibus_end_addr);
 		(*block_counter) += 1;
 		// printf("%06d: %5u words %06o-%06o\n", *block_counter, block_wordcount, block_unibus_start_addr, block_unibus_end_addr) ;
-		*timeout = !dma(true, unibus_control, block_unibus_start_addr, block_buffer_start,
+		*result_timeout = !dma(true, unibus_control, block_unibus_start_addr, block_buffer_start,
 				block_wordcount);
-		if (*timeout) {
-			printf("\n%s timeout @ %s\n", control2text(unibus_control),
+		if (*result_timeout) {
+			printf("\n%s result_timeout @ %s\n", control2text(unibus_control),
 					qunibus->addr2text(mailbox->dma.cur_addr));
 			return;
 		}
@@ -608,7 +608,7 @@ void qunibus_c::test_mem_print_error(uint32_t mismatch_count, uint32_t start_add
 void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) {
 #define MAX_ERROR_COUNT	8
 	progress_c progress = progress_c(80);
-	bool timeout = 0, mismatch = 0;
+	bool has_timeout = false, mismatch = false;
 	unsigned mismatch_count = 0;
 	uint32_t cur_test_addr;
 	unsigned pass_count = 0, total_read_block_count = 0, total_write_block_count = 0;
@@ -627,10 +627,10 @@ void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) 
 					((cur_test_addr >> 1) & 0xffff) ^ (cur_test_addr >> 17);
 		/**** 2. Write memory ****/
 		progress.put("W");  //info : full memory write
-		mem_write(testwords, start_addr, end_addr, &timeout);
+		mem_write(testwords, start_addr, end_addr, &has_timeout);
 
 		/**** 3. read until ^C ****/
-		while (!SIGINTreceived && !timeout && !mismatch_count) {
+		while (!SIGINTreceived && !has_timeout && !mismatch_count) {
 			pass_count++;
 			if (pass_count % 10 == 0)
 				progress.putf(" %d ", pass_count);
@@ -638,7 +638,7 @@ void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) 
 			total_read_block_count++;
 			progress.put("R");
 			// read back into unibus_membuffer[]
-			mem_read(membuffer->data.words, start_addr, end_addr, &timeout);
+			mem_read(membuffer->data.words, start_addr, end_addr, &has_timeout);
 			// compare
 			for (mismatch_count = 0, cur_test_addr = start_addr; cur_test_addr <= end_addr;
 					cur_test_addr += 2) {
@@ -655,7 +655,7 @@ void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) 
 		/**** 1. Full write generate test values */
 //		start_addr = 0;
 //		end_addr = 076;
-		while (!SIGINTreceived && !timeout && !mismatch_count) {
+		while (!SIGINTreceived && !has_timeout && !mismatch_count) {
 			pass_count++;
 			if (pass_count % 10 == 0)
 				progress.putf(" %d ", pass_count);
@@ -665,17 +665,17 @@ void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) 
 //				testwords[cur_test_addr / 2] = (cur_test_addr >> 1) & 0xffff; // linear
 
 			progress.put("W");  //info : full memory write
-			mem_access_random(QUNIBUS_CYCLE_DATO, testwords, start_addr, end_addr, &timeout,
+			mem_access_random(QUNIBUS_CYCLE_DATO, testwords, start_addr, end_addr, &has_timeout,
 					&total_write_block_count);
 
-			if (SIGINTreceived || timeout)
+			if (SIGINTreceived || has_timeout)
 				break; // leave loop
 
 			// first full read
 			progress.put("R");  //info : full memory write
 			// read back into unibus_membuffer[]
 			mem_access_random(QUNIBUS_CYCLE_DATI, membuffer->data.words, start_addr, end_addr,
-					&timeout, &total_read_block_count);
+					&has_timeout, &total_read_block_count);
 			// compare
 			for (mismatch_count = 0, cur_test_addr = start_addr; cur_test_addr <= end_addr;
 					cur_test_addr += 2) {
@@ -689,8 +689,8 @@ void qunibus_c::test_mem(uint32_t start_addr, uint32_t end_addr, unsigned mode) 
 		break;
 	} // switch(mode)
 	printf("\n");
-	if (timeout || mismatch_count)
-		printf("Stopped by error: %stimeout, %d mismatches\n", (timeout ? "" : "no "),
+	if (has_timeout || mismatch_count)
+		printf("Stopped by error: %stimeout, %d mismatches\n", (has_timeout ? "" : "no "),
 				mismatch_count);
 	else
 		printf("All OK! Total %d passes, split into %d block writes and %d block reads\n",

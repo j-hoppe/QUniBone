@@ -154,7 +154,6 @@ public:
 	void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;
 	void on_init_changed(void) override;
 
-	void set_image_filepath(string image_filepath);
 
 	void set_type(uint8_t drivetype);
 

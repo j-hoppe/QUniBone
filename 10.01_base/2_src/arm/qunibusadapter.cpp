@@ -1012,7 +1012,7 @@ void qunibusadapter_c::worker_device_dma_chunk_complete_event() {
     // fix PRU data struct: remove IOPAGE bit from mailbox struct, was set im mailbox_execute()
     mailbox->dma.startaddr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
     mailbox->dma.cur_addr &= ~QUNIBUS_IOPAGE_ADDR_BITMASK ;
-    dmareq->qunibus_end_addr = mailbox->dma.cur_addr; // track emnd of trasnmission, eror position
+    dmareq->qunibus_end_addr = mailbox->dma.cur_addr; // track end of transmission, eror position
     unsigned wordcount_transferred = dmareq->wordcount_completed_chunks()
                                      + mailbox->dma.wordcount;
     assert(wordcount_transferred <= dmareq->wordcount);
@@ -1317,12 +1317,12 @@ void qunibusadapter_c::print_pru_iopage_register_map() {
                 printf("passive reg (not linked to device).\n");
             else {
 				// signaled the 8bit registerhandle, locate device & register
-				uint8_t register_handle = pru_iopage_reg->event_register_handle ;
-				qunibusdevice_register_t *device_reg = register_by_handle[register_handle];
+				uint8_t event_register_handle = pru_iopage_reg->event_register_handle ;
+				qunibusdevice_register_t *device_reg = register_by_handle[event_register_handle];
 				assert(device_reg) ;
 				qunibusdevice_c *device = device_reg->device ;
 
-                printf("active iopage reg with handle %d linked to device %s reg[%s]\n", register_handle,
+                printf("active iopage reg with handle %d linked to device %s reg[%s]\n", event_register_handle,
                        device->name.value.c_str(), device_reg->name);
             }
 

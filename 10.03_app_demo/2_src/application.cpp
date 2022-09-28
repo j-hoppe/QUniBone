@@ -180,7 +180,8 @@ void application_c::parse_commandline(int argc, char **argv) {
                          "<decimal number>: Display number 0..15 on 4 binary LEDs.\n"
                          "\"debug\": LEDs not used, free for internal debugging.", "",
                          "", "", "");
-    // test options
+
+	// test options
 
     getopt_parser.define("t", "test", "iarg1,iarg2", "soptarg", "8 15",
                          "Tests the new c++ getop2.cpp\n"
@@ -311,7 +312,7 @@ int application_c::run(int argc, char *argv[]) {
     inputline.init();
     if (!opt_cmdfilename.empty()) {
         // read commands from file
-        if (!inputline.openfile((char*) opt_cmdfilename.c_str())) {
+        if (!inputline.open_file((char*) opt_cmdfilename.c_str())) {
             printf("%s\n",
                    fileErrorText("Could not open command file \"%s\"",
                                  opt_cmdfilename.c_str()));
@@ -321,7 +322,7 @@ int application_c::run(int argc, char *argv[]) {
 
     cout << version << "\n";
 
-    // Multiplex latches are intialized by PRU code after each code download
+    // Multiplex latches are initialized by PRU code after each code download
     INFO("Registering Non-PRU GPIO pins.");
     gpios->init();
     INFO("Disable DS8641 drivers.");

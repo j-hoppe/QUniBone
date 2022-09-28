@@ -123,7 +123,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	bool with_storage_file_test = false;
 
 	bool ready = false;
-	bool show_help = true;
+	bool show_help = true ;
 	bool memory_emulated = false;
 	device_c *cur_device = NULL;
 	qunibusdevice_c *unibuscontroller = NULL;
@@ -223,8 +223,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 //	qunibus->probe_grant_continuity(true);
 
 	while (!ready) {
-
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && ! script_active()) {
 			show_help = false; // only once
 			printf("\n");
 			printf("*** Test of device parameter interface and states.\n");

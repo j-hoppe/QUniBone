@@ -360,7 +360,7 @@ void logger_c::log(logsource_c *logsource, unsigned msglevel, const char *srcfil
 		unsigned srcline, const char *fmt, ...) {
 	va_list args;
 	va_start(args, fmt);
-	vlog(logsource, msglevel, srcfilename, srcline, fmt, args);
+	vlog(logsource, msglevel, srcfilename ? srcfilename:"", srcline, fmt, args);
 	va_end(args);
 }
 

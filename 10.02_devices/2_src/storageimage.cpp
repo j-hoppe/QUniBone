@@ -28,14 +28,47 @@
  supports the "attach" command
  */
 #include <assert.h>
+#include <inttypes.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <fstream>
 #include <ios>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+#ifndef O_BINARY
+#define O_BINARY 0		// for linux compatibility
+#endif
+
+
 using namespace std;
 
 #include "logger.hpp"
+#include "utils.hpp"
 #include "storageimage.hpp"
+
+
+
+void storageimage_base_c::set_zero(uint64_t position, unsigned len)
+{
+    uint8_t *zeros = (uint8_t*) malloc(len) ;
+    memset(zeros, 0, len) ;
+    write(zeros, position, len);
+    free(zeros) ;
+}
+
+bool storageimage_base_c::is_zero(uint64_t position, unsigned len)
+{
+    bool result = true ;
+    uint8_t *buffer= (uint8_t*) malloc(len) ;
+    read(buffer, position, len);
+    for (unsigned i=0 ; i < len ; i++)
+        if (buffer[i] != 0)
+            result = false ;
+    free(buffer) ;
+    return result ;
+}
 
 
 // http://www.cplusplus.com/doc/tutorial/files/
@@ -44,9 +77,7 @@ using namespace std;
 // set the file_readonly flag
 // creates file, if not existing
 // result: OK= true, else false
-bool storageimage_binfile_c::open(string image_fname, bool create) {
-    this->image_fname = image_fname ; // save for re-open
-
+bool storageimage_binfile_c::open(bool create) {
     // 1st: if file not exists, try to unzip it from <image_fname>.gz
     int retries = 2 ;
     while (retries > 0) {
@@ -130,6 +161,8 @@ bool storageimage_binfile_c::truncate() {
  */
 void storageimage_binfile_c::read(uint8_t *buffer, uint64_t position, unsigned len) {
     assert(is_open());
+    assert(buffer != nullptr) ;
+    assert(len) ;
     // 1. fill the buffer with 00s
     memset(buffer, 0, len);
 
@@ -150,6 +183,7 @@ void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned 
     uint8_t *fillbuff = NULL;
     int64_t file_size, p;
 
+    assert(buffer);
     assert(is_open());
     assert(!readonly); // caller must take care
 
@@ -200,7 +234,246 @@ uint64_t storageimage_binfile_c::size(void) {
 }
 
 void storageimage_binfile_c::close(void) {
-    assert(is_open());
+    if (!is_open())
+        return ;
     f.close();
     readonly = false;
 }
+
+// read data from image into memory buffer (cache)
+void storageimage_binfile_c::get_bytes(byte_buffer_c* byte_buffer, uint64_t byte_offset, uint32_t len)
+{
+    byte_buffer->image_position = byte_offset ;
+    byte_buffer->set_size(len) ;
+    read(byte_buffer->data_ptr(), byte_offset, len) ;
+}
+
+// write cache buffer to image
+void storageimage_binfile_c::set_bytes(byte_buffer_c *byte_buffer)
+{
+    write(byte_buffer->data_ptr(), byte_buffer->image_position, byte_buffer->size()) ;
+}
+
+
+// make a snapshot
+// must be locked against parallel read()/write()/close()
+void storageimage_binfile_c::save_to_file(string _host_filename)
+{
+    string host_filename = absolute_path(&_host_filename) ;
+    assert(is_open()) ;
+
+    try {
+        streampos current_pos = f.tellg() ;
+
+        // make a stream copy, then resore the position
+        ofstream dest(host_filename, ios::binary);
+        f.seekg(0) ; // pos source to begin
+
+        // copy
+        dest << f.rdbuf();
+
+        // restore pos
+        f.seekg(current_pos) ;
+    }
+    catch(exception& e) {
+        ERROR(e.what()) ;
+    }
+}
+
+
+
+// result: OK= true, else false
+bool storageimage_memory_c::open(bool create)
+{
+    UNUSED(create);
+    assert(!is_open()) ;
+    if (data_size)
+        data = (uint8_t *)malloc(data_size) ;
+    opened = true ;
+    return true ;
+}
+
+bool storageimage_memory_c::is_open(	void)
+{
+    return opened ;
+}
+
+bool storageimage_memory_c::truncate(void)
+{
+    assert(is_open()) ;
+    // fixed size
+
+    free(data) ;
+    data = nullptr ;
+    data_size = 0;
+    return true ;
+}
+
+void storageimage_memory_c::read(uint8_t *buffer, uint64_t position, unsigned len)
+{
+    assert(is_open()) ;
+    assert(buffer != nullptr) ;
+    assert(len) ;
+    // if len > data_size, fill up with 00s
+
+    uint8_t *dest = buffer ;
+    unsigned bytes_copied = 0 ;
+    if (position < data_size) {
+        // copy bytes from data[] to buffer
+        uint8_t *src = &data[position] ;
+        uint64_t stop_pos = position + len ; // idx of byte after last byte to fill
+        if (stop_pos <= data_size)
+            bytes_copied = len ; // all wanted bytes in data[]
+        else
+            bytes_copied = data_size - position ;
+        // copy
+        memcpy(dest, src, bytes_copied) ;
+        dest += bytes_copied ;
+    }
+    // fill up 00s
+    assert (bytes_copied <= len) ;
+    if (bytes_copied != len)
+        memset(dest, 0, len - bytes_copied) ;
+}
+
+
+void storageimage_memory_c::write(uint8_t *buffer, uint64_t position, unsigned len)
+{
+    assert(buffer) ;
+    assert(is_open()) ;
+    // re-allocate?
+    uint64_t new_size = position + len - 1 ;
+    if (new_size > data_size) {
+        data = (uint8_t *)realloc(data, data_size) ; // conent preserved
+        data_size = new_size ;
+    }
+    uint8_t *dest = &(data[position]);
+    memcpy(dest, buffer, len) ;
+}
+
+uint64_t storageimage_memory_c::size(void)
+{
+    assert(is_open()) ;
+    return data_size ;
+}
+
+// data volatile
+void storageimage_memory_c::close(void)
+{
+    assert(is_open()) ;
+    free(data) ;
+    data = nullptr ;
+    // data size remains for next open()
+    opened = false ;
+}
+
+// extract a smaller buffer, required by storage_image_base_c
+void storageimage_memory_c::get_bytes(byte_buffer_c* byte_buffer, uint64_t byte_offset, uint32_t len)
+{
+    byte_buffer->image_position = byte_offset ;
+    byte_buffer->set_size(len) ;
+    assert(byte_offset < data_size) ;
+    uint8_t *src = &(data[byte_offset]) ;
+    uint8_t *dest = byte_buffer->data_ptr() ;
+    assert(src+len <= data+size()) ; // no overrun allowed
+    memcpy(dest, src, len) ;
+}
+
+// write and free cache buffer
+void storageimage_memory_c::set_bytes(byte_buffer_c *byte_buffer)
+{
+    uint8_t *src = byte_buffer->data_ptr() ;
+    assert(byte_buffer->image_position < data_size) ;
+    uint8_t *dest = &(data[byte_buffer->image_position]);
+    memcpy(dest, src, byte_buffer->size()) ;
+}
+
+
+
+// load complete image from a host file
+// if result_file_created:
+bool storageimage_memory_c::load_from_file(string _host_filename,
+        bool allowcreate, bool *result_file_created)
+{
+    string host_filename ;
+
+    bool result ;
+    bool file_created = false ;
+    try {
+        host_filename = absolute_path(&_host_filename) ;
+
+        // opens image file or creates it
+        int32_t file_descriptor;
+        struct stat file_status; // timestamps and size
+
+        if (!readonly) // check writability here.
+            file_descriptor = ::open(host_filename.c_str(), O_BINARY | O_RDWR, 0666);
+        else
+            file_descriptor = ::open(host_filename.c_str(), O_BINARY | O_RDONLY);
+
+        // create file if it does not exist
+        if (file_descriptor < 0 && allowcreate) {
+            file_descriptor = ::creat(host_filename.c_str(), 0666);
+            file_created = true;
+        }
+        if (file_descriptor < 0)
+            throw printf_exception("image_data_load_from_disk(): cannot open or create \"%s\"", host_filename.c_str()) ;
+
+        // get timestamps, to monitor changes
+        ::stat(host_filename.c_str(), &file_status);
+
+        // clear image
+        memset(data, 0, data_size);
+
+        if (!file_created) {
+            // read existing file
+            if (!is_fileset(&host_filename, 0, data_size))
+                if (file_status.st_size > (off_t)data_size) { // trunc ?
+                    FATAL("storageimage_memory_c::load_from_disk(): File \"%s\" is %" PRId64 " bytes, shall be trunc'd to %" PRId64 " bytes, non-zero data would be lost",
+                          host_filename.c_str(), (uint64_t)file_status.st_size, data_size) ;
+                }
+
+            int res = ::read(file_descriptor, data, data_size);
+            ::close(file_descriptor) ;
+
+            // read file to memory
+            if (res < 0)
+                throw printf_exception("storageimage_memory_c::load_from_disk(): cannot read \"%s\"", host_filename.c_str()) ;
+            if (res < file_status.st_size)
+                throw printf_exception("storageimage_memory_c::load_from_disk(): cannot read %" PRId64 " bytes from \"%s\"",
+                                       (uint64_t)file_status.st_size, host_filename.c_str()) ;
+        }
+
+        result = true ;
+    }
+    catch(exception& e) {
+        ERROR(e.what()) ;
+        result = false ;
+    }
+    if (result_file_created)
+        *result_file_created = file_created ;
+    return result ;
+}
+
+// needs to be locked against image changes
+void storageimage_memory_c::save_to_file(string _host_filename)
+{
+    string host_filename = absolute_path(&_host_filename) ;
+
+    try {
+        // opens image file for full rewrite or creates it
+        int32_t file_descriptor;
+        file_descriptor = ::open(host_filename.c_str(), O_BINARY | O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (file_descriptor < 0)
+            throw printf_exception("storageimage_memory_c::data_save_to_disk() cannot open \"%s\"",
+                                   host_filename.c_str());
+        ::write(file_descriptor, data, data_size);
+        ::close(file_descriptor);
+    }
+    catch(exception& e) {
+        ERROR(e.what()) ;
+    }
+}
+
+
+

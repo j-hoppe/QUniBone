@@ -132,7 +132,7 @@ bool slu_c::on_before_install(void) {
 
 	INFO("Serial port %s opened", serialport.value.c_str());
 	char buff[256];
-	sprintf(buff, "\n\rSerial port %s opened\n\r", serialport.value.c_str());
+	sprintf(buff, "\n\rSerial port %s opened by " QUNIBONE_NAME "\n\r", serialport.value.c_str());
 	rs232.cputs(buff);
 
 	return true;

@@ -51,7 +51,7 @@
 
 void application_c::menu_device_exercisers(const char *menu_code) {
 	bool ready = false;
-	bool show_help = true;
+	bool show_help = true ;
 	bool memory_installed = false;
 	devexer::devexer_c *cur_exerciser = NULL;
 	unsigned n_fields;
@@ -62,6 +62,11 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 	// QBUS/UNIBUS activity
 	hardware_startup(pru_c::PRUCODE_EMULATION);
 	buslatches.output_enable(true);
+
+    qunibus->set_cpu_bus_activity(0); // QBUS: even HALTed CPU does ODT traffic, stop it
+
+	// Neither emulated nor physical CPU:
+	// PRU must grant all DMA requests immediately
 	qunibus->set_arbitrator_active(false) ;
 
 	// instantiate different device exercisers
@@ -72,12 +77,19 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 
 	cur_exerciser = NULL;
 
+    // PRUCODE_UNIBUS can raise events (INIT,ACLO,DCLO)
+    // handle & clear these
+    qunibusadapter->enabled.set(true);
+	
 	while (!ready) {
+        // sync pagetable
+        ddrmem->set_range(emulated_memory_start_addr, emulated_memory_end_addr);
 
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && !script_active()) {
 			show_help = false; // only once
 			printf("\n");
-			printf("*** Exercise (= work with) installed " QUNIBUS_NAME " decives.\n");
+			printf("*** Exercise (= work with) installed " QUNIBUS_NAME " devices.\n");
 			print_arbitration_info("    ");
 			if (cur_exerciser) {
 				printf("    Current device is \"%s\" @ %s\n",
@@ -90,7 +102,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 			} else
 				printf("    NO " QUNIBUS_NAME " memory installed ... device test limited!\n");
 			printf("\n");
-			printf("m i              Install (emulate) max " QUNIBUS_NAME " memory\n");
+			printf("m i                  Install (emulate) max " QUNIBUS_NAME " memory\n");
 			if (memory_installed) {
 				printf("m f [word]       Fill " QUNIBUS_NAME " memory (with 0 or other octal value)\n");
 				printf("m d              Dump " QUNIBUS_NAME " memory to disk\n");
@@ -238,6 +250,9 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				uint16_t wordbuffer;
 				// interpret as 18 bit address
 				qunibus->parse_addr(s_param[0], &addr);
+if (addr < 020)
+	addr += 0774400 ;
+				
 				qunibus->parse_word(s_param[1], &wordbuffer);
 				bool timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATO, addr,
 						&wordbuffer, 1);
@@ -250,6 +265,8 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				uint32_t addr;
 				if (n_fields == 2) { // single reg number given
 					qunibus->parse_addr(s_param[0], &addr); 	// interpret as 18 bit address
+if (addr < 020)
+	addr += 0774400 ;					
 					timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATI, addr,
 							&wordbuffer, 1);
 					printf("EXAM %s -> %06o\n", qunibus->addr2text(addr), wordbuffer);

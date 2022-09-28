@@ -39,10 +39,11 @@
 #include <string>
 
 class logsource_c {
-private:
+public:
 	// default vars for logsources without own variables
 	unsigned	log_level ; // filters which messages to display in the global logger.
 
+protected:
 	// register/unregister at global logger
 	// called in constructor/destructor
 	void connect() ;

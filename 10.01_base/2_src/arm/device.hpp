@@ -43,7 +43,8 @@ public:
 	// thread for this worker instance
 	device_c *device; // link to parent
 	unsigned instance; // id of this running instance
-	pthread_t pthread;bool running; // run state
+	pthread_t pthread;
+	bool running; // run state
 };
 
 // abstract qunibus device

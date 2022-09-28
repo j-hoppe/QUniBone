@@ -116,7 +116,7 @@ static void buslatches_m9302_sack_test() {
 #endif
 
 void application_c::menu_buslatches(const char *menu_code) {
-	bool show_help = true; // show cmds on first screen, then only on error or request
+	bool show_help = true ; // show cmds on first screen, then only on error or request
 	bool show_inputs = true; // query and show state of all latches
 	bool stop_on_error = true ;
 	bool ready;
@@ -143,6 +143,7 @@ void application_c::menu_buslatches(const char *menu_code) {
 						(bl)->bitmask) ;							\
 				} while(0)
 	ready = false;
+		
 	while (!ready) {
 		if (show_inputs) {
 			unsigned i;
@@ -151,7 +152,9 @@ void application_c::menu_buslatches(const char *menu_code) {
 				PRINTBUSLATCH(buslatches[i]);
 			}
 		}
-		if (show_help) {
+		
+		// no menu display when reading script
+		if (show_help && ! script_active()) {
 			show_help = false; // only once
 			printf("\n");
 			printf("*** Test 8-bit register bus-latches and corresponding " QUNIBUS_NAME " lines.\n");

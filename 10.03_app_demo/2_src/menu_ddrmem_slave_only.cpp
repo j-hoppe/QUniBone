@@ -42,7 +42,7 @@
  * function to read, write, test shared DDR memory
  * */
 void application_c::menu_ddrmem_slave_only(const char *menu_code) {
-	bool show_help = true; // show cmds on first screen, then only on error or request
+	bool show_help = true ; // show cmds on first screen, then only on error or request
 	char *s_choice;
 	char s_opcode[256], s_param[2][256];
 	bool ready;
@@ -52,10 +52,12 @@ void application_c::menu_ddrmem_slave_only(const char *menu_code) {
 	qunibus->set_arbitrator_active(false) ;
 
 	ready = false;
+	
 	while (!ready) {
 		// sync pagetable
 		ddrmem->set_range(emulated_memory_start_addr, emulated_memory_end_addr);
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && ! script_active()) {
 			show_help = false; // only once
 			printf("\n");
 			printf("*** Access Shared DDR memory = "  QUNIBUS_NAME " memory as BUS SLAVE.\n");

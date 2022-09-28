@@ -42,12 +42,12 @@ using namespace std;
 
 
 
-RX0102drive_c::RX0102drive_c(RX0102uCPU_c *uCPU, bool is_RX02) :
+RX0102drive_c::RX0102drive_c(RX0102uCPU_c *_uCPU, bool _is_RX02) :
     // no controller assigned, command by box uCPU
     storagedrive_c(nullptr)
 {
-    this->uCPU = uCPU ; // link to micro CPU board
-    this->is_RX02 = is_RX02 ;
+    uCPU = _uCPU ; // link to micro CPU board
+    is_RX02 = _is_RX02 ;
     if (!is_RX02) {
         log_label = "RXDRV"; // to be overwritten by RX11 on create
         type_name.set("RX01") ;
@@ -87,13 +87,12 @@ bool RX0102drive_c::on_param_changed(parameter_c *param) {
             ERROR("drive is_double_density SD or DD");
             return false;
         }
-    } else if (param == &image_filepath) {
-        // change of file image changes state
-        if (image_is_open())
-            image_close();
+    } else if (image_is_param(param)
+               && image_recreate_on_param_change(param) ) {
+        // change of file image changes state, results also in close()
         // assume new "floppy" has no delete marks set
         memset(deleted_data_marks, 0, sizeof(deleted_data_marks)) ;
-        image_open(image_filepath.new_value, true) ; // may fail
+        image_open(true) ; // may fail
         // file size determines is_double_density
         if (is_RX02 && image_is_open()) {
             // RX02: user can set density only if not file loaded
@@ -102,8 +101,8 @@ bool RX0102drive_c::on_param_changed(parameter_c *param) {
             unsigned single_density_image_size = 128 * cylinder_count * sector_count ; // 256.256
             if (image_size() > single_density_image_size)
                 set_density(true) ;
-			else set_density(false) ;
-        } 
+            else set_density(false) ;
+        }
     }
     return storagedrive_c::on_param_changed(param); // more actions (for enable)
 }
@@ -114,10 +113,12 @@ void RX0102drive_c::set_density(bool double_density) {
         // RX01, RX02 FM encoding
         sector_size_bytes = block_size_bytes = 128; // in byte
         density_name.value = "SD"; // no "on change" callbacks
+        sharedfilesystem_drivetype = sharedfilesystem::devRX01 ;
     } else {
         // RX02 MFM encoding = Double Density floppy
         sector_size_bytes = block_size_bytes = 256; // in byte
         density_name.value = "DD"; // no "on change" callbacks
+        sharedfilesystem_drivetype = sharedfilesystem::devRX02 ;
     }
     block_count = cylinder_count * sector_count;
     capacity.value = block_size_bytes * block_count;
@@ -148,12 +149,12 @@ unsigned RX0102drive_c::get_rotation_ms() {
 }
 
 unsigned RX0102drive_c::get_cylinder() {
-	return cylinder ;
+    return cylinder ;
 }
 
 void RX0102drive_c::set_cylinder(unsigned cyl) {
-	cylinder = cyl ;
-	current_track.set(cyl) ;
+    cylinder = cyl ;
+    current_track.set(cyl) ;
 }
 
 
@@ -196,7 +197,7 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     int offset = get_sector_image_offset(track, sector) ;
     DEBUG("sector_read(): reading 0x%03x bytes from file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
     image_read(sector_buffer, (unsigned) offset, sector_size_bytes) ;
-	// logger->debug_hexdump(this, "image_read():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
+    // logger->debug_hexdump(this, "image_read():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
     return true ;
 }
 
@@ -236,7 +237,7 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
     int offset = get_sector_image_offset(track, sector) ;
     DEBUG("sector_write(): writing 0x%03x bytes to file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
     image_write(sector_buffer, (unsigned) offset, sector_size_bytes) ;
-	// logger->debug_hexdump(this, "image_write():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
+    // logger->debug_hexdump(this, "image_write():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
     return true ;
 }
 

@@ -1,4 +1,4 @@
-/* qunibussignals.hpp: Control of singel UNIBUS/QBUS signal wires
+/* qunibussignals.hpp: Control of single UNIBUS/QBUS signal wires
 
  Copyright (c) 2020, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -37,9 +37,9 @@ public:
 	qunibus_signal_c() {
 	}
 	;
-	qunibus_signal_c(const char *name, unsigned bitwidth) {
-		this->name = name;
-		this->bitwidth = bitwidth;
+	qunibus_signal_c(const char *_name, unsigned _bitwidth) {
+		name = _name;
+		bitwidth = _bitwidth;
 	}
 	virtual void set_val(unsigned value)=0;
 	virtual unsigned get_val()=0;
@@ -51,8 +51,8 @@ public:
 class qunibus_signal_bit_c: public qunibus_signal_c {
 public:
 	// bitwidth = 1
-	qunibus_signal_bit_c(const char *name) :
-			qunibus_signal_c(name, 1) {
+	qunibus_signal_bit_c(const char *_name) :
+			qunibus_signal_c(_name, 1) {
 	}
 
 	virtual void set_val(unsigned value) override {
@@ -79,8 +79,8 @@ public:
 class qunibus_signal_bitinv_c: public qunibus_signal_bit_c {
 public:
 	// bitwidth = 1
-	qunibus_signal_bitinv_c(const char *name) :
-			qunibus_signal_bit_c(name) {
+	qunibus_signal_bitinv_c(const char *_name) :
+			qunibus_signal_bit_c(_name) {
 	}
 	virtual void set_val(unsigned value) override {
 		qunibus_signal_bit_c::set_val(!value);

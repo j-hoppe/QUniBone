@@ -24,6 +24,7 @@
  12-nov-2018  JH      entered beta phase
  */
 
+#include <stdio.h> //DEBUG
 #include <cctype>
 #include "bitcalc.h"
 
@@ -32,16 +33,16 @@
 #include "device.hpp"
 #define _PARAMETER_CPP_
 
-parameter_c::parameter_c(parameterized_c *parameterized, string name, string shortname,
-bool readonly, string unit, string format, string info) {
-	this->parameterized = parameterized;
-	this->name = name;
-	this->shortname = shortname;
-	this->readonly = readonly;
-	this->unit = unit;
-	this->format = format;
-	this->info = info;
-
+parameter_c::parameter_c(parameterized_c *_parameterized, string _name, string _shortname,
+bool _readonly, string _unit, string _format, string _info) {
+	parameterized = _parameterized;
+	name = _name;
+	shortname = _shortname;
+	readonly = _readonly;
+	unit = _unit;
+	format = _format;
+	info = _info;
+//	printf("parameter_c(%s)\n", name.c_str());
 	// add to parameter list of device
 	if (parameterized != NULL)
 		parameterized->param_add(this);
@@ -62,23 +63,23 @@ string *parameter_c::render(void) {
 
 }
 
-parameter_string_c::parameter_string_c(parameterized_c *parameterized, string name,
-		string shortname, bool readonly, string info) :
-		parameter_c(parameterized, name, shortname, readonly, "", "", info) {
+parameter_string_c::parameter_string_c(parameterized_c *_parameterized, string _name,
+		string _shortname, bool _readonly, string _info) :
+		parameter_c(_parameterized, _name, _shortname, _readonly, "", "", _info) {
 	value = "";
 }
 
 parameter_string_c::~parameter_string_c() {
 }
 
-void parameter_string_c::set(string new_value) {
+void parameter_string_c::set(string _new_value) {
 
-	if (value == new_value)
+	if (value == _new_value)
 		return; // call "on_change" only on change
-	this->new_value = new_value;
+	new_value = _new_value;
 	// reject parsed value, if device parameter check complains
 	if (parameterized == NULL || parameterized->on_param_changed(this))
-		value = this->new_value; // device may have changed "new_value"
+		value = new_value; // device may have changed "new_value"
 }
 
 // string parsing is just copying
@@ -93,19 +94,19 @@ string *parameter_string_c::render() {
 	return &printbuffer;
 }
 
-parameter_bool_c::parameter_bool_c(parameterized_c *parameterized, string name,
-		string shortname,
-		bool readonly, string info) :
-		parameter_c(parameterized, name, shortname, readonly, "", "", info) {
+parameter_bool_c::parameter_bool_c(parameterized_c *_parameterized, string _name,
+		string _shortname,
+		bool _readonly, string _info) :
+		parameter_c(_parameterized, _name, _shortname, _readonly, "", "", _info) {
 	value = false;
 }
 
-void parameter_bool_c::set(bool new_value) {
-	if (value == new_value)
+void parameter_bool_c::set(bool _new_value) {
+	if (value == _new_value)
 		return; // call "on_change" only on change
 
 	// reject parsed value, if device parameter check complains
-	this->new_value = new_value;
+	new_value = _new_value;
 	if (parameterized == NULL || parameterized->on_param_changed(this))
 		value = new_value;
 }
@@ -137,20 +138,20 @@ string *parameter_bool_c::render() {
 	return &printbuffer;
 }
 
-parameter_unsigned_c::parameter_unsigned_c(parameterized_c *parameterized, string name,
-		string shortname, bool readonly, string unit, string format, string info,
-		unsigned bitwidth, unsigned base) :
-		parameter_c(parameterized, name, shortname, readonly, unit, format, info) {
-	this->bitwidth = bitwidth;
-	this->base = base;
+parameter_unsigned_c::parameter_unsigned_c(parameterized_c *_parameterized, string _name,
+		string _shortname, bool _readonly, string _unit, string _format, string _info,
+		unsigned _bitwidth, unsigned _base) :
+		parameter_c(_parameterized, _name, _shortname, _readonly, _unit, _format, _info) {
+	bitwidth = _bitwidth;
+	base = _base;
 	value = 0;
 }
 
-void parameter_unsigned_c::set(unsigned new_value) {
-	if (value == new_value)
+void parameter_unsigned_c::set(unsigned _new_value) {
+	if (value == _new_value)
 		return; // call "on_change" only on change
 
-	this->new_value = new_value;
+	new_value = _new_value;
 	// reject parsed value, if device parameter check complains
 	if (parameterized == NULL || parameterized->on_param_changed(this))
 		value = new_value;
@@ -177,20 +178,20 @@ string *parameter_unsigned_c::render() {
 	return &printbuffer;
 }
 
-parameter_unsigned64_c::parameter_unsigned64_c(parameterized_c *parameterized, string name,
-		string shortname, bool readonly, string unit, string format, string info,
-		unsigned bitwidth, unsigned base) :
-		parameter_c(parameterized, name, shortname, readonly, unit, format, info) {
-	this->bitwidth = bitwidth;
-	this->base = base;
+parameter_unsigned64_c::parameter_unsigned64_c(parameterized_c *_parameterized, string _name,
+		string _shortname, bool _readonly, string _unit, string _format, string _info,
+		unsigned _bitwidth, unsigned _base) :
+		parameter_c(_parameterized, _name, _shortname, _readonly, _unit, _format, _info) {
+	bitwidth = _bitwidth;
+	base = _base;
 	value = 0;
 }
 
-void parameter_unsigned64_c::set(uint64_t new_value) {
-	if (value == new_value)
+void parameter_unsigned64_c::set(uint64_t _new_value) {
+	if (value == _new_value)
 		return; // call "on_change" only on change
 
-	this->new_value = new_value;
+	new_value = _new_value;
 	// reject parsed value, if device parameter check complains
 	if (parameterized == NULL || parameterized->on_param_changed(this))
 		value = new_value;
@@ -217,10 +218,10 @@ string *parameter_unsigned64_c::render() {
 	return &printbuffer;
 }
 
-parameter_double_c::parameter_double_c(parameterized_c *parameterized, string name,
-		string shortname,
-		bool readonly, string unit, string format, string info) :
-		parameter_c(parameterized, name, shortname, readonly, unit, format, info) {
+parameter_double_c::parameter_double_c(parameterized_c *_parameterized, string _name,
+		string _shortname,
+		bool _readonly, string _unit, string _format, string _info) :
+		parameter_c(_parameterized, _name, _shortname, _readonly, _unit, _format, _info) {
 	value = 0.0;
 }
 
@@ -239,11 +240,11 @@ void parameter_double_c::parse(string text) {
 	set(new_value);
 }
 
-void parameter_double_c::set(double new_value) {
-	if (value == new_value)
+void parameter_double_c::set(double _new_value) {
+	if (value == _new_value)
 		return; // call "on_change" only on change
 
-	this->new_value = new_value;
+	new_value = _new_value;
 	// reject parsed value, if device parameter check complains
 	if (parameterized == NULL || parameterized->on_param_changed(this))
 		value = new_value;

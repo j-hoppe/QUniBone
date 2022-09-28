@@ -1,4 +1,4 @@
-/* qunibussignals.cpp: Control of singel UNIBUS/QBUS signal wires
+/* qunibussignals.cpp: Control of single UNIBUS/QBUS signal wires
 
  Copyright (c) 2020, Joerg Hoppe
  j_hoppe@t-online.de, www.retrocmp.com
@@ -32,7 +32,7 @@
 
 class qunibus_signal_addr_c: public qunibus_signal_c {
 public:
-	qunibus_signal_addr_c(const char *name):qunibus_signal_c(name,18) {};
+	qunibus_signal_addr_c(const char *_name):qunibus_signal_c(_name,18) {};
 	virtual void set_val(unsigned value) override {
 	buslatches[2]->setval(0xff, value); // ADDR0:7
 	buslatches[3]->setval(0xff, value >> 8); // ADDR8:15
@@ -50,7 +50,7 @@ public:
 
 class qunibus_signal_data_c: public qunibus_signal_c {
 public:
-	qunibus_signal_data_c(const char *name):qunibus_signal_c(name, 16) {};
+	qunibus_signal_data_c(const char *_name):qunibus_signal_c(_name, 16) {};
 	virtual void set_val(unsigned value) override {
 		buslatches[5]->setval(0xff, value); // DATA0:7
 		buslatches[6]->setval(0xff, value >> 8); // DATA8:15
@@ -65,7 +65,7 @@ public:
 
 class qunibus_signal_control_c: public qunibus_signal_c {
 public:
-	qunibus_signal_control_c(const char *name):qunibus_signal_c(name, 2) {};
+	qunibus_signal_control_c(const char *_name):qunibus_signal_c(_name, 2) {};
 	virtual void set_val(unsigned value) override {
 		buslatches[4]->setval(0x0C, value << 2); // C1 = 0x8, C0 = 0x4
 		}

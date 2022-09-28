@@ -55,18 +55,18 @@
 #include "gpios.hpp"
 #include "panel.hpp"
 
-panelcontrol_c::panelcontrol_c(string device_name, string control_name,
-bool is_input, uint8_t chip_addr, uint8_t reg_addr, uint8_t reg_bitmask) {
-	this->device_name = device_name;
-	this->control_name = control_name;
-	this->is_input = is_input;
-	this->chip_addr = chip_addr;
-	this->reg_addr = reg_addr;
-	this->reg_bitmask = reg_bitmask;
+panelcontrol_c::panelcontrol_c(string _device_name, string _control_name,
+bool _is_input, uint8_t _chip_addr, uint8_t _reg_addr, uint8_t _reg_bitmask) {
+	device_name = _device_name;
+	control_name = _control_name;
+	is_input = _is_input;
+	chip_addr = _chip_addr;
+	reg_addr = _reg_addr;
+	reg_bitmask = _reg_bitmask;
 
 	parameter = NULL;
-	this->value = 0;
-	this->value_invalid = true; // valid if queried once from chips
+	value = 0;
+	value_invalid = true; // valid if queried once from chips
 
 	associate = NULL;
 }

@@ -38,8 +38,8 @@ class bad_parameter: public exception {
 private:
 	string message;
 public:
-	bad_parameter(string message) {
-		(this->message = message);
+	bad_parameter(string _message) {
+		message = _message;
 	}
 	const char* what() const noexcept {
 		return message.c_str();
@@ -48,22 +48,22 @@ public:
 
 class bad_parameter_parse: public bad_parameter {
 public:
-	bad_parameter_parse(string message) :
-			bad_parameter(message) {
+	bad_parameter_parse(string _message) :
+			bad_parameter(_message) {
 	}
 };
 
 class bad_parameter_check: public bad_parameter {
 public:
-	bad_parameter_check(string message) :
-			bad_parameter(message) {
+	bad_parameter_check(string _message) :
+			bad_parameter(_message) {
 	}
 };
 
 class bad_parameter_readonly: public bad_parameter {
 public:
-	bad_parameter_readonly(string message) :
-			bad_parameter(message) {
+	bad_parameter_readonly(string _message) :
+			bad_parameter(_message) {
 	}
 };
 

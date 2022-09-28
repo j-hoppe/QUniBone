@@ -40,7 +40,7 @@
  * no PRU activity
  * */
 void application_c::menu_gpio(const char *menu_code) {
-	bool show_help = true; // show cmds on first screen, then only on error or request
+	bool show_help ; // show cmds on first screen, then only on error or request
 	mcout_t mcout; // Multi Column OUTput
 	unsigned name_len;
 	bool ready;
@@ -49,6 +49,7 @@ void application_c::menu_gpio(const char *menu_code) {
 	char *s_choice;
 	char s_id[256], s_opcode[256];
 	int n_fields;
+	
 	ready = false;
 	while (!ready) {
 		// get max len of pin names
@@ -68,7 +69,8 @@ void application_c::menu_gpio(const char *menu_code) {
 			}
 		}
 		mcout_flush(&mcout, stdout, opt_linewidth, "  ||  ", /*first_col_then_row*/0);
-		if (show_help) {
+		// no menu display when reading script		
+		if (show_help && !script_active()) {
 			printf("\n");
 			printf("*** Test single GPIO pins.\n");
 			show_help = false; // only once

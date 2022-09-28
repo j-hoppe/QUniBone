@@ -313,7 +313,8 @@ void cpu_c::start() {
 //trigger.condition_add(trigger_condition_c(0034500, TRIGGER_DATI)) ; // ZRXF, test 36 end
 //trigger.condition_add(trigger_condition_c(0010560, TRIGGER_DATI)) ; // for mov wc,rxdb
 //trigger.print(stdout) ;
-    /*
+*/
+#ifdef ENABLE_TRIGGERS
     	// code flow tracing: only trace EXEC in this range, when trace_exec_addr_from > 0
     //	tracer.enable(0177170,0177173) ; // RX01/02
     	tracer.enable(026276,026400) ; // ZRXF main level of test 17
@@ -321,7 +322,7 @@ void cpu_c::start() {
     	tracer.enable(010626,010742) ; // ZRXF EMPBUF subr
     	tracer.enable(011610,011632) ; // ZRXF WAIT
     //	tracer.enable(012032,012106) ; // ZRXF AWDN wait for done
-    /**/
+#endif
 
     runmode.value = true;
     mailbox->param = 1;

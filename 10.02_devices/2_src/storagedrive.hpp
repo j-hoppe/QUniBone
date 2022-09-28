@@ -39,19 +39,26 @@ using namespace std;
 #include "device.hpp"
 #include "parameter.hpp"
 
+#include "sharedfilesystem/driveinfo.hpp"
+#include "sharedfilesystem/storageimage_shared.hpp"
 
 class storagecontroller_c;
 
+
 class storagedrive_c: public device_c {
+    friend class storagedrive_selftest_c ;
 private:
     uint8_t	zeros[4096] ; // a block of 00s
 
     // several implemenatation of the "magnetic surface" possible
     // hide from devices
-    storageimage_binfile_c	*image ;
+    storageimage_base_c	*image = nullptr ;
 
 public:
     storagecontroller_c *controller; // link to parent
+
+    // some filesystems need the disk type for their layouts
+    enum sharedfilesystem::dec_drive_type_e sharedfilesystem_drivetype ;
 
     // identifying number at controller
     parameter_unsigned_c unitno = parameter_unsigned_c(this, "unit", "unit", /*readonly*/
@@ -61,8 +68,15 @@ public:
     parameter_unsigned64_c capacity = parameter_unsigned64_c(this, "capacity", "cap", /*readonly*/
                                       true, "byte", "%d", "Storage capacity", 64, 10);
 
+    // if binary image
     parameter_string_c image_filepath = parameter_string_c(this, "image", "img", /*readonly*/
-                                        false, "Path to image file. Empty to detach. \".gz\" archive also searched.");
+                                        false, "Path to binary image file. Empty to detach. \".gz\" archive also searched.");
+    // if shared host dir
+//		image_shareddir - path to directory root of shared host file tree
+    parameter_string_c image_shareddir = parameter_string_c(this, "shared_dir", "shd", /*readonly*/
+                                         false, "Path to directory with shared files. Invalidates binary image file. Empty to detach. \".gz\" archive also searched.");
+    parameter_string_c image_filesystem = parameter_string_c(this, "shared_filesystem", "shfs", /*readonly*/
+                                          false, "Encode shared dir in this file system (empty, RT11, XXDP). Valid if shared dir set.");
 
     parameter_unsigned_c activity_led = parameter_unsigned_c(this, "activityled", "al", /*readonly*/
                                         false, "", "%d", "Number of LED to used for activity display.", 8, 10);
@@ -77,7 +91,16 @@ public:
 
 
     // wrap actual image driver
-    bool image_open(std::string imagefname, bool create) ;
+//    bool image_create() ;
+    bool image_is_param(parameter_c *param) ;
+    void image_params_readonly(bool readonly) ;
+    bool image_recreate_on_param_change(parameter_c *param) ;
+	void image_delete() ;
+private:
+    bool image_recreate_shared_on_param_change(string image_path, string filesystem_paramval, string shareddir_paramval);
+
+public:
+    bool image_open(bool create) ;
     void image_close(void) ;
     bool image_is_open(void) ;
     bool image_is_readonly() ;
@@ -101,17 +124,21 @@ private:
     void block_buffer_check(unsigned block_number);
 
 public:
-    storagedrive_selftest_c(const char *imagefname, unsigned block_size, unsigned block_count) :
+    storagedrive_selftest_c(const char *_imagefname, unsigned _block_size, unsigned _block_count) :
         storagedrive_c(NULL) {
         assert((block_size % 4) == 0); // whole uint32s
-        this->imagefname = imagefname;
-        this->block_size = block_size;
-        this->block_count = block_count;
+        // this->image_filepath.set(string(imagefname)) ;
 
-        this->block_buffer = (uint8_t *) malloc(block_size);
+        imagefname = _imagefname;
+        block_size = _block_size;
+        block_count = _block_count;
+        image = new storageimage_binfile_c(imagefname) ;
+
+        block_buffer = (uint8_t *) malloc(block_size);
     }
     ~storagedrive_selftest_c() {
         free(block_buffer);
+        delete image ;
     }
 
     // fill abstracts

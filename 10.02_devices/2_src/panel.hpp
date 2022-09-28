@@ -34,12 +34,12 @@ public:
 	uint8_t chip_addr;
 	uint8_t reg_addr;bool is_input;
 	uint8_t invert_mask; // these GPIO work inverted
-	i2c_chip_register_c(uint8_t chip_addr, uint8_t reg_addr, bool is_input,
-			uint8_t invert_mask) {
-		this->chip_addr = chip_addr;
-		this->reg_addr = reg_addr;
-		this->is_input = is_input;
-		this->invert_mask = invert_mask;
+	i2c_chip_register_c(uint8_t _chip_addr, uint8_t _reg_addr, bool _is_input,
+			uint8_t _invert_mask) {
+		chip_addr = _chip_addr;
+		reg_addr = _reg_addr;
+		is_input = _is_input;
+		invert_mask = _invert_mask;
 	}
 };
 

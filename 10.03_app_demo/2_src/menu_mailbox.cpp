@@ -46,7 +46,8 @@ void application_c::menu_mailbox(const char *menu_code) {
 	// test PRUs
 	hardware_startup(pru_c::PRUCODE_TEST);
 	while (!ready) {
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && !script_active()) {
 			show_help = false; // only once
 			printf("\n");
 			printf("*** Test ARM-PRU1 mailbox.\n");

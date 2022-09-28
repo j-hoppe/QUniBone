@@ -83,8 +83,6 @@
 testcontroller_c::testcontroller_c() :
     qunibusdevice_c()  // super class constructor
 {
-    unsigned i;
-
     // static config
     name.value = "Test controller";
     type_name.value = "testcontroller_c";
@@ -105,7 +103,7 @@ testcontroller_c::testcontroller_c() :
     CSR->writable_bits = 0xffff;  // all registers are memory cells
 
     // Other registers are "active": receive "on_after_register_access"
-    for (i = 1; i < this->register_count; i++) {
+    for (unsigned i = 1; i < this->register_count; i++) {
         qunibusdevice_register_t *reg = &(this->registers[i]);
         sprintf(reg->name, "reg%02o", i); // name is register offset: "reg07"
         reg->active_on_dati = true; // controller state change on read

@@ -52,13 +52,13 @@
 // uses global memory buffer "membuffer"
 
 // size if ROM in 16bit words
-rom_c::rom_c(string name, unsigned wordcount, uint32_t baseaddress) {
+rom_c::rom_c(string _name, unsigned _wordcount, uint32_t _baseaddress) {
 	log_label = "ROM";
 
-	this->name = name;
-	this->wordcount = wordcount;
-	this->baseaddress = baseaddress;
-	cells.reserve(wordcount);
+	name = _name;
+	wordcount = _wordcount;
+	baseaddress = _baseaddress;
+	cells.reserve(_wordcount);
 }
 
 // fill ROM with pattern

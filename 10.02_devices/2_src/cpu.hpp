@@ -49,14 +49,14 @@ public:
     uint16_t	data ;
     bool nxm ; // timeout, not existing memory
     qunibus_cycle_trace_entry_c() { }
-    qunibus_cycle_trace_entry_c(uint64_t id, bool iopage, unsigned address, uint8_t cycle, uint16_t data, bool nxm) {
-        this->id = id ;
+    qunibus_cycle_trace_entry_c(uint64_t _id, bool _iopage, unsigned _address, uint8_t _cycle, uint16_t _data, bool _nxm) {
+        id = _id ;
         this->timestamp_ns = timeout_c::abstime_ns() ;
-        this->iopage = iopage ;
-        this->address = address ;
-        this->cycle = cycle ;
-        this->data = data ;
-        this->nxm = nxm ;
+        iopage = _iopage ;
+        address = _address ;
+        cycle = _cycle ;
+        data = _data ;
+        nxm = _nxm ;
     }
 } ;
 

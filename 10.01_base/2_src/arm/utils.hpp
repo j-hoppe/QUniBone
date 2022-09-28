@@ -42,6 +42,7 @@
 #define BIT(n) (1 << (n))
 
 
+
 #ifndef _UTILS_CPP_
 extern volatile int SIGINTreceived;
 #endif
@@ -50,7 +51,9 @@ extern volatile int SIGINTreceived;
 void strcpy_s(char *dest, int len, const char *src);
 
 // mark unused parameters
-#define UNUSED(x) (void)(x)
+// http://stackoverflow.com/questions/1486904/how-do-i-best-silence-a-warning-about-unused-variables
+//#define UNUSED(x) (void)(x)
+#define UNUSED(expr) do { (void)(expr); } while (0)
 
 #define USE(x) (void)(x)
 
@@ -60,15 +63,26 @@ void SIGINTcatchnext();
 void break_here(void);
 
 
+class printf_exception: public std::exception {
+private:
+    std::string message;
+public:
+    printf_exception(std::string msgfmt, ...) ;
+    virtual const char* what() const noexcept {
+        return message.c_str();
+    }
+};
+
+
 class progress_c {
 private:
-	unsigned linewidth;
-	unsigned cur_col;
+    unsigned linewidth;
+    unsigned cur_col;
 public:
-	progress_c(unsigned linewidth);
-	void init(unsigned linewidth);
-	void put(const char *info);
-	void putf(const char *fmt, ...);
+    progress_c(unsigned linewidth);
+    void init(unsigned linewidth);
+    void put(const char *info);
+    void putf(const char *fmt, ...);
 
 };
 
@@ -81,9 +95,45 @@ char *cur_time_text(void);
 // https://stackoverflow.com/questions/83439/remove-spaces-from-stdstring-in-c
 #define TRIM_STRING(str) str.erase(std::remove_if(str.begin(), str.end(), ::isspace), str.end())
 
-bool fileExists(const std::string& filename);
+char *strtrim(char *txt);
+void ltrim(std::string &s) ;
+void rtrim(std::string &s) ;
+void trim(std::string &s) ;
+std::string ltrim_copy(std::string s) ;
+std::string rtrim_copy(std::string s) ;
+std::string trim_copy(std::string s) ;
+bool caseInsensStringCompare(std::string &str1, std::string &str2);
+
+char *printf_to_cstr(const char *fmt, ...) ;
+std::string printf_to_string(const char *fmt, ...) ;
+
+
+
 
 char * fileErrorText(const char *msgfmt, const char *fname);
+
+bool is_memset(uint8_t *ptr, uint8_t val, uint32_t size);
+bool is_fileset(std::string *fpath, uint8_t val, uint32_t offset);
+
+void split_path(std::string path, std::string *directory, std::string *filename, std::string *basename, std::string *extension) ;
+void split_path_test() ;
+
+std::string absolute_path(std::string *path) ;
+
+int file_write(char *fpath, uint8_t *data, unsigned size) ;
+
+// 1, if path/filename exists
+//int file_exists(char *path, char *filename) ;
+bool file_exists(std::string *filename);
+bool file_exists(std::string *path, std::string *filename) ;
+
+std::string rad50_decode(uint16_t w);
+uint16_t rad50_encode(std::string s);
+
+
+
+void hexdump(FILE *stream, uint8_t *data, int size, char *fmt, ...);
+
 
 //ool caseInsCompare(const std::string& s1, const std::string& s2) ;
 
@@ -92,27 +142,29 @@ struct timespec timespec_add_us(struct timespec ts, unsigned us);
 // add microseconds to current time
 struct timespec timespec_future_us(unsigned offset_us);
 
+uint64_t now_ms(void) ;
+
 // decodes C escape sequences \char, \nnn octal, \xnn hex
 bool str_decode_escapes(char *result, unsigned result_size, char *encoded) ;
 
 
 // rotating set of buffers for "number to text" functions
 class rolling_text_buffers_c {
-	private:
-	static const unsigned buffer_count = 16 ;
-	char buffer[buffer_count][256] ;
-	unsigned buffer_idx ;
-public:	
-	rolling_text_buffers_c() {
-		buffer_idx=0 ;
-	}
+private:
+    static const unsigned buffer_count = 16 ;
+    char buffer[buffer_count][256] ;
+    unsigned buffer_idx ;
+public:
+    rolling_text_buffers_c() {
+        buffer_idx=0 ;
+    }
 
-	char *get_next() {
-		buffer_idx = (buffer_idx + 1) % buffer_count ;
-		return buffer[buffer_idx] ;
-	}
+    char *get_next() {
+        buffer_idx = (buffer_idx + 1) % buffer_count ;
+        return buffer[buffer_idx] ;
+    }
 } ;
-	
+
 extern rolling_text_buffers_c rolling_text_buffers ; // singleton
 
 

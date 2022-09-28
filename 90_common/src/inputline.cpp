@@ -71,13 +71,19 @@ void inputline_c::init() {
 	// close file, if open
 	if (file)
 		fclose(file);
-	file = NULL;
+	file = nullptr;
 	skip_lines = false ;
 }
 
-bool inputline_c::openfile(char *filename) {
+bool inputline_c::open_file(char *filename) {
 	file = fopen(filename, "r");
-	return (file != NULL);
+	return (file != nullptr);
+}
+
+
+bool inputline_c::is_file_open() 
+{
+	return (file != nullptr) ;
 }
 
 // replace $1..9 with variable[1..9]
@@ -121,7 +127,7 @@ bool inputline_c::internal_command(char *line) {
 		ts.tv_nsec = 1000000L * (millis % 1000);
 		printf("<<<\n");
 		printf("<<< Input: waiting for %d milli seconds >>>\n", millis);
-		nanosleep(&ts, NULL);
+		nanosleep(&ts, nullptr);
 		printf("<<<\n");
 		return true;
 	} else if (!strncasecmp(line, ".print", 6)) {
@@ -139,7 +145,7 @@ bool inputline_c::internal_command(char *line) {
 	} else if (!strncasecmp(line, ".end", 3)) {
 		// close input file
 		fclose(file);
-		file = NULL;
+		file = nullptr;
 		return true;
 	}
 	return false;
@@ -147,15 +153,15 @@ bool inputline_c::internal_command(char *line) {
 
 char *inputline_c::readline(char *buffer, int buffer_size, const char *prompt) {
 	char *s;
-	if (file != NULL) {
+	if (file != nullptr) {
 		// read from file
-		int ready = 0;
-		while (!ready && file != NULL) {
+		bool ready = false;
+		while (!ready && file != nullptr) {
 			/*** read line from text file ***/
-			if (fgets(buffer, buffer_size, file) == NULL) {
+			if (fgets(buffer, buffer_size, file) == nullptr) {
 				fclose(file);
-				file = NULL; // file empty, or unreadable
-				ready = 1;
+				file = nullptr; // file empty, or unreadable
+				ready = true;
 			} else {
 				// remove terminating "\n"
 				for (s = buffer; *s; s++)
@@ -181,12 +187,12 @@ char *inputline_c::readline(char *buffer, int buffer_size, const char *prompt) {
 					continue;
 				if (!internal_command(buffer)) {
 					printf("%s\n", buffer);
-					ready = 1;
+					ready = true;
 				}
 			}
 		}
 	}
-	if (file == NULL) {
+	if (file == nullptr) {
 		/*** read interactive ***/
 		if (prompt && *prompt)
 			printf("%s", prompt);

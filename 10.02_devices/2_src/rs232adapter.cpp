@@ -188,9 +188,9 @@ void rs232adapter_c::rs232byte_loopback(rs232byte_t xmtbyte) {
 	pthread_mutex_unlock(&mutex);
 }
 
-void rs232adapter_c::set_pattern(char *pattern) {
+void rs232adapter_c::set_pattern(char *_pattern) {
 	pthread_mutex_lock(&mutex);
-	strncpy(this->pattern, pattern, pattern_max_len);
+	strncpy(pattern, _pattern, pattern_max_len);
 	pattern_found = false;
 	pattern_stream_data[0] = 0;
 	pthread_mutex_unlock(&mutex);

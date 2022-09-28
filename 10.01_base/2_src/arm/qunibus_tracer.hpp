@@ -49,23 +49,23 @@
 class trigger_condition_c {
 public:
     // cycles: OR set of TRIGGER_DAT*
-    trigger_condition_c(unsigned address, unsigned cycle_mask) {
-        this->address_from = this->address_to = address ;
-        this->cycle_mask = cycle_mask ;
+    trigger_condition_c(unsigned _address, unsigned _cycle_mask) {
+        address_from = this->address_to = _address ;
+        cycle_mask = _cycle_mask ;
     }
-    trigger_condition_c(unsigned address_from, unsigned address_to, unsigned cycle_mask) {
-        this->address_from = address_from ;
-        this->address_to = address_to ;
-        this->cycle_mask = cycle_mask ;
+    trigger_condition_c(unsigned _address_from, unsigned _address_to, unsigned _cycle_mask) {
+        address_from = _address_from ;
+        address_to = _address_to ;
+        cycle_mask = _cycle_mask ;
     }
 
     unsigned	address_from ;
     unsigned	address_to ;
     unsigned	cycle_mask ; // multiple of "1 << " QUNIBUS_CYCLE_DATI,DATO,DATOB
-    bool matches(uint32_t address, unsigned cycle) {
-        return (address >= this->address_from)
-               && (address <= this->address_to)
-               && (this->cycle_mask & (1 << cycle)) ;
+    bool matches(uint32_t _address, unsigned _cycle) {
+        return (_address >= address_from)
+               && (_address <= address_to)
+               && (cycle_mask & (1 << _cycle)) ;
     }
     char *to_string() {
         static char buff[255] ; // how C-ish !

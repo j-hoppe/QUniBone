@@ -40,7 +40,7 @@
  * */
 void application_c::menu_panel(const char *menu_code) {
 	mcout_t mcout; // Multi Column OUTput
-	bool show_help = true; // show cmds on first screen, then only on error or request
+	bool show_help = true ; // show cmds on first screen, then only on error or request
 	bool ready = false;
 	char *s_choice;
 	unsigned n_fields;
@@ -50,7 +50,6 @@ void application_c::menu_panel(const char *menu_code) {
   	printf("Start worker().\n");
 
 	while (!ready) {
-
 		// display all known controls
 		unsigned name_len = 0;
 		unsigned controlno;
@@ -70,7 +69,8 @@ void application_c::menu_panel(const char *menu_code) {
 		}
 		mcout_flush(&mcout, stdout, opt_linewidth, "  ||  ", /*first_col_then_row*/0);
 
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && !script_active()) {
 			show_help = false; // only once
 			// show all registers
 
