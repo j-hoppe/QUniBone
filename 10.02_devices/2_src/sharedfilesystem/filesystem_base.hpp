@@ -40,6 +40,7 @@
 #define _SHAREDFILESYSTEM_BASE_HPP_
 
 #include <vector>
+#include <map>
 #include <queue>
 #include <regex>
 #include <ctime>
@@ -116,7 +117,7 @@ public:
 
 
 // manages reference counters for filename strings
-class filesystem_event_filter_c: public map <std::string, int>
+class filesystem_event_filter_c: public std::map<std::string, int>
 {
 public:
     void add(string path) ;
