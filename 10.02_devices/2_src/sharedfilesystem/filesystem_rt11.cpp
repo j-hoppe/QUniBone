@@ -513,13 +513,13 @@ unsigned filesystem_rt11_c::rt11_dir_entries_per_segment()
     return result;
 }
 
-unsigned filesystem_rt11_c::rt11_dir_needed_segments(unsigned file_count)
+unsigned filesystem_rt11_c::rt11_dir_needed_segments(unsigned _file_count)
 {
     // without extra bytes: 72 [VFFM91] 1-15
     int entries_per_seg = rt11_dir_entries_per_segment();
-    file_count++; // one more for the mandatory "empty space" file entry
+    _file_count++; // one more for the mandatory "empty space" file entry
     // round up to whole segments
-    return (file_count + entries_per_seg - 1) / entries_per_seg;
+    return (_file_count + entries_per_seg - 1) / entries_per_seg;
 }
 
 // iterate all blocks of a file for change
