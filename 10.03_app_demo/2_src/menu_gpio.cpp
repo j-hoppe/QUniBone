@@ -40,7 +40,7 @@
  * no PRU activity
  * */
 void application_c::menu_gpio(const char *menu_code) {
-	bool show_help ; // show cmds on first screen, then only on error or request
+	bool show_help = true ; // show cmds on first screen, then only on error or request
 	mcout_t mcout; // Multi Column OUTput
 	unsigned name_len;
 	bool ready;
