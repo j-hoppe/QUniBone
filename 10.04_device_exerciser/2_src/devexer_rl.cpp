@@ -28,9 +28,9 @@
 
 namespace devexer {
 
-rl_c::rl_c(int subtype) :
+rl_c::rl_c(int _subtype) :
 		disk_c() {
-	this->subtype = subtype;
+	subtype = _subtype;
 	assert(subtype == 1 || subtype == 2);
 	name.value = "RL";
 	// type_name.value = "PDP-11/20";
