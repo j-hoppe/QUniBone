@@ -163,7 +163,7 @@ public:
         if (is_empty())
             return true ;
         assert(_data != nullptr) ;
-        for (unsigned size = _size; size; ptr++, size--)
+        for (unsigned n = _size; n; ptr++, n--)
             if (*ptr != val)
                 return false;
         return true;
