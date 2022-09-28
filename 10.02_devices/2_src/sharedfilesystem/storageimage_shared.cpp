@@ -261,7 +261,14 @@ bool storageimage_shared_c::open(bool create)
     image  = new storageimage_binfile_c(image_path);
 //    image = new storageimage_memory_c(drive_info.capacity);
 
-    image->open(false) ;
+    if (!image->open(false)) {
+        delete image ;
+        image = nullptr ;
+        unlock() ;
+        // image not opened, if filesystem invalid or dir not set
+        return false ;
+    }
+
 
     // the file system occupies only part of the image:
     // from start until the bad sector table.
@@ -297,7 +304,13 @@ bool storageimage_shared_c::open(bool create)
 //image_save_to_disk("/tmp/sync_worker.dump") ;
 //				filesystem_dec->debug_print() ;
 
-    // init host directory
+    // init host directory, create if not exists
+    if (! file_exists(&host_shared_rootdir)) {
+        INFO(printf_to_cstr("Creating shared directory %s", host_shared_rootdir.c_str())) ;
+        system(string("mkdir -p " + host_shared_rootdir).c_str()) ;
+    }
+    if (! file_exists(&host_shared_rootdir))
+        FATAL(printf_to_cstr("Shared directory %s could not be created!", host_shared_rootdir.c_str())) ;
     filesystem_host = new filesystem_host_c(host_shared_rootdir) ;
     filesystem_host->log_level_ptr = log_level_ptr ; // same level as image
     filesystem_host->event_queue.log_level_ptr = log_level_ptr ;
@@ -305,11 +318,11 @@ bool storageimage_shared_c::open(bool create)
     // initial synchronisation:
     bool init_from_host=false ;
     if (init_from_host) {
-		// produce 1st image with empty file system
-		filesystem_dec->render() ;
-		dec_image_changed = false ;
-		filesystem_host->parse() ;
-		// filesystem_host->event_queue now initially filled
+        // produce 1st image with empty file system
+        filesystem_dec->render() ;
+        dec_image_changed = false ;
+        filesystem_host->parse() ;
+        // filesystem_host->event_queue now initially filled
         // host shared dir initializes DEC filesystem and image
         sync_host_shared_dir_to_filesystem_and_events() ;
         sync_host_filesystem_events_to_dec() ;
