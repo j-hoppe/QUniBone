@@ -1,12 +1,17 @@
 #!/bin/bash
 #
-GITURL=https://github.com/j-hoppe/QUniBone.git
+# arg 1: Branch. "master", if none
+GITREPO=j-hoppe/QUniBone
+GITBRANCH=master
+if [ ! -z "$1" ] ; then
+    GITBRANCH=$1
+fi
+
 echo "This script updates program sources from GitHub"
-echo "		$GITURL"
+echo "		https://github.com/$GITREPO/tree/$GITBRANCH"
 echo "It forces all local files also present on GitHub to latest version,"
 echo "then a full recompile is started."
-echo "This will both:"
-echo " - update/rollback all sources and scripts to latest published state."
+echo "This will update/rollback all sources and scripts to latest published state."
 echo "Files not (anymore) on GitHub are not touched."
 read -p "Are you sure [y/*] ? "
 if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
@@ -14,12 +19,18 @@ if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
 	exit 1
 fi
 
-# make sure we have svn
-sudo apt install subversion
+ARCHIVE=$GITBRANCH.tar.gz
+rm -f $ARCHIVE
+wget -nv --show-progress https://github.com/$GITREPO/archive/$ARCHIVE
+if [ $? -ne 0 ] ; then
+    echo "Error downloading sources from https://github.com/$GITREPO/archive/$ARCHIVE !"
+    exit 1
+fi
 
-# download from github without creating repository
-svn export --force ${GITURL}/trunk  .
+# now we have a single file $GITBRANCH here. remove the special tar-tree rootdir
 # This will not clear outdated files, they will remain as junk.
+tar xzvf $ARCHIVE --strip-components=1
+
 
 # Create simple file links ("4_deploy") for QBone/UniBone variants ("4_deploy_q")
 chmod +x *.sh
