@@ -386,6 +386,8 @@ string filesystem_rt11_c::make_filename(string basename, string ext)
  * See AA-5279B-TC RT-11 V4.0 User Guide, "INITIALIZE", pp. 4-108..110
  * RK06/7 = 32 bad blocks, RL01/RL02 = 10
  *
+ * also AA-PDU0A-TC_RT-11_Commands_Manual_Aug91.pdf "INITIALIZE", pp. 146
+ *
  * Modified  by parse of actual disc image.
  */
 filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(enum dec_drive_type_e drive_type)
@@ -393,71 +395,75 @@ filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(e
     layout_info_t result ;
     result.drive_type = drive_type ;
     result.block_size = 512 ; // for all drives
+    result.first_dir_blocknr = 6; // for all drives
     switch (drive_type) {
     case devRK035:
-        result.first_dir_blocknr = 6;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 16 ;
         break ;
     case devTU58:
         // result.block_count = 512 ;
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
     case devTU56:
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
     case devRF:
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
     case devRS:
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
     case devRP023:
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 31 ;
         break ;
     case devRX01:
         // result.block_count = 494 ; // todo
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
     case devRX02:
         // result.block_count = 988 ; // todo
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
     case devRK067:
-        result.first_dir_blocknr = 6 ;
         result.replacable_bad_blocks = 32 ;
         result.dir_seg_count = 31 ;
         break ;
     case devRL01:
         // result.block_count = 511*20 ; // without last track 10225 pyRT11
-        result.first_dir_blocknr = 6 ;
         result.dir_seg_count = 16 ;
         result.replacable_bad_blocks = 10 ;
         break ;
     case devRL02:
         // result.block_count = 1023*20 ;// 1023*20 without last track. 20465 pyRT11
-        result.first_dir_blocknr = 6 ;
-        result.replacable_bad_blocks = 10 ;
 //        result.dir_seg_count = 16 ;
-        result.dir_seg_count = 31 ; // rt11 5.5 formatting
+        result.dir_seg_count = 31 ; // rt11 5.5 INIT
+        result.replacable_bad_blocks = 10 ;
         break ;
-
+    case devRX50:
+        // result.dir_seg_count = 1 ; documented
+        result.dir_seg_count = 4 ; // v5.3 INIT
+        result.replacable_bad_blocks = 0 ;
+        break ;
+    case devRX33:
+        // result.dir_seg_count = 1 ; documented
+        result.dir_seg_count = 16 ; // v5.3 INIT
+        result.replacable_bad_blocks = 0 ;
+        break ;
     default:
-        FATAL("storageimage_rt11_c::get_drive_info(): invalid drive") ;
+        if (drive_info.mscp_block_count > 0) {
+            // RT11 on big MSCP drives
+            result.dir_seg_count = 31 ; // max.
+            result.replacable_bad_blocks = 0 ;
+        } else
+            FATAL("storageimage_rt11_c::get_drive_info(): invalid drive") ;
     }
     result.block_count = drive_info.get_usable_capacity() / result.block_size ;
 
@@ -1062,9 +1068,9 @@ enum error_e filesystem_rt11_c::parse()
 {
     enum error_e error_code ;
 
-	// events in the queue references streams, which get invalid on re-parse.
-	assert(event_queue.empty()) ;
-	
+    // events in the queue references streams, which get invalid on re-parse.
+    assert(event_queue.empty()) ;
+
     init();
 
     parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, RT11_BLOCKSIZE) ;
@@ -1261,7 +1267,7 @@ enum error_e filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache,
         w = RT11_FILE_EPERM;
         if (f->readonly)
 //            w |= RT11_FILE_EREAD | RT11_FILE_EPROT; // E.READ: Monitor-Dir-Inv ?
-			w |= RT11_FILE_EPROT;
+            w |= RT11_FILE_EPROT;
         if (f->stream_prefix)
             w |= RT11_FILE_EPRE;
         cache.set_image_word_at(de_offset + 0, w);
@@ -1528,7 +1534,7 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // create event for existing file/stream? Is acknowledge from host, ignore.
     if (f != nullptr || stream != nullptr) {
         DEBUG(printf_to_cstr("RT11: Ignore \"create\" event for existing filename/stream %s.%s %s",
-              _basename.c_str(), _ext.c_str(), stream_code.c_str()));
+                             _basename.c_str(), _ext.c_str(), stream_code.c_str()));
         return ERROR_OK;
     }
 

@@ -47,19 +47,11 @@ namespace sharedfilesystem {
 
 enum dec_drive_type_e {
     devNONE = 0,
-    devTU58,
-    devRP0456,
-    devRK035,
-    devRL01,
-    devRL02,
-    devRK067,
-    devRP023,
-    devRM,
-    devRS,
-    devTU56,
-    devRX01,
-    devRX02,
-    devRF = 13
+    devTU58, devRP0456, devRK035, devRL01, devRL02, devRK067, devRP023,  devRM,
+    devRS, devTU56, devRX01, devRX02, devRF,
+    devRX50, devRX33, devRD51, devRD31, devRC25, devRC25F,
+    devRD52, devRD32, devRD53, devRA80, devRD54, devRA60, devRA70,
+    devRA81, devRA82, devRA71, devRA72, devRA90, devRA92, devRA73
 } ;
 
 
@@ -71,12 +63,16 @@ public:
     uint64_t	capacity ; // full surface
     unsigned heads, cylinders, sectors, sector_size ;
     uint64_t	bad_sector_file_offset ; // optional start of bad sector track
+    unsigned mscp_block_count ;
+    unsigned mscp_rct_size ;  // Replacement and Caching Table
 
-	drive_info_c() {   }
+    drive_info_c() {   }
     drive_info_c(enum dec_drive_type_e _drive_type) {
         drive_type = _drive_type ;
         capacity = 0 ; // maybe overwritten by emulation
         bad_sector_file_offset = 0 ; // most drives don't have it
+        mscp_block_count = 0 ;
+        mscp_rct_size = 0 ;
 
         switch (drive_type) {
         case devRK035:
@@ -129,6 +125,7 @@ public:
             capacity = cylinders * heads * sectors * sector_size ;
             break ;
 
+
             /*
             				case devTU58: // tag
             					device_name = "TU58" ;
@@ -164,9 +161,112 @@ public:
                         		mnemonic = "RF" ;
                         		break ;
                         */
+            // Duplicate of list from mscp_drive.hpp, DriveInfo g_driveTable[21] { ... }
+        case devRX50:
+            device_name = mnemonic = "RX50" ;
+            mscp_block_count = 800 ;
+            mscp_rct_size = 0 ;
+            break ;
+        case devRX33:
+            device_name = mnemonic = "RX33" ;
+            mscp_block_count = 2400 ;
+            mscp_rct_size = 0 ;
+            break ;
+        case devRD51:
+            device_name = mnemonic = "RD51" ;
+            mscp_block_count = 21600 ;
+            mscp_rct_size = 36 ;
+            break ;
+        case devRD31:
+            device_name = mnemonic = "RD31" ;
+            mscp_block_count = 41560 ;
+            mscp_rct_size = 3 ;
+            break ;
+        case devRC25:
+            device_name = mnemonic = "RD251" ;
+            mscp_block_count = 50902 ;
+            mscp_rct_size = 0 ;
+            break ;
+        case devRC25F:
+            device_name = mnemonic = "RD25F" ;
+            mscp_block_count = 50902 ;
+            mscp_rct_size = 0 ;
+            break ;
+        case devRD52:
+            device_name = mnemonic = "RD52" ;
+            mscp_block_count = 60480 ;
+            mscp_rct_size = 4 ;
+            break ;
+        case devRD32:
+            device_name = mnemonic = "RD32" ;
+            mscp_block_count = 83236 ;
+            mscp_rct_size = 4 ;
+            break ;
+        case devRD53:
+            device_name = mnemonic = "RD53" ;
+            mscp_block_count = 138672 ;
+            mscp_rct_size = 5 ;
+            break ;
+        case devRA80:
+            device_name = mnemonic = "RD80" ;
+            mscp_block_count = 237212 ;
+            mscp_rct_size = 0 ;
+            break ;
+        case devRD54:
+            device_name = mnemonic = "RD53" ;
+            mscp_block_count = 311200 ;
+            mscp_rct_size = 7 ;
+            break ;
+        case devRA60:
+            device_name = mnemonic = "RD60" ;
+            mscp_block_count = 400176 ;
+            mscp_rct_size = 1008 ;
+            break ;
+        case devRA70:
+            device_name = mnemonic = "RD70" ;
+            mscp_block_count = 547041 ;
+            mscp_rct_size = 198 ;
+            break ;
+        case devRA81:
+            device_name = mnemonic = "RD81" ;
+            mscp_block_count = 891072 ;
+            mscp_rct_size = 2856 ;
+            break ;
+        case devRA82:
+            device_name = mnemonic = "RD82" ;
+            mscp_block_count = 1216665 ;
+            mscp_rct_size = 3420 ;
+            break ;
+        case devRA71:
+            device_name = mnemonic = "RD71" ;
+            mscp_block_count = 1367310 ;
+            mscp_rct_size = 1428 ;
+            break ;
+        case devRA72:
+            device_name = mnemonic = "RD72" ;
+            mscp_block_count = 1953300 ;
+            mscp_rct_size = 2040 ;
+            break ;
+        case devRA90:
+            device_name = mnemonic = "RD72" ;
+            mscp_block_count = 2376153 ;
+            mscp_rct_size = 1794 ;
+            break ;
+        case devRA92:
+            device_name = mnemonic = "RD92" ;
+            mscp_block_count = 2940951 ;
+            mscp_rct_size = 949 ;
+            break ;
+        case devRA73:
+            device_name = mnemonic = "RD73" ;
+            mscp_block_count = 3920490 ;
+            mscp_rct_size = 198 ;
+            break ;
         default:
             FATAL("Unhandled drive type") ;
         }
+        if (mscp_block_count > 0)
+            capacity = mscp_block_count * 512 ; // all MSCP drives
     }
 
 
