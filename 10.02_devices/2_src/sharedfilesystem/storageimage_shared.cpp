@@ -546,7 +546,7 @@ void *storageimage_shared_syncer_worker_pthread_wrapper(void *context)
 void storageimage_shared_c::sync_dec_image_to_filesystem_and_events()
 {
 //    filesystem_dec->debug_print("sync_dec_image_to_filesystem_and_events() BEFORE parse") ;
-    image->save_to_file("/tmp/sync_worker_1.dump") ;
+//    image->save_to_file("/tmp/sync_worker_1.dump") ;
     // PDP11 has completed write transaction, image stable now (really?)
     // image -> filesystem
 
@@ -604,7 +604,7 @@ void storageimage_shared_c::sync_host_filesystem_events_to_dec()
 //        filesystem_dec->debug_print("sync_host_filesystem_events_to_dec()") ;
         //filesystem_dec->file_by_path.debug_print("DEC") ;
         filesystem_dec->render() ;
-        image->save_to_file("/tmp/sync_worker_2.dump") ;
+//        image->save_to_file("/tmp/sync_worker_2.dump") ;
     }
 
     // "render() writes to the image and sets the change flags. caller clear it!
