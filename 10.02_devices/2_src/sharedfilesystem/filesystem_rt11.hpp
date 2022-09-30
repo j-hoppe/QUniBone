@@ -58,12 +58,12 @@ class rt11_stream_c: public file_dec_stream_c {
 public:
     rt11_blocknr_t blocknr; // start block
     uint32_t	byte_offset ; // offset in start block
-	rt11_stream_c(file_rt11_c *file,  	rt11_stream_c *stream) ;
+    rt11_stream_c(file_rt11_c *file,  	rt11_stream_c *stream) ;
     rt11_stream_c(file_rt11_c *file, string stream_name) ;
     ~rt11_stream_c() override ;
     void init() override ;
 
-	string get_host_path() override ;
+    string get_host_path() override ;
 };
 
 
@@ -98,9 +98,9 @@ public:
     //
     string get_filename() override ;
     rt11_stream_c **get_stream_ptr(string stream_code) ;
-	unsigned get_stream_count() override ;
-	file_dec_stream_c *get_stream(unsigned index) override ;
-	
+    unsigned get_stream_count() override ;
+    file_dec_stream_c *get_stream(unsigned index) override ;
+
     bool data_changed(file_base_c *cmp) override ;
 } ;
 
@@ -120,9 +120,14 @@ public:
         return "RT11ROOT" ;
     }
 
-	 // RT11: no directory, no extra data for directory
-    unsigned get_stream_count() override { return 0;}
-    file_dec_stream_c *get_stream(unsigned index) override  {UNUSED(index); return nullptr;}
+    // RT11: no directory, no extra data for directory
+    unsigned get_stream_count() override {
+        return 0;
+    }
+    file_dec_stream_c *get_stream(unsigned index) override  {
+        UNUSED(index);
+        return nullptr;
+    }
 
     void copy_metadata_to(directory_base_c *_other_dir) override ;
 } ;
@@ -210,28 +215,28 @@ private:
     unsigned rt11_dir_needed_segments(unsigned file_count) ;
     void calc_file_stream_change_flag(        rt11_stream_c *stream) ;
     void calc_file_change_flags() override  ;
-    enum error_e rt11_filesystem_calc_block_use(unsigned test_data_size) ;
+    void rt11_filesystem_calc_block_use(unsigned test_data_size) ;
 
 
 private:
 
-    enum error_e parse_internal_blocks_to_file(string _basename, string _ext, uint32_t start_block_nr, uint32_t data_size) ;
-    enum error_e parse_homeblock() ;
-    enum error_e parse_directory() ;
+    void parse_internal_blocks_to_file(string _basename, string _ext, uint32_t start_block_nr, uint32_t data_size) ;
+    void parse_homeblock() ;
+    void parse_directory() ;
     void parse_file_data() ;
-    enum error_e parse_volumeinfo();
+    void parse_volumeinfo();
 public:
-    enum error_e parse()   override ;
+    void parse()   override ;
 
 
 private:
-    enum error_e rt11_filesystem_layout() ;
+    void rt11_filesystem_layout() ;
     void render_homeblock() ;
-    enum error_e render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr) ;
-    enum error_e render_directory() ;
+    void render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr) ;
+    void render_directory() ;
     void render_file_data() ;
 public:
-    enum error_e render() override ;
+    void render() override ;
 
 
 public:
@@ -243,8 +248,8 @@ public:
                                  file_rt11_c **result_file, string *result_host_filename,
                                  rt11_stream_c **result_stream, string *result_stream_code) ;
 
-    enum error_e import_host_file(file_host_c *host_file) override ;
-    enum error_e delete_host_file(string host_path) override ;
+    void import_host_file(file_host_c *host_file) override ;
+    void delete_host_file(string host_path) override ;
 
 
     void sort() override ;

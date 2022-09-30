@@ -63,7 +63,7 @@ public:
     filesystem_dec_event_c(          enum operation_e _operation,
                                      string _host_path, bool _is_dir, file_dec_stream_c *_stream)	 ;
     ~filesystem_dec_event_c() override {}
-	virtual string as_text() override ;
+    virtual string as_text() override ;
 } ;
 
 
@@ -174,10 +174,10 @@ public:
     virtual unsigned file_count()     = 0;
     virtual file_dec_c *file_get(int fileidx)   = 0;
 
-    virtual enum error_e parse() = 0 ;
+    virtual void parse() = 0 ;
 
-    virtual enum error_e import_host_file(file_host_c *host_file) = 0 ;
-    virtual enum error_e delete_host_file(string host_path) = 0 ;
+    virtual void import_host_file(file_host_c *host_file) = 0 ;
+    virtual void delete_host_file(string host_path) = 0 ;
 
 //	virtual file_dec_c &file_get(int fileidx) = 0 ;
 private:
@@ -199,7 +199,7 @@ public:
 
     virtual void sort() = 0 ; // sort all files, view filesystem_base::sort
 
-    virtual enum error_e render() = 0 ;
+    virtual void render() = 0 ;
 
     virtual string filename_from_host(string *hostfname, string *result_filnam, string *result_ext) = 0 ;
 

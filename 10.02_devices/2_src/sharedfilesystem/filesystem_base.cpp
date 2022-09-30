@@ -60,6 +60,19 @@ enum filesystem_type_e filesystem_type2text(string filesystem_type_text)
 }
 
 
+// exception constructor with printf() arguments
+// exception constructor with printf() arguments
+filesystem_exception::filesystem_exception(const string msgfmt, ...)
+{
+    char buffer[1024];
+    va_list args;
+    va_start(args, msgfmt);
+    vsprintf(buffer, msgfmt.c_str(), args);
+    message = string(buffer) ;
+    va_end(args);
+}
+
+
 string filesystem_event_c::operation_text()
 {
     switch(operation) {
@@ -84,16 +97,16 @@ void filesystem_event_queue_c::clear()
 }
 
 // event into queue, queue takes ownership
-// event transmission blocked if it's an expected ack_event 
+// event transmission blocked if it's an expected ack_event
 void filesystem_event_queue_c::push(filesystem_event_c *event)
 {
     event->event_queue = this ;
-	if (filesystem->ack_event_filter.is_filtered(event->host_path)) {
-		DEBUG(printf_to_cstr("%s event_qeue.push() blocked by ack_event_filter: %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
-		return ;
-	}
+    if (filesystem->ack_event_filter.is_filtered(event->host_path)) {
+        DEBUG(printf_to_cstr("%s event_qeue.push() blocked by ack_event_filter: %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
+        return ;
+    }
     std::queue<filesystem_event_c*>::push(event) ;
-	DEBUG(printf_to_cstr("%s event_qeue.push() %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
+    DEBUG(printf_to_cstr("%s event_qeue.push() %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
 }
 
 // implements front & pop. caller gets ownership
@@ -111,11 +124,11 @@ void filesystem_event_queue_c::debug_print(string info)
 
     // temporary copy, shares pointers
     filesystem_event_queue_c tmp_event_queue = *this ;
-	DEBUG(printf_to_cstr("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_name().c_str())) ;
+    DEBUG(printf_to_cstr("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_name().c_str())) ;
 //    printf("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_name().c_str()) ;
     while (!tmp_event_queue.empty()) {
         filesystem_event_c *event = tmp_event_queue.pop() ;
-		DEBUG(event->as_text().c_str()) ;
+        DEBUG(event->as_text().c_str()) ;
 //		printf("%s\n", event->as_text().c_str()) ;
     }
 }
@@ -372,27 +385,6 @@ void filesystem_base_c::clear_rootdir()
 
     file_by_path.remember(rootdir) ; // restore
 }
-
-// raise an error.
-// can be used as "return error_set(...); "
-//  text is pushed onto an message stack
-enum error_e filesystem_base_c::error_set(enum error_e code, const char *fmt, ...)
-{
-    char buffer[1024];
-    va_list args;
-    //	assert(error_trace_level < ERROR_MAX_TRACE_LEVEL) ;
-    if (fmt && strlen(fmt)) {
-        va_start(args, fmt);
-        vsprintf(buffer, fmt, args);
-        va_end(args);
-        // strcpy(error_message[error_trace_level++], buffer);
-        ERROR(buffer);
-    }
-    return code;
-}
-
-
-
 
 
 // adds a directory to the 'directories' list

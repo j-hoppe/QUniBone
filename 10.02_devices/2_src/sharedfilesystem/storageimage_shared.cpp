@@ -247,7 +247,6 @@ void storageimage_shared_c::unlock()
 // called by derived open() first
 bool storageimage_shared_c::open(bool create)
 {
-    UNUSED(create) ;
     assert(! is_open()) ; // test the caller
 
     assert(filesystem_dec_metadata_snapshot == nullptr) ;
@@ -261,7 +260,7 @@ bool storageimage_shared_c::open(bool create)
     image  = new storageimage_binfile_c(image_path);
 //    image = new storageimage_memory_c(drive_info.capacity);
 
-    if (!image->open(false)) {
+    if (!image->open(create)) {
         delete image ;
         image = nullptr ;
         unlock() ;
@@ -549,8 +548,13 @@ void storageimage_shared_c::sync_dec_image_to_filesystem_and_events()
 //    image->save_to_file("/tmp/sync_worker_1.dump") ;
     // PDP11 has completed write transaction, image stable now (really?)
     // image -> filesystem
-
-    filesystem_dec->parse() ;
+    try {
+        filesystem_dec->parse() ;
+    }
+    catch (filesystem_exception &e) {
+        // valid file tree guaranteed
+        ERROR(printf_to_cstr("Error parsing DEC image: %s", e.what())) ;
+    }
 //    filesystem_dec->debug_print("sync_dec_image_to_filesystem_and_events() AFTER parse") ;
     filesystem_dec->changed_blocks->clear() ;
 

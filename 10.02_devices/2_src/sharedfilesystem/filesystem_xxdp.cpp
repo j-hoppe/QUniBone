@@ -113,7 +113,7 @@ string file_xxdp_c::get_host_path()
 {
     // let host build the linux path, using my get_filename()
     // result is just "/filename"
-    string result = filesystem_host_c::get_host_path(file) ;
+    return filesystem_host_c::get_host_path(file) ;
 }
 
 // have file attributes or data content changed?
@@ -232,7 +232,7 @@ filesystem_xxdp_c::filesystem_xxdp_c(drive_info_c &_drive_info,
     layout_info = get_documented_layout_info(_drive_info.drive_type) ;
     changed_blocks = new boolarray_c(layout_info.blocks_num) ;
 
-	
+
     // create root dir.
     add_directory(nullptr, new directory_xxdp_c() ) ;
     assert(rootdir->filesystem == this) ;
@@ -265,7 +265,9 @@ filesystem_xxdp_c::filesystem_xxdp_c(drive_info_c &_drive_info,
     //see TU58: normally 1 prealloced block for 256KB tape
     if (layout_info.blocks_num < blockcount) {
         // calculate new layout params in .layout_info
-        if (recalc_layout_info(blockcount)) {
+        try {
+            recalc_layout_info(blockcount) ;
+        } catch(filesystem_exception &e) {
             FATAL("filesystem_xxdp: Can not calculate new layout params");
             return ;
         }
@@ -525,7 +527,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
 // calculate new layout params .layout_info from block_count
 // .layout_info must be already initialized for device,
 // result: success
-enum error_e filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
+void filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
 {
     xxdp_blocknr_t curblk; // iterates through image
 
@@ -575,7 +577,6 @@ enum error_e filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
     delete changed_blocks ;
     changed_blocks = new boolarray_c(layout_info.blocks_num) ;
 
-    return ERROR_OK;
 }
 
 
@@ -612,7 +613,7 @@ void filesystem_xxdp_c::xxdp_image_set_word(xxdp_blocknr_t blocknr,         uint
 
 // scan linked list at block # 'start'
 // bytes 0,1 = 1st word in block are # of next. Last blck has link "0".
-enum error_e filesystem_xxdp_c::xxdp_blocklist_get(xxdp_blocklist_c *bl, xxdp_blocknr_t start)
+void filesystem_xxdp_c::xxdp_blocklist_get(xxdp_blocklist_c *bl, xxdp_blocknr_t start)
 {
     xxdp_blocknr_t blocknr = start;
     bl->clear() ;
@@ -622,9 +623,7 @@ enum error_e filesystem_xxdp_c::xxdp_blocklist_get(xxdp_blocklist_c *bl, xxdp_bl
         blocknr = xxdp_image_get_word(blocknr, 0);
     } while (bl->size() < XXDP_MAX_BLOCKS_PER_LIST && blocknr > 0);
     if (blocknr)
-        return error_set(ERROR_FILESYSTEM_FORMAT,
-                         "xxdp_blocklist_get(): block list too long or recursion");
-    return ERROR_OK;
+        throw filesystem_exception("xxdp_blocklist_get(): block list too long or recursion");
 }
 
 void filesystem_xxdp_c::xxdp_blocklist_set(xxdp_blocklist_c *bl)
@@ -680,7 +679,7 @@ void filesystem_xxdp_c::calc_file_change_flags()
  **************************************************************/
 
 // quick test, if a new file of "data-size" would fit onto the volume
-enum error_e filesystem_xxdp_c::xxdp_filesystem_layout_test(int data_size)
+void filesystem_xxdp_c::xxdp_filesystem_layout_test(int data_size)
 {
     unsigned ufd_blocks_needed;
     unsigned data_blocks_needed;
@@ -708,13 +707,12 @@ enum error_e filesystem_xxdp_c::xxdp_filesystem_layout_test(int data_size)
     if (ufd_blocks_needed > layout_info.ufd_blocks_num)
         data_blocks_needed += ufd_blocks_needed - layout_info.ufd_blocks_num;
     if (data_blocks_needed > available_blocks)
-        return error_set(ERROR_FILESYSTEM_OVERFLOW, "xxdp_filesystem_layout_test");
-    return ERROR_OK; // fit
+        throw filesystem_exception("xxdp_filesystem_layout_test(): Filesystem full");
 }
 
 // calculate blocklists for monitor, bitmap,mfd, ufd and files
 // total blockcount may be enlarged
-enum error_e filesystem_xxdp_c::xxdp_filesystem_layout()
+void filesystem_xxdp_c::xxdp_filesystem_layout()
 {
     unsigned i, j, n;
     int overflow;
@@ -802,12 +800,11 @@ enum error_e filesystem_xxdp_c::xxdp_filesystem_layout()
         // fprintf(stderr,"layout(): file %d %s.%s start from %d, needs %d blocks\n", i, f->basename, f->ext, blknr, n);
         for (j = 0; !overflow && j < n; j++) {
             if (j >= XXDP_MAX_BLOCKS_PER_LIST) {
-                error_set(ERROR_FILESYSTEM_OVERFLOW, "File %s.%s too large, uses more than %d blocks",
-                          f->basename.c_str(), f->ext.c_str(), XXDP_MAX_BLOCKS_PER_LIST);
+                throw filesystem_exception("Filesystem overflow. File %s.%s too large, uses more than %d blocks",
+                                           f->basename.c_str(), f->ext.c_str(), XXDP_MAX_BLOCKS_PER_LIST);
                 overflow = 1;
             } else if (blknr >= blockcount) {
-                error_set(ERROR_FILESYSTEM_OVERFLOW, "File system overflow, can hold max %d blocks.",
-                          blockcount);
+                throw filesystem_exception("File system overflow, can hold max %d blocks.", blockcount);
                 overflow = 1;
             } else {
                 bitmap.used[blknr] = 1;
@@ -816,15 +813,13 @@ enum error_e filesystem_xxdp_c::xxdp_filesystem_layout()
         }
         f->block_count = n;
         if (overflow)
-            return ERROR_FILESYSTEM_OVERFLOW;
+            throw filesystem_exception("File system overflow");
     }
 
     // expand file system size if needed.
     // later check wether physical image can be expanded.
     if (blknr >= blockcount)
-        return ERROR_FILESYSTEM_OVERFLOW;
-
-    return ERROR_OK;
+        throw filesystem_exception("File system overflow");
 }
 
 
@@ -987,7 +982,7 @@ void filesystem_xxdp_c::parse_stream(xxdp_multiblock_c *_multiblock,
 }
 
 // UFD blocks known, produce filelist
-enum error_e filesystem_xxdp_c::parse_ufd()
+void filesystem_xxdp_c::parse_ufd()
 {
     unsigned i, j;
     xxdp_blocknr_t blknr; // enumerates the directory blocks
@@ -1004,8 +999,7 @@ enum error_e filesystem_xxdp_c::parse_ufd()
             if (w == 0)
                 continue; // invalid entry
             if (file_count() >= XXDP_MAX_FILES_PER_IMAGE)
-                return error_set(ERROR_FILESYSTEM_OVERFLOW, "XXDP UFD read: more than %d files!",
-                                 XXDP_MAX_FILES_PER_IMAGE);
+                throw filesystem_exception("Filesystem overflow. XXDP UFD read: more than %d files!", XXDP_MAX_FILES_PER_IMAGE);
 
             // create file entry
             file_xxdp_c *f = new file_xxdp_c();
@@ -1039,12 +1033,11 @@ enum error_e filesystem_xxdp_c::parse_ufd()
             // check: lastblock?
             w = xxdp_image_get_word(blknr, file_entry_start_wordnr + 7);
 
-			f->host_path = f->get_host_path() ;
+            f->host_path = f->get_host_path() ;
 
             rootdir->add_file(f) ;  // save, owned by directory now
         }
     }
-    return ERROR_OK ;
 }
 
 // load and allocate file data from blocklist
@@ -1073,34 +1066,43 @@ void filesystem_xxdp_c::parse_file_data(file_xxdp_c *f)
 // analyse the image, build filesystem data structure
 // parameters already set by _reset()
 // return: true = OK
-enum error_e filesystem_xxdp_c::parse()
+void filesystem_xxdp_c::parse()
 {
+    std::exception_ptr eptr;
 
-	// events in the queue references streams, which get invalid on re-parse.
-	assert(event_queue.empty()) ;
+    // events in the queue references streams, which get invalid on re-parse.
+    assert(event_queue.empty()) ;
 
     init();
 
-    // parse structure info first, will update lay_out info
-    parse_mfd();
-    parse_bitmap();
-    parse_ufd();
+    try {
 
-    // read bootblock 0. may consists of 00's
-    parse_stream(&bootblock, bootblock.blocknr, 1);
-	// TODO: file_size, bootblock = file?
-    // read monitor_core_image:
-    // Size as defined. Alternative: from defined start until end of preallocated area, about 32
-    parse_stream(&monitor_core_image, monitor_core_image.blocknr, monitor_core_image.blockcount);
-	// TODO: file_size, monitor = file?
+        // parse structure info first, will update lay_out info
+        parse_mfd();
+        parse_bitmap();
+        parse_ufd();
 
-    // read data for all user files
-    for (unsigned i = 0; i < file_count(); i++)
-        parse_file_data(file_get(i));
+        // read bootblock 0. may consists of 00's
+        parse_stream(&bootblock, bootblock.blocknr, 1);
+        // TODO: file_size, bootblock = file?
+        // read monitor_core_image:
+        // Size as defined. Alternative: from defined start until end of preallocated area, about 32
+        parse_stream(&monitor_core_image, monitor_core_image.blocknr, monitor_core_image.blockcount);
+        // TODO: file_size, monitor = file?
+
+        // read data for all user files
+        for (unsigned i = 0; i < file_count(); i++)
+            parse_file_data(file_get(i));
+    }
+    catch (filesystem_exception &e) {
+        eptr = std::current_exception() ;
+    }
+
 
     calc_file_change_flags();
 
-    return ERROR_OK;
+    if (eptr)
+        std::rethrow_exception(eptr);
 }
 
 
@@ -1274,32 +1276,29 @@ void filesystem_xxdp_c::render_file_data(file_xxdp_c *f)
 // write filesystem into image
 // Assumes all file data and blocklists are valid
 // return: 0 = OK
-enum error_e filesystem_xxdp_c::render()
+void filesystem_xxdp_c::render()
 {
 #ifdef TODO
     unsigned needed_size = blockcount * XXDP_BLOCKSIZE;
 
     // calc blocklists and sizes
-    enum error_e error_code = xxdp_filesystem_layout() ;
-    if (error_code)
-        return error_code; // overflow
+    xxdp_filesystem_layout() ; // throws
 
     if (needed_size > image_partition_size)
         // more bytes needed than image provides. Expand?
-        return error_set(ERROR_FILESYSTEM_OVERFLOW,
-                         "Image only %d bytes large, filesystem needs %d *%d = %d.", image_partition_size,
-                         blockcount, XXDP_BLOCKSIZE, needed_size);
+        throw filesystem_exception("Image only %d bytes large, filesystem needs %d *%d = %d.", image_partition_size,
+                                   blockcount, XXDP_BLOCKSIZE, needed_size);
 
     // format media, all 0's
 //     memset(image_partition_data, 0, image_partition_size);
-if (bootblock)
-    render_multiblock(&bootblock);
-	else 
-		image_partition->write(nullptr, bootblock start offset, bootblock len) ;
-	if (monitor_core_image)
-    render_multiblock(&monitor_core_image);
-	else 
-		image_partition->write(nullptr, monitor tart offset, monitor len) ;
+    if (bootblock)
+        render_multiblock(&bootblock);
+    else
+        image_partition->write(nullptr, bootblock start offset, bootblock len) ;
+    if (monitor_core_image)
+        render_multiblock(&monitor_core_image);
+    else
+        image_partition->write(nullptr, monitor tart offset, monitor len) ;
 
     render_bitmap();
     render_mfd();
@@ -1310,8 +1309,7 @@ if (bootblock)
         render_file_data(file_get(file_idx));
 
     parse_volumeinfo() ;
-	
-    return ERROR_OK;
+
 #endif
 }
 
@@ -1399,7 +1397,7 @@ void filesystem_xxdp_c::xxdp_filesystem_render_volumeinfo(string *text_buffer)
 // -3: volume information text file
 // else regular file
 // fname: basename.ext
-enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
+void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
 {
     string host_fname = host_file->get_filename(); // XXDP:  path == name
     host_file->data_open(/*write?*/ false) ;
@@ -1408,8 +1406,7 @@ enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
         // evaluate parameter file ? is read only to user!
     } else if (!strcasecmp(host_fname.c_str(), XXDP_BOOTBLOCK_BASENAME "." XXDP_BOOTBLOCK_EXT)) {
         if (host_file->file_size != XXDP_BLOCKSIZE)
-            return error_set(ERROR_FILESYSTEM_FORMAT, "Boot block not %d bytes\n",
-                             XXDP_BLOCKSIZE);
+            throw filesystem_exception("Boot block not %d bytes",  XXDP_BLOCKSIZE);
         bootblock.set(&host_file->data, host_file->file_size) ;
     } else if (!strcasecmp(host_fname.c_str(), XXDP_MONITOR_BASENAME "." XXDP_MONITOR_EXT)) {
         // assume max len of monitor_core_image
@@ -1423,11 +1420,12 @@ enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
         string basename, ext;
         // regular file
         if (file_count() + 1 >= XXDP_MAX_FILES_PER_IMAGE)
-            return error_set(ERROR_FILESYSTEM_OVERFLOW, "Too many files, only %d allowed",
-                             XXDP_MAX_FILES_PER_IMAGE);
-        if (xxdp_filesystem_layout_test(host_file->file_size))
-            return error_set(ERROR_FILESYSTEM_OVERFLOW,
-                             "Disk full, file \"%s\" with %d bytes too large", host_fname.c_str(), host_file->file_size);
+            throw filesystem_exception("Too many files, only %d allowed", XXDP_MAX_FILES_PER_IMAGE);
+        try {
+            xxdp_filesystem_layout_test(host_file->file_size) ;
+        } catch(filesystem_exception &e) {
+            throw filesystem_exception("Disk full, file \"%s\" with %d bytes too large", host_fname.c_str(), host_file->file_size);
+        }
 
         // make filename.extension to "FILN  .E  "
         filename_from_host(&host_fname, &basename, &ext);
@@ -1436,8 +1434,7 @@ enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
         // duplicate file name? Likely! because of trunc to six letters
         file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
         if (f != nullptr)
-            return error_set(ERROR_FILESYSTEM_DUPLICATE, "Duplicate filename %s.%s", basename.c_str(),
-                             ext.c_str());
+            throw filesystem_exception("Duplicate filename %s.%s", basename.c_str(), ext.c_str());
         /*
             for (unsigned file_idx = 0; file_idx < file_count(); file_idx++) {
                 file_xxdp_c *f1 = file_get(file_idx);
@@ -1450,9 +1447,9 @@ enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
         f = new file_xxdp_c();
         f->changed = false;
         f->internal = false;
-		f->host_path = host_file->path ;
+        f->host_path = host_file->path ;
         f->set(&host_file->data, host_file->file_size);
-		f->file_size = f->size() ; // from inherited stream
+        f->file_size = f->size() ; // from inherited stream
         f->basename = basename ;
         f->ext = ext ;
         f->modification_time = host_file->modification_time;
@@ -1466,11 +1463,10 @@ enum error_e filesystem_xxdp_c::import_host_file(file_host_c *host_file)
         rootdir->add_file(f) ; // add, now owned by rootdir
     }
     host_file->data_close() ;
-    return ERROR_OK;
 }
 
 
-enum error_e filesystem_xxdp_c::delete_host_file(string host_path)
+void filesystem_xxdp_c::delete_host_file(string host_path)
 {
 }
 

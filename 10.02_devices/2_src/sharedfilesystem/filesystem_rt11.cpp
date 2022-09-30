@@ -585,7 +585,7 @@ void filesystem_rt11_c::calc_file_change_flags()
 // a) test_data_size == 0: calc on base of file[], change file system
 // b) test_data_size > 0: check wether file of length "test_data_size" would fit onto
 //	the existing volume
-enum error_e filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
+void filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
 {
     unsigned _dir_max_seg_nr;
     unsigned _used_file_blocks;
@@ -621,10 +621,10 @@ enum error_e filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_dat
         // files do not fit on volume
         if (!test_data_size)
             free_blocks = 0; // can't be negative
-        return error_set(ERROR_FILESYSTEM_OVERFLOW, "rt11_filesystem_calc_block_use");
+        throw filesystem_exception("rt11_filesystem_calc_block_use(): FILESYSTEM OVERFLOW");
     }
     if (test_data_size)
-        return ERROR_OK;
+        return ;
 
     /* end of test mode */
     // now modify file system
@@ -684,8 +684,6 @@ enum error_e filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_dat
     assert(_available_blocks >= used_file_blocks + (unsigned)2 * dir_total_seg_num);
     free_blocks = _available_blocks - used_file_blocks
                   - 2 * dir_total_seg_num;
-
-    return ERROR_OK;
 }
 
 
@@ -695,7 +693,7 @@ enum error_e filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_dat
  **************************************************************/
 
 // parse filesystem special blocks to file
-enum error_e filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _ext,
+void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _ext,
         uint32_t start_block_nr, uint32_t data_size)
 {
     string fname = make_filename(_basename, _ext) ;
@@ -716,11 +714,10 @@ enum error_e filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, 
     f->stream_data = new rt11_stream_c(f, "");
     stream_parse(f->stream_data, f->block_nr, 0, f->block_count * RT11_BLOCKSIZE);
     f->file_size = f->stream_data->size() ;
-    return ERROR_OK;
 }
 
 
-enum error_e filesystem_rt11_c::parse_homeblock()
+void filesystem_rt11_c::parse_homeblock()
 {
     uint16_t w;
     uint8_t *s ;
@@ -738,9 +735,7 @@ enum error_e filesystem_rt11_c::parse_homeblock()
     pack_cluster_size = cache.get_image_word_at(1, 0722);
     first_dir_blocknr = cache.get_image_word_at(1, 0724);
     if (first_dir_blocknr != 6)
-        return error_set(ERROR_FILESYSTEM_FORMAT,
-                         "parse_homeblock(): first_dir_blocknr expected 6, is %d\n",
-                         first_dir_blocknr);
+        throw filesystem_exception("parse_homeblock(): first_dir_blocknr expected 6, is %d", first_dir_blocknr);
     first_dir_blocknr = cache.get_image_word_at(1, 0724);
     w = cache.get_image_word_at(1, 0726);
     system_version = rad50_decode(w);
@@ -770,7 +765,6 @@ enum error_e filesystem_rt11_c::parse_homeblock()
      fprintf(flog, "Home block checksum error: is 0x%x, expected 0x%x\n", sum,
      (int) homeblock_chksum);
      */
-    return ERROR_OK;
 }
 
 // point to start of  directory segment [i]
@@ -779,7 +773,7 @@ enum error_e filesystem_rt11_c::parse_homeblock()
 // absolute position in image
 #define DIR_SEGMENT_BLOCK_NR(i)  (first_dir_blocknr +(((i)-1)*2))
 
-enum error_e filesystem_rt11_c::parse_directory()
+void filesystem_rt11_c::parse_directory()
 {
     uint32_t ds_offset; // byte offset in image of directory segment begin
     uint32_t ds_nr = 0; // runs from 1
@@ -807,16 +801,12 @@ enum error_e filesystem_rt11_c::parse_directory()
         if (ds_nr == 1)
             dir_total_seg_num = w;
         else if (w != dir_total_seg_num)
-            return error_set(ERROR_FILESYSTEM_FORMAT,
-                             "parse_directory(): ds_header_total_seg_num in entry %d different from entry 1\n",
-                             ds_nr);
+            throw filesystem_exception("parse_directory(): ds_header_total_seg_num in entry %d different from entry 1", ds_nr);
         if (ds_nr == 1)
             dir_max_seg_nr = cache.get_image_word_at(ds_offset + 4); // word #3
         ds_next_nr = cache.get_image_word_at(ds_offset + 2); // word #2 nr of next segment
         if (ds_next_nr > dir_max_seg_nr)
-            return error_set(ERROR_FILESYSTEM_FORMAT,
-                             "parse_directory(): next segment nr %d > maximum %d\n", ds_next_nr,
-                             dir_max_seg_nr);
+            throw filesystem_exception("parse_directory(): next segment nr %d > maximum %d", ds_next_nr, dir_max_seg_nr);
         de_data_blocknr = cache.get_image_word_at(ds_offset + 8); // word #5 block of data start
         if (ds_nr == 1) {
             dir_entry_extra_bytes = cache.get_image_word_at(ds_offset + 6); // word #4: extra bytes
@@ -901,16 +891,13 @@ enum error_e filesystem_rt11_c::parse_directory()
             de_nr++;
             de_offset += de_len;
             if ( (unsigned)(de_offset - ds_offset) > 2 * RT11_BLOCKSIZE) // 1 segment = 2 blocks
-                return error_set(ERROR_FILESYSTEM_FORMAT,
-                                 "parse_directory(): list of entries exceeds %d bytes\n",
-                                 2 * RT11_BLOCKSIZE);
+                throw filesystem_exception("parse_directory(): list of entries exceeds %d bytes", 2 * RT11_BLOCKSIZE);
         }
 
         // next segment, 2 blocks into cache
         ds_nr = ds_next_nr;
         cache.load_from_image(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ;
     } while (ds_nr > 0);
-    return ERROR_OK;
 }
 
 // parse prefix and data blocks
@@ -949,7 +936,7 @@ void filesystem_rt11_c::parse_file_data()
 }
 
 // fill the pseudo file with textual volume information
-enum error_e filesystem_rt11_c::parse_volumeinfo()
+void filesystem_rt11_c::parse_volumeinfo()
 {
     file_rt11_c* fout = dynamic_cast<file_rt11_c*>(file_by_path.get(volume_info_filename));
     if (fout == nullptr) {
@@ -1056,33 +1043,36 @@ enum error_e filesystem_rt11_c::parse_volumeinfo()
 
     // VOLUM INF is "changed", if home block or directories changed
     fout->stream_data->changed = struct_changed;
-
-    return ERROR_OK;
 }
 
 
 // analyse the image, build filesystem data structure
 // parameters already set by _reset()
-// return: 0 = OK
-enum error_e filesystem_rt11_c::parse()
+// In case of invalid image or minor error
+// 	throw filesystem_dec_exception,
+//  file tree always valid, defective objects deleted
+void filesystem_rt11_c::parse()
 {
-    enum error_e error_code ;
+    std::exception_ptr eptr;
 
     // events in the queue references streams, which get invalid on re-parse.
     assert(event_queue.empty()) ;
 
     init();
+    try {
 
-    parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, RT11_BLOCKSIZE) ;
-    parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * RT11_BLOCKSIZE) ;
+        parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, RT11_BLOCKSIZE) ;
+        parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * RT11_BLOCKSIZE) ;
 
-    if ((error_code = parse_homeblock()))
-        return error_code;
-    if ((error_code = parse_directory()))
-        return error_code;
+        parse_homeblock() ;
+        parse_directory() ;
 
-    parse_file_data();
-
+        parse_file_data();
+    }
+    catch (filesystem_exception &e) {
+        eptr = std::current_exception() ;
+    }
+    // in case of error: still cleanup
     // rt11_filesystem_print_diag(stderr);
 
     // mark file->data , ->prefix as changed, for changed image blocks
@@ -1091,7 +1081,8 @@ enum error_e filesystem_rt11_c::parse()
     //  data now stable, generate internal volume info text last
     parse_volumeinfo() ;
 
-    return ERROR_OK;
+    if (eptr)
+        std::rethrow_exception(eptr);
 }
 
 
@@ -1106,14 +1097,12 @@ enum error_e filesystem_rt11_c::parse()
 // calculate blocklists for monitor, bitmap,mfd, ufd and files
 // total blockcount may be enlarged
 // Pre: files filled in
-enum error_e filesystem_rt11_c::rt11_filesystem_layout()
+void filesystem_rt11_c::rt11_filesystem_layout()
 {
-    enum error_e error_code ;
-
     int file_start_blocknr;
 
-    if ((error_code = rt11_filesystem_calc_block_use(0)))
-        return error_code;
+    rt11_filesystem_calc_block_use(0) ; // throws
+
     // free, used blocks, dir_total_seg_num now set
 
     // file area begins after directory segment list
@@ -1143,11 +1132,10 @@ enum error_e filesystem_rt11_c::rt11_filesystem_layout()
     // save begin of free space for _render()
     render_free_space_blocknr = file_start_blocknr;
 
-    return ERROR_OK;
 }
 
 /*
-// write monit und boot.block files to image
+// write moni.tor und boot.block files to image
 void filesystem_rt11_c::render_internal_blocks_from_file(file_rt11_c *f,
 			uint32_t start_block_nr, uint32_t data_size)
 	{
@@ -1221,7 +1209,7 @@ void filesystem_rt11_c::render_homeblock()
 // write file f into segment ds_nr and entry de_nr
 // if f = NULL: write free chain entry
 // must be called with ascending de_nr
-enum error_e filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr)
+void filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr)
 {
     uint32_t ds_offset ;// byte offset in image of directory segment begin
     uint32_t de_offset; // ptr to dir entry in image
@@ -1299,21 +1287,19 @@ enum error_e filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache,
         if (f->stream_dir_ext) {
             // write bytes from "dir extension" stream into directory entry
             if (f->stream_dir_ext->size() > dir_entry_extra_bytes)
-                return error_set(ERROR_FILESYSTEM_OVERFLOW,
-                                 "render_directory(): file %s dir_ext size %d > extra bytes in dir %d\n",
-                                 f->get_filename().c_str(), f->stream_dir_ext->size(), dir_entry_extra_bytes);
+                throw filesystem_exception("render_directory(): file %s dir_ext size %d > extra bytes in dir %d\n",
+                                           f->get_filename().c_str(), f->stream_dir_ext->size(), dir_entry_extra_bytes);
             cache.set_image_bytes_at(de_offset+14, f->stream_dir_ext) ;
         }
     }
     // write end-of-segment marker behind dir_entry.
     cache.set_image_word_at(de_offset + 2*dir_entry_word_count, RT11_DIR_EEOS);
     // this is overwritten by next entry; and remains if last entry in segment
-    return ERROR_OK;
 }
 
 // Pre: all files are arrange as gap-less stream, with only empty segment
 // after last file.
-enum error_e filesystem_rt11_c::render_directory()
+void filesystem_rt11_c::render_directory()
 {
     block_cache_dec_c cache(this) ;
     // cache holds all directory segemtns, allocated in ascending blocks
@@ -1352,7 +1338,6 @@ enum error_e filesystem_rt11_c::render_directory()
 
     cache.flush_to_image() ;
 
-    return ERROR_OK;
 }
 
 // write user file data into image
@@ -1385,15 +1370,12 @@ void filesystem_rt11_c::render_file_data()
 // write filesystem into image
 // Assumes all file data and blocklists are valid
 // return: 0 = OK
-enum error_e filesystem_rt11_c::render()
+void filesystem_rt11_c::render()
 {
-    enum error_e error_code ;
-
     // is there an efficient way to clear to probably huge image?
     // Else previous written stuff remains in unused blocks.
     // format media, all 0's
-    if ((error_code = rt11_filesystem_layout()))
-        return error_code; // oversized
+    rt11_filesystem_layout() ; // throws
 
     // write boot block and monitor, if file exist
     file_rt11_c* bootblock = dynamic_cast<file_rt11_c*>(file_by_path.get(bootblock_filename));
@@ -1401,8 +1383,7 @@ enum error_e filesystem_rt11_c::render()
         bootblock->stream_data->blocknr = 0;
         bootblock->stream_data->byte_offset = 0 ;
         if (bootblock->stream_data->size() != RT11_BLOCKSIZE)
-            return error_set(ERROR_FILESYSTEM_FORMAT, "bootblock has illegal size of %d bytes.",
-                             bootblock->stream_data->size());
+            throw filesystem_exception("bootblock has illegal size of %d bytes.", bootblock->stream_data->size());
         stream_render(bootblock->stream_data);
     } else
         image_partition->set_zero(0, RT11_BLOCKSIZE) ; // clear area
@@ -1411,20 +1392,16 @@ enum error_e filesystem_rt11_c::render()
         monitor->stream_data->blocknr = 2; // 2...5
         monitor->stream_data->byte_offset = 0 ;
         if (monitor->stream_data->size() > 4 * RT11_BLOCKSIZE)
-            return error_set(ERROR_FILESYSTEM_FORMAT, "monitor has illegal size of %d bytes.",
-                             monitor->stream_data->size());
+            throw filesystem_exception("monitor has illegal size of %d bytes.", monitor->stream_data->size());
         stream_render(monitor->stream_data);
     } else
         image_partition->set_zero(2 * RT11_BLOCKSIZE, 4 * RT11_BLOCKSIZE) ; // clear area
 
     render_homeblock();
-    if ((error_code = render_directory()))
-        return error_code;
+    render_directory();
     render_file_data();
 
     parse_volumeinfo() ;
-
-    return ERROR_OK;
 }
 
 
@@ -1505,7 +1482,7 @@ bool filesystem_rt11_c::stream_by_host_filename(string host_fname,
 }
 
 
-enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
+void filesystem_rt11_c::import_host_file(file_host_c *host_file)
 {
     file_rt11_c *f ;
     string host_fname ;// host file name with out stream extension
@@ -1520,11 +1497,11 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // RT11 has no subdirectories, so it accepts only plain host files from the rootdir
     // report file $VOLUME INFO not be read back
     if (dynamic_cast<directory_host_c*>(host_file) != nullptr)
-        return ERROR_OK ; // host directory
+        return ; // host directory
     if (host_file->parentdir == nullptr)
-        return ERROR_OK ;  // host root directory
+        return ;  // host root directory
     if (host_file->parentdir->parentdir != nullptr)
-        return ERROR_OK ; // file in host root subdirectory
+        return ; // file in host root subdirectory
 
     // locate stream and file, and/or produce RT11 names
     stream_by_host_filename(host_file->get_filename(), &f, &host_fname, &stream, &stream_code) ;
@@ -1535,7 +1512,7 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     if (f != nullptr || stream != nullptr) {
         DEBUG(printf_to_cstr("RT11: Ignore \"create\" event for existing filename/stream %s.%s %s",
                              _basename.c_str(), _ext.c_str(), stream_code.c_str()));
-        return ERROR_OK;
+        return ;
     }
 
 
@@ -1545,14 +1522,12 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     if (_basename == RT11_BOOTBLOCK_BASENAME && _ext == RT11_BOOTBLOCK_EXT) {
         internal = true ;
         if (host_file->file_size != RT11_BLOCKSIZE)
-            return error_set(ERROR_FILESYSTEM_FORMAT, "Boot block not %d bytes",
-                             RT11_BLOCKSIZE);
+            throw filesystem_exception("Boot block not %d bytes", RT11_BLOCKSIZE);
     } else if (_basename == RT11_MONITOR_BASENAME && _ext == RT11_MONITOR_EXT) {
         internal = true ;
         if (host_file->file_size > 4 * RT11_BLOCKSIZE)
-            return error_set(ERROR_FILESYSTEM_FORMAT,
-                             "Monitor block too big, has %d bytes, max %d", host_file->file_size,
-                             4 * RT11_BLOCKSIZE);
+            throw filesystem_exception("Monitor block too big, has %d bytes, max %d", host_file->file_size,
+                                       4 * RT11_BLOCKSIZE);
     } else if (_basename == RT11_VOLUMEINFO_BASENAME && _ext == RT11_VOLUMEINFO_EXT) {
         block_ack_event = false ;
         internal = true ;
@@ -1565,9 +1540,11 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
 
     // check wether a new user file of "data_size" bytes would fit onto volume
     // recalc filesystem parameters
-    if (rt11_filesystem_calc_block_use(internal ? 0 : host_file->file_size))
-        return error_set(ERROR_FILESYSTEM_OVERFLOW,
-                         "Disk full, file \"%s\" with %d bytes too large", host_fname.c_str(), host_file->file_size);
+    try {
+        rt11_filesystem_calc_block_use(internal ? 0 : host_file->file_size) ;
+    } catch (filesystem_exception &e) {
+        throw filesystem_exception("Disk full, file \"%s\" with %d bytes too large", host_fname.c_str(), host_file->file_size);
+    }
     // new file
     f = new file_rt11_c();
     f->basename = _basename ;
@@ -1597,7 +1574,7 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     } else if (stream_ptr == &f->stream_prefix) {
         assert(f->stream_prefix == nullptr) ;
     } else
-        return error_set(ERROR_FILESYSTEM_FORMAT, "Illegal stream code %s", stream_code.c_str());
+        throw filesystem_exception("Illegal stream code %s", stream_code.c_str());
 
     // allocate and fill the stream. to block
     *stream_ptr = new rt11_stream_c(f, stream_code);
@@ -1621,11 +1598,10 @@ enum error_e filesystem_rt11_c::import_host_file(file_host_c *host_file)
     if (block_ack_event)
         ack_event_filter.add(host_file->path) ;
 
-    return ERROR_OK;
 }
 
 
-enum error_e filesystem_rt11_c::delete_host_file(string host_path)
+void filesystem_rt11_c::delete_host_file(string host_path)
 {
     // build RT11 name and stream code
     string host_dir, host_fname ;
@@ -1633,32 +1609,32 @@ enum error_e filesystem_rt11_c::delete_host_file(string host_path)
     split_path(host_path, &host_dir, &host_fname, nullptr, nullptr) ;
     if (host_dir != "/")
         // ignore stuff from host subdirectories
-        return ERROR_OK ;
+        return ;
     file_rt11_c *f ;
     rt11_stream_c *stream ;
     string stream_code ; // clipped stream extension from host file name
 
     // locate stream and file, and/or produce RT11 names
     if (!stream_by_host_filename(host_fname, &f, &host_fname, &stream, &stream_code))
-        return error_e::ERROR_OK ; // name rejected
+        return ; // name rejected
 
 
     // delete stream, must exist
     if (stream == nullptr) {
         DEBUG(printf_to_cstr("RT11: ignore \"delete\" event for missing stream %s of file %s.", stream_code.c_str(), host_fname.c_str()));
-        return ERROR_OK;
+        return ;
     }
 
     if (f == nullptr) {
         DEBUG(printf_to_cstr("RT11: ignore \"delete\" event for missing file %s.", host_fname.c_str()));
-        return ERROR_OK;
+        return ;
     }
 
     //
     string _basename, _ext;
     filename_from_host(&host_fname, &_basename, &_ext);
     if (_basename == RT11_VOLUMEINFO_BASENAME && _ext == RT11_VOLUMEINFO_EXT) {
-        return ERROR_OK; // do not change from host -> change evetns not blocked via ack_event
+        return ; // do not change from host -> change evetns not blocked via ack_event
     }
 
 
@@ -1681,7 +1657,6 @@ enum error_e filesystem_rt11_c::delete_host_file(string host_path)
 
     ack_event_filter.add(host_path) ;
 
-    return ERROR_OK;
 }
 
 

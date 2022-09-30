@@ -59,7 +59,7 @@ class storageimage_shared_c: public storageimage_base_c {
 
 public:
     storageimage_shared_c(
-		string _image_path, 
+        string _image_path,
         bool use_syncer_thread,
         enum filesystem_type_e filesystem_type,
         enum dec_drive_type_e drive_type_text,
@@ -93,7 +93,7 @@ public:
     virtual void save_to_file(string host_filename) override ; // mandatory
 
 protected:
-	string image_path ; // DEC image on SDcard
+    string image_path ; // DEC image on SDcard
     // derived file system implementation classes use this
     string		host_shared_rootdir ; // root of file tree on host, absolute path
     drive_info_c drive_info ; // block_count, block_size

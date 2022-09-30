@@ -49,7 +49,19 @@
 
 namespace sharedfilesystem {
 
-// error handling
+// error handling, nothing special to filesystems at the moment
+class filesystem_exception: public std::exception {
+	private:
+		std::string message;
+	public:
+		filesystem_exception(std::string msgfmt, ...) ;
+		virtual const char* what() const noexcept {
+			return message.c_str();
+		}
+	};
+
+
+/*
 enum error_e {
     ERROR_OK = 0,
     ERROR_FILESYSTEM_FORMAT	= -1, // error in files ystem structure
@@ -60,7 +72,7 @@ enum error_e {
     ERROR_HOSTFILE = -6,  // file error on host file system
     ERROR_ILLPARAMVAL = -7 // illegal function parameter
 } ;
-
+*/
 // supported file systems, see derived classes
 enum filesystem_type_e {
     fst_none,
@@ -99,7 +111,7 @@ public:
 
     string operation_text() ;
 
-	virtual string as_text() = 0 ;
+    virtual string as_text() = 0 ;
 } ;
 
 class filesystem_event_queue_c:  public	std::queue<filesystem_event_c*>, public logsource_c {
@@ -200,9 +212,6 @@ protected:
     virtual ~filesystem_base_c() ;
 
 
-    /*** legacy error handling, connected to logsource ***/
-    enum error_e error_set(enum error_e code, const char *fmt, ...) ;
-
 public:
     directory_base_c *rootdir ; // derived filesystems must instantiate of correct type
     void clear_rootdir() ; // results in empty root node
@@ -216,9 +225,9 @@ public:
     // quick find files and dirs by name
     file_by_path_map_c	file_by_path ;
 
-	// block re-production of consumed events
-	filesystem_event_filter_c ack_event_filter ;
-	
+    // block re-production of consumed events
+    filesystem_event_filter_c ack_event_filter ;
+
 public:
     // get the path of a file in the tree. key to hash map
     // path is RELATIVE to some root, but the topmost dir is "/"

@@ -56,7 +56,7 @@ public:
                             string path, bool is_dir, file_host_c *file) ;
 
     ~filesystem_host_event_c() override {}
-	string as_text() override ;
+    string as_text() override ;
 } ;
 
 class file_host_c: virtual public file_base_c {
@@ -151,7 +151,7 @@ public:
     virtual void remove_directory(directory_base_c *olddir) override ;
 
 
-	void clear_disk_dir() ;
+    void clear_disk_dir() ;
 
     // delete all subdirs and files,
     // generates delete events,
@@ -161,8 +161,8 @@ public:
 
     void produce_events() ;
     void clear_events() ;
-	void update_event(filesystem_host_event_c *event) ;
-	
+    void update_event(filesystem_host_event_c *event) ;
+
 
 private:
     // link inotify event  to dir vie dir->inotify_wd
@@ -177,10 +177,10 @@ private:
 public:
     void import_dec_stream(file_dec_stream_c *stream) ;
 private:
-	
-	void consume_event_do_create(filesystem_dec_event_c *event) ;
-	void consume_event_do_delete(filesystem_dec_event_c *event) ;
-public :	
+
+    void consume_event_do_create(filesystem_dec_event_c *event) ;
+    void consume_event_do_delete(filesystem_dec_event_c *event) ;
+public :
     void consume_event(filesystem_dec_event_c *event) ;
 
 } ;

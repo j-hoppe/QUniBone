@@ -112,14 +112,16 @@ public:
     //	int internal ; // is part of filesystem, can not be deleted
 
     string get_filename() override ;
-	string get_host_path() override ;
+    string get_host_path() override ;
     bool data_changed(file_base_c *cmp) override ;
 
-	// has only 1 stream: itself
-	unsigned get_stream_count() override { return 1 ; } 
-	file_dec_stream_c *get_stream(unsigned index) override {
-		return index==0 ? this: nullptr ;
-		}
+    // has only 1 stream: itself
+    unsigned get_stream_count() override {
+        return 1 ;
+    }
+    file_dec_stream_c *get_stream(unsigned index) override {
+        return index==0 ? this: nullptr ;
+    }
 
 };
 
@@ -140,9 +142,14 @@ public:
         return true ;
     }
 
-	 // XXDP: no directory, no extra data for directory
-    unsigned get_stream_count() override { return 0;}
-    file_dec_stream_c *get_stream(unsigned index) override  {UNUSED(index); return nullptr;}
+    // XXDP: no directory, no extra data for directory
+    unsigned get_stream_count() override {
+        return 0;
+    }
+    file_dec_stream_c *get_stream(unsigned index) override  {
+        UNUSED(index);
+        return nullptr;
+    }
 
 
     void copy_metadata_to(directory_base_c *_other_dir) override ;
@@ -180,7 +187,7 @@ private:
 
     layout_info_t layout_info ;
     layout_info_t get_documented_layout_info(enum dec_drive_type_e drive_type) ;
-    enum error_e  recalc_layout_info(unsigned blockcount) ;
+    void  recalc_layout_info(unsigned blockcount) ;
 
 
     xxdp_blocknr_t preallocated_blockcount ; // fix blocks at start
@@ -241,14 +248,14 @@ private:
     uint16_t xxdp_image_get_word(xxdp_blocknr_t blocknr,
                                  uint8_t wordnr) ;
     void xxdp_image_set_word(xxdp_blocknr_t blocknr, 		uint8_t wordnr, uint16_t val) ;
-    enum error_e xxdp_blocklist_get(xxdp_blocklist_c *bl, xxdp_blocknr_t start) ;
+    void xxdp_blocklist_get(xxdp_blocklist_c *bl, xxdp_blocknr_t start) ;
     void xxdp_blocklist_set(xxdp_blocklist_c *bl) ;
     int xxdp_bitmap_count() ;
     void calc_file_change_flags() override ;
 
     // layout of objects on image
-    enum error_e xxdp_filesystem_layout_test(int data_size) ;
-    enum error_e xxdp_filesystem_layout() ;
+    void xxdp_filesystem_layout_test(int data_size) ;
+    void xxdp_filesystem_layout() ;
 
 
     // parser
@@ -257,11 +264,11 @@ private:
     void parse_bitmap() ;
     void parse_stream(xxdp_multiblock_c *multiblock,
                       xxdp_blocknr_t start, xxdp_blocknr_t blockcount) ;
-    enum error_e parse_ufd() ;
+    void parse_ufd() ;
     void parse_file_data(file_xxdp_c *f) ;
 
 public:
-    enum error_e parse() override ;
+    void parse() override ;
 
     // renderer
 private:
@@ -272,14 +279,14 @@ private:
     void render_file_data(file_xxdp_c *f) ;
 
 public:
-    enum error_e render() override ;
+    void render() override ;
 
 
     // files
     void xxdp_filesystem_render_volumeinfo(string *text_buffer) ;
 
-    enum error_e import_host_file(file_host_c *host_file) override ;
-    enum error_e delete_host_file(string host_path) override ;
+    void import_host_file(file_host_c *host_file) override ;
+    void delete_host_file(string host_path) override ;
 
     file_xxdp_c *file_get(int fileidx) override ;
 
