@@ -203,6 +203,8 @@ storageimage_shared_c::storageimage_shared_c(
     uint64_t _capacity,
     string _hostdir) : storageimage_base_c()
 {
+    log_label = "ImgShr" ;
+
     use_syncer_thread = _use_syncer_thread ;
     pthread_mutex_init(&mutex, NULL);
     image_path = _image_path ;
@@ -280,9 +282,11 @@ bool storageimage_shared_c::open(bool create)
     if (type == sharedfilesystem::fst_xxdp) {
         filesystem_dec_metadata_snapshot = new filesystem_xxdp_c( drive_info, image, image_partition_size) ;
         filesystem_dec = new filesystem_xxdp_c( drive_info, image, image_partition_size) ;
+        filesystem_dec->log_label = "FsXXDP" ;
     } else if (type == sharedfilesystem::fst_rt11) {
         filesystem_dec_metadata_snapshot = new filesystem_rt11_c(drive_info, image, image_partition_size) ;
         filesystem_dec = new filesystem_rt11_c(drive_info, image, image_partition_size) ;
+        filesystem_dec->log_label = "FsRT11" ;
     } else {
         delete image ;
         image = nullptr ;
@@ -313,6 +317,8 @@ bool storageimage_shared_c::open(bool create)
     filesystem_host = new filesystem_host_c(host_shared_rootdir) ;
     filesystem_host->log_level_ptr = log_level_ptr ; // same level as image
     filesystem_host->event_queue.log_level_ptr = log_level_ptr ;
+    filesystem_host->log_label = "FsHost" ;
+
 
     // initial synchronisation:
     bool init_from_host=false ;
@@ -325,20 +331,18 @@ bool storageimage_shared_c::open(bool create)
         // host shared dir initializes DEC filesystem and image
         sync_host_shared_dir_to_filesystem_and_events() ;
         sync_host_filesystem_events_to_dec() ;
-        filesystem_host->changed = false ; // events produced -> changes processed
-        sync_dec_snapshot() ; // init snapshot
     } else {
         // DEC filesystem initializes host shared dir
         filesystem_host->clear_rootdir() ; // delete internal tree, if any
         filesystem_host->clear_disk_dir() ; // delete all files in shared dir
-
         sync_dec_image_to_filesystem_and_events() ;
         // snapshot is clear, so all files are created on host
         sync_dec_filesystem_events_to_host() ;
-
-        sync_dec_snapshot() ; // init snapshot
     }
-
+    sync_dec_snapshot() ; // init snapshot
+    filesystem_host->changed = false ;
+    filesystem_dec->changed = false ;
+    dec_image_changed = false ;
 
     // start monitor thread
     if (use_syncer_thread) {
@@ -562,7 +566,6 @@ void storageimage_shared_c::sync_dec_image_to_filesystem_and_events()
 //            if (filesystem_dec_metadata_snapshot_valid) {
     filesystem_dec->produce_events(filesystem_dec_metadata_snapshot) ;
     filesystem_dec->event_queue.debug_print("sync_dec_image_to_filesystem_and_events()") ;
-
 
     filesystem_dec->ack_event_filter.clear() ; // responses to dec.consume() processed
 

@@ -722,21 +722,40 @@ void filesystem_rt11_c::parse_homeblock()
     uint16_t w;
     uint8_t *s ;
     int i;
-    int sum;
 
     // work on chache
     block_cache_dec_c cache(this) ;
     cache.load_from_image(1, 1) ; // work on block 1
-    // bad block bitmap not needed
 
+    // first, verifyx home block
+    bool all_zero = true ;
+    unsigned sum = 0;
+    homeblock_chksum = cache.get_image_word_at(1, 0776);
+    // verify checksum. But found a RT-11 which writes 0000 here?
+    for (sum = i = 0; i < 0776; i += 2) {
+        w = cache.get_image_word_at(1, i);
+        sum += w ;
+        if (!w)
+            all_zero=false ;
+    }
+    sum &= 0xffff;
+
+    if (all_zero)
+        throw filesystem_exception("parse_homeblock(): home block cleared to 0000s");
+    if (sum != homeblock_chksum)
+        throw filesystem_exception("parse_homeblock(): home block checksum error. Expected %06o, found %06o",
+                                   sum, homeblock_chksum);
+
+    // assume valid data
+    // bad block bitmap not needed
     // INIT/RESTORE area: ignore
     // BUP ignored
 
     pack_cluster_size = cache.get_image_word_at(1, 0722);
-    first_dir_blocknr = cache.get_image_word_at(1, 0724);
-    if (first_dir_blocknr != 6)
-        throw filesystem_exception("parse_homeblock(): first_dir_blocknr expected 6, is %d", first_dir_blocknr);
-    first_dir_blocknr = cache.get_image_word_at(1, 0724);
+    w = cache.get_image_word_at(1, 0724);
+    if (w != 6)
+        throw filesystem_exception("parse_homeblock(): first_dir_blocknr expected 6, is %d", (int)w);
+    first_dir_blocknr = w ;
     w = cache.get_image_word_at(1, 0726);
     system_version = rad50_decode(w);
     // 12 char volume id. V3A, or V05, ...
@@ -755,11 +774,8 @@ void filesystem_rt11_c::parse_homeblock()
     strncpy(buffer, (char *)s, 12);
     buffer[12] = 0;
     system_id = string(buffer) ;
-    homeblock_chksum = cache.get_image_word_at(1, 0776);
-    // verify checksum. But found a RT-11 which writes 0000 here?
-    for (sum = i = 0; i < 0776; i += 2)
-        sum += cache.get_image_word_at(1, i);
-    sum &= 0xffff;
+    // !!! if everything is 00: valid checksum ?!
+
     /*
      if (sum != homeblock_chksum)
      fprintf(flog, "Home block checksum error: is 0x%x, expected 0x%x\n", sum,
@@ -1302,12 +1318,11 @@ void filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache, file_rt
 void filesystem_rt11_c::render_directory()
 {
     block_cache_dec_c cache(this) ;
-    // cache holds all directory segemtns, allocated in ascending blocks
+    // cache holds all directory segments, allocated in ascending blocks
 
     unsigned dir_entries_per_segment = rt11_dir_entries_per_segment(); // cache
     int ds_nr = 1; // # of segment,starts with 1
-    int de_nr; // # of entry
-
+    int de_nr = 0; // # of entry
     cache.init(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // 1st seg = 2 blocks
     unsigned dir_file_no = 0 ; // count only files in directory, not internals
     for (unsigned i = 0; i < file_count(); i++) {
