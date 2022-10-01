@@ -74,9 +74,9 @@ public:
     // if shared host dir
 //		image_shareddir - path to directory root of shared host file tree
     parameter_string_c image_shareddir = parameter_string_c(this, "shared_dir", "shd", /*readonly*/
-                                         false, "Path to directory with shared files. Invalidates binary image file. Empty to detach. \".gz\" archive also searched.");
+                                         false, "Path to directory with shared files. Created on demand, empty to disable sharing.");
     parameter_string_c image_filesystem = parameter_string_c(this, "shared_filesystem", "shfs", /*readonly*/
-                                          false, "Encode shared dir in this file system (empty, RT11, XXDP). Valid if shared dir set.");
+                                          false, "Encode shared dir in this file system (empty, RT11, XXDP).");
 
     parameter_unsigned_c activity_led = parameter_unsigned_c(this, "activityled", "al", /*readonly*/
                                         false, "", "%d", "Number of LED to used for activity display.", 8, 10);
