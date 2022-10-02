@@ -1696,6 +1696,7 @@ file_rt11_c *filesystem_rt11_c::file_get(int fileidx)
 // "filname" and "ext" contain components WITH spaces, if != NULL
 // "bla.foo.c" => "BLA.FO", "C  ", result = "BLA.FO.C"
 // "bla" => "BLA."
+// RAD-50 character "%" is considered "undefined under RT-11, https://en.wikipedia.org/wiki/DEC_RADIX_50
 string filesystem_rt11_c::filename_from_host(string *hostfname, string *result_basename, string *result_ext)
 {
     string pathbuff = *hostfname ;
@@ -1718,7 +1719,7 @@ string filesystem_rt11_c::filename_from_host(string *hostfname, string *result_b
             c = c ;
             break ;
         default:
-            c = '%' ;
+            c = '$' ;
         }
         pathbuff[i] = c ;
     }
