@@ -249,12 +249,12 @@ void storageimage_shared_c::unlock()
 // called by derived open() first
 bool storageimage_shared_c::open(bool create)
 {
-    assert(! is_open()) ; // test the caller
+    if (is_open())
+        close(); // after RL11 INIT
 
     assert(filesystem_dec_metadata_snapshot == nullptr) ;
     assert(filesystem_dec == nullptr) ;
     assert(filesystem_host == nullptr) ;
-
     assert(!image_path.empty()) ;
 
     lock() ;
@@ -418,32 +418,33 @@ void storageimage_shared_c::image_data_pdp_access(bool changing)
 
 void storageimage_shared_c::close(void)
 {
-    if (is_open()) {
-        if (use_syncer_thread) {
-            syncer_terminate = true ;
-            int status = pthread_join(syncer_pthread, NULL) ;
-            if (status != 0)
-                FATAL("Failed to join with storageimage_shared_c.syncer_pthread with status = %d", status);
-        }
+    if (!is_open())
+        return ;
 
-        assert(filesystem_dec_metadata_snapshot != nullptr) ;
-        delete filesystem_dec_metadata_snapshot;
-        filesystem_dec_metadata_snapshot = nullptr ;
-        assert(filesystem_dec != nullptr) ;
-        delete filesystem_dec;
-        filesystem_dec = nullptr ;
-        assert(filesystem_host != nullptr) ;
-        delete filesystem_host;
-        filesystem_host = nullptr ;
+    if (use_syncer_thread) {
+        syncer_terminate = true ;
+        int status = pthread_join(syncer_pthread, NULL) ;
+        if (status != 0)
+            FATAL("Failed to join with storageimage_shared_c.syncer_pthread with status = %d", status);
+    }
+
+    assert(filesystem_dec_metadata_snapshot != nullptr) ;
+    delete filesystem_dec_metadata_snapshot;
+    filesystem_dec_metadata_snapshot = nullptr ;
+    assert(filesystem_dec != nullptr) ;
+    delete filesystem_dec;
+    filesystem_dec = nullptr ;
+    assert(filesystem_host != nullptr) ;
+    delete filesystem_host;
+    filesystem_host = nullptr ;
 
 
 //        assert(filesystem_mapper != nullptr) ;
 //		delete filesystem_mapper ;
 //		filesystem_mapper = nullptr ;
 
-        delete image ;
-        image = nullptr ;
-    }
+    delete image ;
+    image = nullptr ;
 }
 
 // set image size to 0
