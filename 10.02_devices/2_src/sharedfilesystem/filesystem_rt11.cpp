@@ -1376,8 +1376,13 @@ void filesystem_rt11_c::render_file_data()
             cache.flush_to_image() ;
             stream_render(f->stream_prefix); // loads and saves again
         }
-        if (f->stream_data != nullptr)
+        if (f->stream_data != nullptr) {
+			// RT11 files fill whole blocks
+			unsigned round_up_size = RT11_BLOCKSIZE * needed_blocks(RT11_BLOCKSIZE, f->stream_data->size()) ;
+			assert(round_up_size >= f->stream_data->size()) ;
+			f->stream_data->set_size(round_up_size) ; // new space set to zero_byte_val
             stream_render(f->stream_data);
+		}
     }
 }
 
