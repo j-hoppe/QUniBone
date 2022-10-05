@@ -135,6 +135,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/priorityrequest.o	\
 	$(OBJDIR)/qunibusadapter.o	\
 	$(OBJDIR)/qunibus.o	\
+	$(OBJDIR)/bytebuffer.o	\
 	$(OBJDIR)/gpios.o	\
 	$(OBJDIR)/buslatches.o	\
 	$(OBJDIR)/buslatches_u.o	\
@@ -369,6 +370,9 @@ $(OBJDIR)/bitcalc.o :  $(COMMON_SRC_DIR)/bitcalc.cpp $(COMMON_SRC_DIR)/bitcalc.h
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/boolarray.o :  $(COMMON_SRC_DIR)/boolarray.cpp $(COMMON_SRC_DIR)/boolarray.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/bytebuffer.o :  $(BASE_SRC_DIR)/bytebuffer.cpp $(BASE_SRC_DIR)/bytebuffer.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/gpios.o :  $(BASE_SRC_DIR)/gpios.cpp $(BASE_SRC_DIR)/gpios.hpp
