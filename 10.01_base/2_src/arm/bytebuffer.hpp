@@ -45,6 +45,7 @@
 #include <string>
 #include <iostream>
 #include <assert.h>
+#include <iostream>
 
 class byte_buffer_c
 {
@@ -55,81 +56,24 @@ private:
 public:
     uint64_t image_position ; // start position in storage image
 
-    byte_buffer_c() {
-        _data = nullptr ;
-        _size = 0 ;
-    }
+    uint8_t	zero_byte_val ; // invalid memory is initialized with this value
 
+    byte_buffer_c() ;
+    virtual ~byte_buffer_c() ;
 
-    virtual ~byte_buffer_c() {
-        if (_data != nullptr)
-            free (_data) ;
-    }
+    bool is_empty() ;
 
-    bool is_empty() {
-        return (_size == 0) ;
-    }
+    void set_size(unsigned new_size) ;
+    void set(uint8_t *src_data, unsigned src_size) ;
+    void set(byte_buffer_c *bb) ;
+    void set(std::string *s) ;
+    void set(std::istream *st, unsigned new_size) ;
 
+    void get(std::ostream *st) ;
 
-    // set, update or erase buffer size.
-    void set_size(unsigned new_size) {
-        if (new_size == _size)
-            return ;
-        if (new_size > 0)
-            _data = (uint8_t *)realloc(_data, new_size) ;
-        else if (_data) {
-            // deallocate
-            free(_data) ;
-            _data = nullptr ;
-        }
-        _size = new_size ;
-    }
+    bool is_zero_data(uint8_t val) ;
 
-
-    // several ways to set an empty or filled buffer
-    void set(uint8_t *src_data, unsigned src_size) {
-        set_size(src_size) ;
-        assert(_data != nullptr) ;
-        memcpy(_data, src_data, src_size);
-    }
-
-    // copy data_ptr
-    void set(byte_buffer_c *bb) {
-        set(bb->data_ptr(), bb->size()) ;
-    }
-
-// like strdup()
-    void set(std::string *s) {
-        unsigned new_size = s->size() +1 ; // include \0
-        set_size(new_size) ;
-        assert(_data != nullptr) ;
-        memcpy((void *)_data, (void *)s->c_str(), new_size) ;
-    }
-    /*
-        // like strdup()
-        void set(char *s) {
-            unsigned new_size = strlen(s) +1 ; // include \0
-            set_size(new_size) ;
-            memcpy((void *)_data, (void *)s, new_size) ;
-        }
-    */
-
-    // read first "size" bytes into the array. stream must be opem, position is changed
-    void set(istream *st, unsigned new_size)
-    {
-        set_size(new_size) ;
-        assert(_data != nullptr) ;
-        st->seekg(0) ;
-        st->read((char *)_data, new_size) ;
-    }
-
-    // write bytes to stream
-    void get(ostream *st)
-    {
-        st->write((char *)_data, _size) ;
-    }
-
-    // accessors
+    // inline accessors
     uint8_t *data_ptr() {
         return _data ;
     }
@@ -153,21 +97,6 @@ public:
     }
 
 
-// is memory all set with a const value?
-// reverse oeprator to memset()
-// size == 0: true
-//int is_memset(void *ptr, uint8_t val, uint32_t size) {
-    bool is_zero_data(uint8_t val)
-    {
-        uint8_t *ptr = _data ;
-        if (is_empty())
-            return true ;
-        assert(_data != nullptr) ;
-        for (unsigned n = _size; n; ptr++, n--)
-            if (*ptr != val)
-                return false;
-        return true;
-    }
 
 } ;
 
