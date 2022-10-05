@@ -830,7 +830,7 @@ void filesystem_xxdp_c::xxdp_filesystem_layout()
  * convert byte array of image into logical objects
  **************************************************************/
 
-// read MFD, produce MFD, Bitmap and UFD
+// read the "Master File Directory" MFD, produce MFD, Bitmap and UFD
 void filesystem_xxdp_c::parse_mfd()
 {
     unsigned n;

@@ -286,7 +286,8 @@ void storageimage_binfile_c::save_to_file(string _host_filename)
 bool storageimage_memory_c::open(bool create)
 {
     UNUSED(create);
-    assert(!is_open()) ;
+	if (is_open())
+		close(); // after RL11 INIT
     if (data_size)
         data = (uint8_t *)malloc(data_size) ;
     opened = true ;

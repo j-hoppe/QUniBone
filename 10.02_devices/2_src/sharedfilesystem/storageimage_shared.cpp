@@ -47,7 +47,7 @@ They can be synced
 - 5 different representations
 1. directory
 2. User file tree under Linux, which is to be mirrored onto a DEC device
-3. Event resolver: corrects conflicting changes on host and DEC filesystem
+3. Events resolver: corrects conflicting changes on host and DEC filesystem
 4. Representation of files for DEC OS (different name, different attributes
         even multiple file streams for a single file
 5. DEC file tree encoded to a binary device image
@@ -58,10 +58,10 @@ They can be synced
 
 
 [1]               [2]               [3]           [4]                        [5]                	[6]
-Linux/Win10       Host filesystem   Event         DEC filesystem             temp DEC binary image  Host emulator
-filesystem                          resolver      (XXDP, RT11, Files-11   )   (RX012,RK05,RL02,MSCP) image file
-on disk           root                            root
-                     |                               |                        temporary
+Linux/Win10       Host filesystem   Events        DEC filesystem             temp DEC binary image  Host emulator
+filesystem                                        (XXDP, RT11, Files-11   )   (RX012,RK05,RL02,MSCP) image file
+on disk           root              <-----        root
+                     |              ----->           |                        temporary
 "root/"              +---                            +---                     imagestream
 "root/dir1"         dir1-.                          dir1-.                    (list of blocks)   Mounted image file
 "root/dir1/file1/"   |   +file1-                     |   +file1                                  (list of blocks)
