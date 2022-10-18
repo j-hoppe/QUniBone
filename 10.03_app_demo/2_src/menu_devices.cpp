@@ -21,6 +21,7 @@
  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
  16-Nov-2018  JH      created
+ 16-Oct-2022  MR      Copied the "m lt file" option from other menu to here
  */
 
 #include <stdio.h>
@@ -83,6 +84,9 @@ static void load_memory(memory_fileformat_t format, char *fname, const char *ent
 		load_ok = membuffer->load_papertape(fname, &codelabels);
 		if (codelabels.size() > 0)
 			entry_address = codelabels.begin()->second;
+		break;
+	case fileformat_addr_value_text:
+		load_ok = membuffer->load_addr_value_text(fname);
 		break;
 	default:
 		load_ok = false;
@@ -254,6 +258,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 			printf("m lp <filename>      Load memory content from absolute papertape image\n");
 			printf("m lp                 Reload last memory content from file \"%s\"\n",
 					memory_filename);
+			printf("m lt <filename>      Load memory content from address-value text file\n");
+			printf("m lt                 Reload last memory content from file \"%s\"\n", memory_filename);
 			printf("ld                   List all defined devices\n");
 			printf("en <dev>             Enable a device\n");
 			printf("dis <dev>            Disable device\n");
@@ -385,6 +391,14 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 					&& !strcasecmp(s_param[0], "lp") && strlen(memory_filename)) {
 				// m lp
 				load_memory(fileformat_papertape, memory_filename, NULL);
+			} else if (!strcasecmp(s_opcode, "m") && n_fields == 3
+                                        && !strcasecmp(s_param[0], "lt")) {
+	 			// m lt <fiilename>
+				load_memory(fileformat_addr_value_text, s_param[1], NULL);
+                        } else if (!strcasecmp(s_opcode, "m") && n_fields == 2
+					&& !strcasecmp(s_param[0], "lt") && strlen(memory_filename)) {
+				// m lt
+				load_memory(fileformat_addr_value_text, memory_filename, NULL);
 			} else if (!strcasecmp(s_opcode, "ld") && n_fields == 1) {
 				unsigned n;
 				list<device_c *>::iterator it;
