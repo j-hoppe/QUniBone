@@ -99,6 +99,7 @@ public:
 	// !! add logic to update dma_request_c and intr_request_c
 
 	// 0 = not "Plugged" in to UNIBUS
+	// QBUS: "address_with" is vairable 16,18,22, must be set in devcie constructor
 	parameter_unsigned_c base_addr = parameter_unsigned_c(this, "base_addr", "addr", true, "",
 			"%06o", "controller base address in IO page", 18, 8);
 	parameter_unsigned_c priority_slot = parameter_unsigned_c(this, "slot", "sl", true, "",

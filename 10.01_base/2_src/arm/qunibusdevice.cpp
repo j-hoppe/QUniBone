@@ -24,6 +24,7 @@
  aug-2020	JH		adapted to QBUS
  6-feb-2020	JH		added symbol table
  12-nov-2018  JH      entered beta phase
+ 21-oct-2022 Kirsten McIntyre: "base_addr" param bitwidth updated from UNIBUS/QBUS
 
  abstract qunibus device
  maybe mass storage controller or other device implementing
@@ -46,6 +47,8 @@ qunibusdevice_c::qunibusdevice_c() :
 	register_count = 0;
 	// device is not yet enabled, QBUS/UNIBUS properties can be set
 	base_addr.readonly = false;
+    // Kristen McIntyre: reinitialize the base address's bitwidth now that we are initialized
+    base_addr.bitwidth = qunibus->addr_width;	
 	priority_slot.readonly = false;
 	intr_vector.readonly = false;
 	intr_level.readonly = false;
