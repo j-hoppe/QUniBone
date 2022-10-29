@@ -213,8 +213,7 @@ storageimage_shared_c::storageimage_shared_c(
     if (_capacity > 0)
         drive_info.capacity = _capacity ; // update from device emulation
     assert((_capacity % 256) == 0) ; // ad hoc, necessary?
-    this->drive_unit = _drive_unit ;
-
+    drive_unit = _drive_unit ;
 
 //    assert(image_data_size <= raw_drive_size) ; // filesystem must not exceed drive
 
@@ -280,12 +279,12 @@ bool storageimage_shared_c::open(bool create)
     else image_partition_size =  image->size();
 
     if (type == sharedfilesystem::fst_xxdp) {
-        filesystem_dec_metadata_snapshot = new filesystem_xxdp_c( drive_info, image, image_partition_size) ;
-        filesystem_dec = new filesystem_xxdp_c( drive_info, image, image_partition_size) ;
+        filesystem_dec_metadata_snapshot = new filesystem_xxdp_c( drive_info, drive_unit, image, image_partition_size) ;
+        filesystem_dec = new filesystem_xxdp_c( drive_info,  drive_unit, image, image_partition_size) ;
         filesystem_dec->log_label = "FsXXDP" ;
     } else if (type == sharedfilesystem::fst_rt11) {
-        filesystem_dec_metadata_snapshot = new filesystem_rt11_c(drive_info, image, image_partition_size) ;
-        filesystem_dec = new filesystem_rt11_c(drive_info, image, image_partition_size) ;
+        filesystem_dec_metadata_snapshot = new filesystem_rt11_c(drive_info, drive_unit, image, image_partition_size) ;
+        filesystem_dec = new filesystem_rt11_c(drive_info, drive_unit, image, image_partition_size) ;
         filesystem_dec->log_label = "FsRT11" ;
     } else {
         delete image ;

@@ -75,8 +75,9 @@ file_dec_stream_c::file_dec_stream_c(file_dec_c *_file, string _stream_name)
     file = _file ;
     stream_name = _stream_name ;
     // file must've been added to filesystem, else get_host_path() will not work
-    assert(file->filesystem != nullptr) ;
-    assert(file->parentdir != nullptr) ;
+    // can not testet here, if file is a stream, and called by file_c(): stream_c()
+//    assert(file->filesystem != nullptr) ;
+//    assert(file->parentdir != nullptr) ;
 }
 
 file_dec_stream_c::~file_dec_stream_c()
@@ -108,11 +109,12 @@ void file_dec_c::produce_event_for_all_streams(filesystem_event_queue_c *target_
 }
 
 
-filesystem_dec_c::filesystem_dec_c(drive_info_c _drive_info,
+filesystem_dec_c::filesystem_dec_c(drive_info_c _drive_info, unsigned _drive_unit, 
                                    storageimage_base_c *_image_partition, uint64_t _image_partition_size)
     : filesystem_base_c()
 {
     drive_info = _drive_info ;
+	drive_unit = _drive_unit ;
     image_partition = _image_partition ;
     image_partition_size = _image_partition_size ;
     changed_blocks = nullptr ; // RT11/XXDP must allocate

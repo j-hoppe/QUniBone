@@ -51,11 +51,12 @@
 
 namespace sharedfilesystem {
 
+// multiple image blocks
 // is a byte buffer, with position in disk image,
 // represents data on a DEC operating system
 class block_cache_dec_c: public byte_buffer_c
 {
-private:
+public:
     filesystem_dec_c *filesystem ;
     uint32_t	block_size ;
 
@@ -66,9 +67,8 @@ private:
     uint64_t lo_cache_offset ;
     uint64_t hi_cache_offset ;
 
-public:
 
-    block_cache_dec_c(filesystem_dec_c *_filesystem) {
+    block_cache_dec_c(filesystem_dec_c *_filesystem): byte_buffer_c() {
         filesystem = _filesystem ;
         block_size = filesystem->get_block_size() ;
     }
@@ -78,7 +78,7 @@ public:
     }
 
     // link to image, but fill with 00 instead of loading data
-    void init(uint32_t _image_block_nr, uint32_t _block_count)
+    void init_zero(uint32_t _image_block_nr, uint32_t _block_count)
     {
         start_block_nr = _image_block_nr ;
         block_count = _block_count ;
@@ -92,11 +92,11 @@ public:
     }
 
 
-    void load_from_image(uint32_t _image__block_nr, uint32_t _block_count)
+    void load_from_image(uint32_t _image_block_nr, uint32_t _block_count)
     {
-        init(_image__block_nr, _block_count) ;
+        init_zero(_image_block_nr, _block_count) ;
 
-        filesystem->image_partition->get_bytes(this, _image__block_nr * block_size, _image__block_nr * block_size) ;
+        filesystem->image_partition->get_bytes(this, _image_block_nr * block_size, _block_count * block_size) ;
     }
 
 
@@ -105,7 +105,7 @@ public:
         filesystem->image_partition->set_bytes(this) ;
     }
 
-    // get buffer address to cache data of an image position
+    // get_data buffer address to cache data of an image position
     // assert, wether its in the cache
     uint8_t *get_image_addr(uint32_t _image_block_nr, uint32_t _byte_offset)
     {
@@ -116,10 +116,30 @@ public:
         return data_ptr()+rel_offset ;
     }
 
-//#define IMAGE_GET_WORD(ptr) (  (uint16_t) ((uint8_t *)(ptr))[0]  |  (uint16_t) ((uint8_t *)(ptr))[1] << 8  )
-//#define IMAGE_PUT_WORD(ptr,w) ( ((uint8_t *)(ptr))[0] = (w) & 0xff, ((uint8_t *)(ptr))[1] = ((w) >> 8) & 0xff  )
+    // block relative
+    uint16_t get_word_at_byte_offset(uint32_t _byte_offset) {
+        assert(_byte_offset < size()) ;
+        uint8_t *addr = data_ptr() + _byte_offset ;
+        // LSB first
+        return (uint16_t)addr[0] | (uint16_t)(addr[1] << 8);
+    }
 
-    // get word from image offset, check checks wether the word  is in cache
+    void set_word_at_byte_offset(uint32_t _byte_offset, uint16_t val) {
+        assert(_byte_offset < size()) ;
+        uint8_t *addr = data_ptr() + _byte_offset ;
+        addr[0] = val & 0xff;
+        addr[1] = (val >> 8) & 0xff;
+    }
+
+    uint16_t get_word_at_word_offset(uint32_t _word_offset) {
+        return get_word_at_byte_offset(2* _word_offset) ;
+    }
+
+    void set_word_at_word_offset(uint32_t _word_offset, uint16_t val) {
+        set_word_at_byte_offset(2 * _word_offset, val) ;
+    }
+
+    // get_data word from image offset, check checks wether the word  is in cache
     uint16_t get_image_word_at(uint32_t _image_byte_offset)
     {
         return get_image_word_at(0, _image_byte_offset) ;
@@ -145,7 +165,7 @@ public:
         // assert((idx + 1) < image_partition_size);
         addr[0]	= val & 0xff;
         addr[1] = (val >> 8) & 0xff;
-        //fprintf(flog, "set 0x%x to 0x%x\n", idx, val) ;
+        //fprintf(flog, "set_data 0x%x to 0x%x\n", idx, val) ;
     }
 
     // import many bytes

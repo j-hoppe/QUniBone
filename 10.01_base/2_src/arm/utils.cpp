@@ -50,6 +50,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <memory>
+#include <iostream>
 
 
 
@@ -294,7 +295,7 @@ char *printf_to_cstr(const char *fmt, ...)
     va_start(args, fmt);
     auto r = std::vsnprintf(buf, sizeof buf, fmt, args);
     va_end(args);
-	assert(r >= 0 &&  r < (int)sizeof(buf)) ; // no error, no overflow
+    assert(r >= 0 &&  r < (int)sizeof(buf)) ; // no error, no overflow
     return buf ;
 }
 
@@ -305,10 +306,10 @@ std::string printf_to_string(const char *fmt, ...)
 
     va_list args;
     va_start(args, fmt);
-	auto r = std::vsnprintf(buf, sizeof buf, fmt, args);  // save truncate on overflow
+    auto r = std::vsnprintf(buf, sizeof buf, fmt, args);  // save truncate on overflow
     va_end(args);
 
-	assert(r >= 0 &&  r < (int)sizeof(buf)) ; // no error, no overflow
+    assert(r >= 0 &&  r < (int)sizeof(buf)) ; // no error, no overflow
     if (r < 0)
         // conversion failed
         return {};
@@ -662,9 +663,10 @@ uint16_t rad50_encode(string s)
 
 #define HEXDUMP_BYTESPERLINE	16
 // mount hex and ascii and print
-static void hexdump_put(FILE *stream, unsigned start, char *line_hexb, char* line_hexw,
+static void hexdump_put(std::ostream &stream, unsigned start, char *line_hexb, char* line_hexw,
                         char *line_ascii)
 {
+    char buffer[HEXDUMP_BYTESPERLINE * 3 +80] ;
     // expand half filled lines
     while (strlen(line_hexb) < HEXDUMP_BYTESPERLINE * 3)
         strcat(line_hexb, " ");
@@ -672,13 +674,14 @@ static void hexdump_put(FILE *stream, unsigned start, char *line_hexb, char* lin
         strcat(line_hexw, " ");
     while (strlen(line_ascii) < HEXDUMP_BYTESPERLINE)
         strcat(line_ascii, " ");
-    fprintf(stream, "%3x: %s   %s  %s\n", start, line_hexb, line_hexw, line_ascii);
+    sprintf(buffer, "%3x: %s   %s  %s\n", start, line_hexb, line_hexw, line_ascii);
+    stream << buffer ;
     line_hexb[0] = 0; // clear output
     line_hexw[0] = 0;
     line_ascii[0] = 0;
 }
 // hex dump with info
-void hexdump(FILE *stream, uint8_t *data, int size, char *fmt, ...)
+void hexdump(std::ostream &stream, uint8_t *data, int size, char *fmt, ...)
 {
     va_list args;
     int i, startaddr;
@@ -687,9 +690,10 @@ void hexdump(FILE *stream, uint8_t *data, int size, char *fmt, ...)
     char line_ascii[40]; // buffer for ASCII chars
 
     if (fmt && strlen(fmt)) {
+        char buffer[256] ;
         va_start(args, fmt);
-        vfprintf(stream, fmt, args);
-        fprintf(stream, "\n");
+        vsprintf(buffer, fmt, args);
+        stream << buffer << "\n";
         va_end(args);
     }
     line_hexb[0] = 0; // clear output

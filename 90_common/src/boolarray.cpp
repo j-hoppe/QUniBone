@@ -69,7 +69,7 @@ void boolarray_c::bit_clear(uint32_t i) {
     flags[i / 32] = w;
 }
 
-int boolarray_c::bit_get(uint32_t i) {
+bool boolarray_c::bit_get_secure(uint32_t i) {
     assert(i < bitcount);
     uint32_t w = flags[i / 32];
     return !!(w & (1 << (i % 32)));

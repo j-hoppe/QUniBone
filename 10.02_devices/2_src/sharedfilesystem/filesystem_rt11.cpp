@@ -50,7 +50,7 @@
 namespace sharedfilesystem {
 
 
-static const unsigned RT11_BLOCKSIZE = 512 ;
+//static const unsigned RT11_BLOCKSIZE = 512 ; const from layout info
 static const unsigned RT11_MAX_BLOCKCOUNT =  0x10000 ; // block addr only 16 bit
 // no partitioned disks at the moment
 
@@ -106,7 +106,7 @@ rt11_stream_c::~rt11_stream_c()
 void rt11_stream_c::init()
 {
     file_dec_stream_c::init() ;
-    blocknr = 0;
+    start_block_nr = 0;
     byte_offset = 0;
     changed = false ;
 }
@@ -267,9 +267,9 @@ file_dec_stream_c *file_rt11_c::get_stream(unsigned index)
 
 
 
-filesystem_rt11_c::filesystem_rt11_c(		drive_info_c _drive_info,
+filesystem_rt11_c::filesystem_rt11_c(		drive_info_c _drive_info, unsigned _drive_unit,
         storageimage_base_c *_image_partition, uint64_t _image_partition_size)
-    : filesystem_dec_c(_drive_info, _image_partition, _image_partition_size)
+    : filesystem_dec_c(_drive_info, _drive_unit, _image_partition, _image_partition_size)
 {
     layout_info = get_documented_layout_info(_drive_info.drive_type) ;
     changed_blocks = new boolarray_c(layout_info.block_count)  ;
@@ -475,20 +475,13 @@ filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(e
  * filesystem_rt11_c low level operators
  *************************************************************/
 
-// ptr to first byte of block, inlines of filesystem_c
-#define IMAGE_BLOCKNR2OFFSET(blocknr) (RT11_BLOCKSIZE *(blocknr))
-// convert pointer in image to block
-#define IMAGE_OFFSET2BLOCKNR(image_offset) ( (image_offset) / RT11_BLOCKSIZE)
-// offset in block in bytes
-#define IMAGE_OFFSET2BLOCKOFFSET(image_offset) ( (image_offset) % RT11_BLOCKSIZE)
-
 // read block[start] ... block[start+blockcount-1] into data[]
 void filesystem_rt11_c::stream_parse(rt11_stream_c *stream, rt11_blocknr_t start,
                                      uint32_t byte_offset, uint32_t data_size)
 {
-    stream->blocknr = start;
+    stream->start_block_nr = start;
     stream->byte_offset = byte_offset;
-    image_partition->get_bytes(stream, RT11_BLOCKSIZE * start + byte_offset, data_size) ;
+    image_partition->get_bytes(stream, get_block_size() * start + byte_offset, data_size) ;
     // stream not imported from host
     assert(stream->host_path.empty())  ;
     stream->host_path = stream->get_host_path() ;
@@ -497,7 +490,7 @@ void filesystem_rt11_c::stream_parse(rt11_stream_c *stream, rt11_blocknr_t start
 // write stream to image
 void filesystem_rt11_c::stream_render(rt11_stream_c *stream)
 {
-    stream->image_position = RT11_BLOCKSIZE * stream->blocknr + stream->byte_offset ;
+    stream->image_position = get_block_size() * stream->start_block_nr + stream->byte_offset ;
     image_partition->set_bytes(stream) ;
 }
 
@@ -508,10 +501,10 @@ void filesystem_rt11_c::stream_render(rt11_stream_c *stream)
 // needed dir segments for given count of entries
 // usable in 1 segment : 2 blocks - 5 header words
 // entry size = 7 words + dir_entry_extra_bytes
-unsigned filesystem_rt11_c::rt11_dir_entries_per_segment()
+unsigned filesystem_rt11_c::directory_entries_per_segment()
 {
     // without extra bytes: 72 [VFFM91] 1-15
-    int result = (2 * RT11_BLOCKSIZE - 2 * 5) / (2 * 7 + dir_entry_extra_bytes);
+    int result = (2 * get_block_size() - 2 * 5) / (2 * 7 + dir_entry_extra_bytes);
 
     // in a segment 3 entries spare, including end-of-segment
     assert(result > 3) ;
@@ -519,10 +512,10 @@ unsigned filesystem_rt11_c::rt11_dir_entries_per_segment()
     return result;
 }
 
-unsigned filesystem_rt11_c::rt11_dir_needed_segments(unsigned _file_count)
+unsigned filesystem_rt11_c::directory_needed_segments(unsigned _file_count)
 {
     // without extra bytes: 72 [VFFM91] 1-15
-    int entries_per_seg = rt11_dir_entries_per_segment();
+    int entries_per_seg = directory_entries_per_segment();
     _file_count++; // one more for the mandatory "empty space" file entry
     // round up to whole segments
     return (_file_count + entries_per_seg - 1) / entries_per_seg;
@@ -536,15 +529,15 @@ void filesystem_rt11_c::calc_file_stream_change_flag(        rt11_stream_c *stre
         return;
     stream->changed = false;
     if (changed_blocks) {
-        blkend = stream->blocknr + needed_blocks(stream->size());
-        for (blknr = stream->blocknr; !stream->changed && blknr < blkend; blknr++)
-            stream->changed |= BOOLARRAY_BIT_GET(changed_blocks, blknr);
+        blkend = stream->start_block_nr + needed_blocks(stream->size());
+        for (blknr = stream->start_block_nr; !stream->changed && blknr < blkend; blknr++)
+            stream->changed |= changed_blocks->bit_get(blknr);
 //		stream->changed |= boolarray_bit_get(image_changed_blocks, blknr);
         // possible optimization: boolarray is tested sequentially
     }
 }
 
-void filesystem_rt11_c::calc_file_change_flags()
+void filesystem_rt11_c::calc_change_flags()
 {
     file_rt11_c *f ;
 
@@ -552,12 +545,12 @@ void filesystem_rt11_c::calc_file_change_flags()
         return;
 
     // Homeblock changed?
-    struct_changed = BOOLARRAY_BIT_GET(changed_blocks, 1);
+    struct_changed = changed_blocks->bit_get(1);
 
     // any dir entries changed?
     for (rt11_blocknr_t blknr = first_dir_blocknr;
             blknr < first_dir_blocknr + 2 * dir_total_seg_num; blknr++)
-        struct_changed |= BOOLARRAY_BIT_GET(changed_blocks, blknr);
+        struct_changed |= changed_blocks->bit_get(blknr);
 
     // volume info changed?
     f = dynamic_cast<file_rt11_c *>(file_by_path.get(volume_info_filename)) ;
@@ -585,7 +578,7 @@ void filesystem_rt11_c::calc_file_change_flags()
 // a) test_data_size == 0: calc on base of file[], change file system
 // b) test_data_size > 0: check wether file of length "test_data_size" would fit onto
 //	the existing volume
-void filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
+void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
 {
     unsigned _dir_max_seg_nr;
     unsigned _used_file_blocks;
@@ -614,14 +607,14 @@ void filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
     // Difficulties in case of enlarged images!
     _available_blocks = blockcount - first_dir_blocknr; // boot, home, 2..5 used
     if (test_data_size)
-        _dir_max_seg_nr = rt11_dir_needed_segments(dir_file_count + 1);
+        _dir_max_seg_nr = directory_needed_segments(dir_file_count + 1);
     else
-        _dir_max_seg_nr = rt11_dir_needed_segments(dir_file_count);
+        _dir_max_seg_nr = directory_needed_segments(dir_file_count);
     if (_available_blocks < _used_file_blocks + 2 * _dir_max_seg_nr) {
         // files do not fit on volume
         if (!test_data_size)
             free_blocks = 0; // can't be negative
-        throw filesystem_exception("rt11_filesystem_calc_block_use(): FILESYSTEM OVERFLOW");
+        throw filesystem_exception("calc_block_use(): FILESYSTEM OVERFLOW");
     }
     if (test_data_size)
         return ;
@@ -670,7 +663,7 @@ void filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
             planned_new_file_count--;
             planned_used_file_blocks = used_file_blocks + planned_new_file_count * planned_avg_file_blocks;
             // plan for 50% more file count
-            planned_dir_total_seg_num = rt11_dir_needed_segments(dir_file_count + (planned_new_file_count * 3) / 2);
+            planned_dir_total_seg_num = directory_needed_segments(dir_file_count + (planned_new_file_count * 3) / 2);
         } while (planned_new_file_count
                  && _available_blocks < planned_used_file_blocks + 2 * planned_dir_total_seg_num);
         // solution found: save
@@ -692,7 +685,7 @@ void filesystem_rt11_c::rt11_filesystem_calc_block_use(unsigned test_data_size)
  * convert byte array of image into logical objects
  **************************************************************/
 
-// parse filesystem special blocks to file
+// parse filesystem special blocks to new file
 void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _ext,
         uint32_t start_block_nr, uint32_t data_size)
 {
@@ -712,8 +705,9 @@ void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _
     rootdir->add_file(f); //  before parse-stream
 
     f->stream_data = new rt11_stream_c(f, "");
-    stream_parse(f->stream_data, f->block_nr, 0, f->block_count * RT11_BLOCKSIZE);
+    stream_parse(f->stream_data, f->block_nr, 0, f->block_count * get_block_size());
     f->file_size = f->stream_data->size() ;
+
 }
 
 
@@ -785,7 +779,7 @@ void filesystem_rt11_c::parse_homeblock()
 
 // point to start of  directory segment [i]
 // segment[0] at directory_startblock (6), and 1 segment = 2 blocks. i starts with 1.
-//#define DIR_SEGMENT(i)  ( (uint16_t *) (image_partition_data + first_dir_blocknr*RT11_BLOCKSIZE +(((i)-1)*2*RT11_BLOCKSIZE)) )
+//#define DIR_SEGMENT(i)  ( (uint16_t *) (image_partition_data + first_dir_blocknr*get_block_size() +(((i)-1)*2*get_block_size())) )
 // absolute position in image
 #define DIR_SEGMENT_BLOCK_NR(i)  (first_dir_blocknr +(((i)-1)*2))
 
@@ -811,7 +805,7 @@ void filesystem_rt11_c::parse_directory()
     do {
         // DEC WORD # : 1	2	3	4	5	6	7  8
         // Byte offset: 0	2	4	6	8  10  12  14
-        ds_offset = DIR_SEGMENT_BLOCK_NR(ds_nr) * RT11_BLOCKSIZE ;
+        ds_offset = blocknr2offset(DIR_SEGMENT_BLOCK_NR(ds_nr));
         // read 5 word directory segment header
         w = cache.get_image_word_at(ds_offset + 0) ; // word #1 total num of segments
         if (ds_nr == 1)
@@ -888,8 +882,8 @@ void filesystem_rt11_c::parse_directory()
                     assert(f->stream_dir_ext == nullptr);
                     f->stream_dir_ext = new rt11_stream_c(f, RT11_STREAMNAME_DIREXT);
                     stream_parse(f->stream_dir_ext, // word #8 extra words
-                                 /*start block*/IMAGE_OFFSET2BLOCKNR(de_offset + 14),
-                                 /* byte_offset*/IMAGE_OFFSET2BLOCKOFFSET(de_offset + 14),
+                                 /*start block*/offset2blocknr(de_offset + 14),
+                                 /* byte_offset*/offset2blockoffset(de_offset + 14),
                                  dir_entry_extra_bytes);
                     // generate only a stream if any bytes set <> 00
                     if (f->stream_dir_ext->is_zero_data(0)) {
@@ -906,8 +900,8 @@ void filesystem_rt11_c::parse_directory()
             // next dir entry
             de_nr++;
             de_offset += de_len;
-            if ( (unsigned)(de_offset - ds_offset) > 2 * RT11_BLOCKSIZE) // 1 segment = 2 blocks
-                throw filesystem_exception("parse_directory(): list of entries exceeds %d bytes", 2 * RT11_BLOCKSIZE);
+            if ( (unsigned)(de_offset - ds_offset) > 2 * get_block_size()) // 1 segment = 2 blocks
+                throw filesystem_exception("parse_directory(): list of entries exceeds %d bytes", 2 * get_block_size());
         }
 
         // next segment, 2 blocks into cache
@@ -938,7 +932,7 @@ void filesystem_rt11_c::parse_file_data()
 
             f->stream_prefix = new rt11_stream_c(f, RT11_STREAMNAME_PREFIX);
             // stream is everything behind first word
-            stream_parse(f->stream_prefix, f->block_nr, 2, prefix_block_count * RT11_BLOCKSIZE - 2);
+            stream_parse(f->stream_prefix, f->block_nr, 2, prefix_block_count * get_block_size() - 2);
         } else
             prefix_block_count = 0;
 
@@ -946,7 +940,7 @@ void filesystem_rt11_c::parse_file_data()
         assert(f->stream_data == nullptr);
         f->stream_data = new rt11_stream_c(f, "");
         stream_parse(f->stream_data, f->block_nr + prefix_block_count, 0,
-                     (f->block_count - prefix_block_count) * RT11_BLOCKSIZE);
+                     (f->block_count - prefix_block_count) * get_block_size());
         f->file_size = f->stream_data->size() ;
     }
 }
@@ -978,8 +972,8 @@ void filesystem_rt11_c::parse_volumeinfo()
     // 1. generate the data
     char line[1024];
 
-    sprintf(line, "# %s - info about RT-11 volume on %s device.\n",
-            volume_info_filename.c_str(), drive_info.device_name.c_str());
+    sprintf(line, "# %s - info about RT-11 volume on %s device #%u.\n",
+            volume_info_filename.c_str(), drive_info.device_name.c_str(), drive_unit);
     text_buffer.append(line) ;
 
     time_t t = time(NULL); // now
@@ -1009,7 +1003,7 @@ void filesystem_rt11_c::parse_volumeinfo()
     text_buffer.append(line);
 
     sprintf(line, "\n# number of %d byte blocks on volume\nblock_count=%d\n",
-            RT11_BLOCKSIZE, blockcount);
+            get_block_size(), blockcount);
     text_buffer.append(line);
 
     sprintf(line, "\n# number of extra bytes per directory entry\ndir_entry_extra_bytes=%d\n",
@@ -1018,7 +1012,7 @@ void filesystem_rt11_c::parse_volumeinfo()
 
     sprintf(line, "\n# Total number of segments in this directory (can hold %d files) \n"
             "dir_total_seg_num=%d\n",
-            rt11_dir_entries_per_segment() * dir_total_seg_num, dir_total_seg_num);
+            directory_entries_per_segment() * dir_total_seg_num, dir_total_seg_num);
     text_buffer.append(line);
 
     sprintf(line, "\n# Number of highest dir segment in use\ndir_max_seg_nr=%d\n",
@@ -1037,14 +1031,14 @@ void filesystem_rt11_c::parse_volumeinfo()
         text_buffer.append(line);
         if (f->stream_prefix) {
             sprintf(line, " Prefix %u = 0x%x bytes, start block %d @ 0x%X.",
-                    f->stream_prefix->size(), f->stream_prefix->size(), f->stream_prefix->blocknr,
-                    f->stream_prefix->blocknr * RT11_BLOCKSIZE);
+                    f->stream_prefix->size(), f->stream_prefix->size(), f->stream_prefix->start_block_nr,
+                    f->stream_prefix->start_block_nr * get_block_size());
             text_buffer.append(line);
         } else
             text_buffer.append(" No prefix.");
         if (f->stream_data) {
             sprintf(line, " Data %u = 0x%x bytes, start block %d @ 0x%X.", f->stream_data->size(),
-                    f->stream_data->size(), f->stream_data->blocknr, f->stream_data->blocknr * RT11_BLOCKSIZE);
+                    f->stream_data->size(), f->stream_data->start_block_nr, f->stream_data->start_block_nr * get_block_size());
             text_buffer.append(line);
         } else
             text_buffer.append(" No data.");
@@ -1054,7 +1048,7 @@ void filesystem_rt11_c::parse_volumeinfo()
     text_buffer.append("\n");
 
     // ?? assert(text_buffer.size() < fout->stream_data->size()) ;
-    fout->stream_data->set(&text_buffer) ;
+    fout->stream_data->set_data(&text_buffer) ;
     fout->file_size = fout->stream_data->size() ;
 
     // VOLUM INF is "changed", if home block or directories changed
@@ -1069,7 +1063,7 @@ void filesystem_rt11_c::parse_volumeinfo()
 //  file tree always valid, defective objects deleted
 void filesystem_rt11_c::parse()
 {
-    std::exception_ptr eptr;
+    std::exception_ptr eptr ;
 
     // events in the queue references streams, which get invalid on re-parse.
     assert(event_queue.empty()) ;
@@ -1077,8 +1071,8 @@ void filesystem_rt11_c::parse()
     init();
     try {
 
-        parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, RT11_BLOCKSIZE) ;
-        parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * RT11_BLOCKSIZE) ;
+        parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, get_block_size()) ;
+        parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * get_block_size()) ;
 
         parse_homeblock() ;
         parse_directory() ;
@@ -1092,12 +1086,12 @@ void filesystem_rt11_c::parse()
     // rt11_filesystem_print_diag(stderr);
 
     // mark file->data , ->prefix as changed, for changed image blocks
-    calc_file_change_flags();
+    calc_change_flags();
 
     //  data now stable, generate internal volume info text last
     parse_volumeinfo() ;
 
-    if (eptr)
+    if (eptr != nullptr)
         std::rethrow_exception(eptr);
 }
 
@@ -1113,11 +1107,11 @@ void filesystem_rt11_c::parse()
 // calculate blocklists for monitor, bitmap,mfd, ufd and files
 // total blockcount may be enlarged
 // Pre: files filled in
-void filesystem_rt11_c::rt11_filesystem_layout()
+void filesystem_rt11_c::calc_layout()
 {
     int file_start_blocknr;
 
-    rt11_filesystem_calc_block_use(0) ; // throws
+    calc_block_use(0) ; // throws
 
     // free, used blocks, dir_total_seg_num now set
 
@@ -1133,13 +1127,13 @@ void filesystem_rt11_c::rt11_filesystem_layout()
         f->block_nr = file_start_blocknr;
         // set start of prefix and data
         if (f->stream_prefix) {
-            f->stream_prefix->blocknr = file_start_blocknr;
+            f->stream_prefix->start_block_nr = file_start_blocknr;
             // prefix needs 1 extra word for blockcount
             f->stream_prefix->byte_offset = 2;
             file_start_blocknr += needed_blocks(f->stream_prefix->size() + 2);
         }
         if (f->stream_data) {
-            f->stream_data->blocknr = file_start_blocknr;
+            f->stream_data->start_block_nr = file_start_blocknr;
             file_start_blocknr += needed_blocks(f->stream_data->size());
         }
         // f->block_count set in file_stream_add()
@@ -1171,7 +1165,7 @@ void filesystem_rt11_c::render_homeblock()
     int i, sum;
 
     block_cache_dec_c cache(this) ;
-    cache.init(1, 1) ; // home block is #1
+    cache.init_zero(1, 1) ; // home block is #1
     // write the bad block replacement table
     // no idea about it, took from TU58 and RL02 image and from Don North
     cache.set_image_word_at(1, 0, 0000000);
@@ -1235,7 +1229,7 @@ void filesystem_rt11_c::render_directory_entry(block_cache_dec_c &cache, file_rt
 
     // DEC WORD # : 1	2	3	4	5	6	7  8
     // Byte offset: 0	2	4	6	8  10  12  14
-    ds_offset =	DIR_SEGMENT_BLOCK_NR(ds_nr) * RT11_BLOCKSIZE;
+    ds_offset =	blocknr2offset(DIR_SEGMENT_BLOCK_NR(ds_nr));
     if (de_nr == 0) {
         // 1st entry in segment: write 5 word header
         cache.set_image_word_at(ds_offset + 0,dir_total_seg_num); // word #1
@@ -1320,10 +1314,10 @@ void filesystem_rt11_c::render_directory()
     block_cache_dec_c cache(this) ;
     // cache holds all directory segments, allocated in ascending blocks
 
-    unsigned dir_entries_per_segment = rt11_dir_entries_per_segment(); // cache
+    unsigned dir_entries_per_segment = directory_entries_per_segment(); // cache
     int ds_nr = 1; // # of segment,starts with 1
     int de_nr = 0; // # of entry
-    cache.init(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // 1st seg = 2 blocks
+    cache.init_zero(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // 1st seg = 2 blocks
     unsigned dir_file_no = 0 ; // count only files in directory, not internals
     for (unsigned i = 0; i < file_count(); i++) {
         file_rt11_c *f = file_get(i);
@@ -1336,7 +1330,7 @@ void filesystem_rt11_c::render_directory()
         if (next_ds_nr != ds_nr) { // move cache to next dir segment
             cache.flush_to_image() ;
             ds_nr = next_ds_nr ;
-            cache.init(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // next seg = 2 blocks
+            cache.init_zero(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // next seg = 2 blocks
         }
         render_directory_entry(cache, f, ds_nr, de_nr);
         dir_file_no++ ;
@@ -1347,7 +1341,7 @@ void filesystem_rt11_c::render_directory()
     if (next_ds_nr != ds_nr) { // move cache to next dir segment
         cache.flush_to_image() ;
         ds_nr = next_ds_nr ;
-        cache.init(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // next seg = 2 blocks
+        cache.init_zero(DIR_SEGMENT_BLOCK_NR(ds_nr), 2) ; // next seg = 2 blocks
     }
     render_directory_entry(cache, nullptr, ds_nr, de_nr);
 
@@ -1364,25 +1358,25 @@ void filesystem_rt11_c::render_file_data()
             continue ;
         if (f->stream_prefix) { 		// prefix block?
             block_cache_dec_c cache(this) ;// just to write the prefix block count word
-            cache.load_from_image(f->stream_prefix->blocknr, 1) ;
+            cache.load_from_image(f->stream_prefix->start_block_nr, 1) ;
             // low byte of 1st word on volume is blockcount,
             uint16_t prefix_block_count = needed_blocks(f->stream_prefix->size() + 2);
             if (prefix_block_count > 255)
                 FATAL("Render: Prefix of file \"%s\" = %d blocks, maximum 255",
                       f->get_filename().c_str(), prefix_block_count);
 
-            cache.set_image_word_at(f->stream_prefix->blocknr, 0, prefix_block_count);
+            cache.set_image_word_at(f->stream_prefix->start_block_nr, 0, prefix_block_count);
             // start block and byte offset 2 already set by layout()
             cache.flush_to_image() ;
             stream_render(f->stream_prefix); // loads and saves again
         }
         if (f->stream_data != nullptr) {
-			// RT11 files fill whole blocks
-			unsigned round_up_size = RT11_BLOCKSIZE * needed_blocks(RT11_BLOCKSIZE, f->stream_data->size()) ;
-			assert(round_up_size >= f->stream_data->size()) ;
-			f->stream_data->set_size(round_up_size) ; // new space set to zero_byte_val
+            // RT11 files fill whole blocks
+            unsigned round_up_size = get_block_size() * needed_blocks(get_block_size(), f->stream_data->size()) ;
+            assert(round_up_size >= f->stream_data->size()) ;
+            f->stream_data->set_size(round_up_size) ; // new space set to zero_byte_val
             stream_render(f->stream_data);
-		}
+        }
     }
 }
 
@@ -1395,27 +1389,27 @@ void filesystem_rt11_c::render()
     // is there an efficient way to clear to probably huge image?
     // Else previous written stuff remains in unused blocks.
     // format media, all 0's
-    rt11_filesystem_layout() ; // throws
+    calc_layout() ; // throws
 
     // write boot block and monitor, if file exist
     file_rt11_c* bootblock = dynamic_cast<file_rt11_c*>(file_by_path.get(bootblock_filename));
     if (bootblock) {
-        bootblock->stream_data->blocknr = 0;
+        bootblock->stream_data->start_block_nr = 0;
         bootblock->stream_data->byte_offset = 0 ;
-        if (bootblock->stream_data->size() != RT11_BLOCKSIZE)
+        if (bootblock->stream_data->size() != get_block_size())
             throw filesystem_exception("bootblock has illegal size of %d bytes.", bootblock->stream_data->size());
         stream_render(bootblock->stream_data);
     } else
-        image_partition->set_zero(0, RT11_BLOCKSIZE) ; // clear area
+        image_partition->set_zero(0, get_block_size()) ; // clear area
     file_rt11_c* monitor = dynamic_cast<file_rt11_c*>(file_by_path.get(monitor_filename));
     if (monitor) {
-        monitor->stream_data->blocknr = 2; // 2...5
+        monitor->stream_data->start_block_nr = 2; // 2...5
         monitor->stream_data->byte_offset = 0 ;
-        if (monitor->stream_data->size() > 4 * RT11_BLOCKSIZE)
+        if (monitor->stream_data->size() > 4 * get_block_size())
             throw filesystem_exception("monitor has illegal size of %d bytes.", monitor->stream_data->size());
         stream_render(monitor->stream_data);
     } else
-        image_partition->set_zero(2 * RT11_BLOCKSIZE, 4 * RT11_BLOCKSIZE) ; // clear area
+        image_partition->set_zero(2 * get_block_size(), 4 * get_block_size()) ; // clear area
 
     render_homeblock();
     render_directory();
@@ -1513,7 +1507,6 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // which change independently and whose changes must sent to the host.
 
 
-
     // RT11 has no subdirectories, so it accepts only plain host files from the rootdir
     // report file $VOLUME INFO not be read back
     if (dynamic_cast<directory_host_c*>(host_file) != nullptr)
@@ -1535,22 +1528,20 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
         return ;
     }
 
-
-    host_file->data_open(/*write*/ false) ;
+    host_file->data_open(/*write*/ false) ; // need file size early
 
     bool internal = false ;
     if (_basename == RT11_BOOTBLOCK_BASENAME && _ext == RT11_BOOTBLOCK_EXT) {
         internal = true ;
-        if (host_file->file_size != RT11_BLOCKSIZE)
-            throw filesystem_exception("Boot block not %d bytes", RT11_BLOCKSIZE);
+        if (host_file->file_size != get_block_size())
+            throw filesystem_exception("Boot block not %d bytes", get_block_size());
     } else if (_basename == RT11_MONITOR_BASENAME && _ext == RT11_MONITOR_EXT) {
         internal = true ;
-        if (host_file->file_size > 4 * RT11_BLOCKSIZE)
+        if (host_file->file_size > 4 * get_block_size())
             throw filesystem_exception("Monitor block too big, has %d bytes, max %d", host_file->file_size,
-                                       4 * RT11_BLOCKSIZE);
+                                       4 * get_block_size());
     } else if (_basename == RT11_VOLUMEINFO_BASENAME && _ext == RT11_VOLUMEINFO_EXT) {
-        block_ack_event = false ;
-        internal = true ;
+        return ; // VOLUME.INF only DEC->host
     }
 
     // one of 3 streams of a regular file or data stream of internal
@@ -1561,7 +1552,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // check wether a new user file of "data_size" bytes would fit onto volume
     // recalc filesystem parameters
     try {
-        rt11_filesystem_calc_block_use(internal ? 0 : host_file->file_size) ;
+        calc_block_use(internal ? 0 : host_file->file_size) ;
     } catch (filesystem_exception &e) {
         throw filesystem_exception("Disk full, file \"%s\" with %d bytes too large", host_fname.c_str(), host_file->file_size);
     }
@@ -1599,7 +1590,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // allocate and fill the stream. to block
     *stream_ptr = new rt11_stream_c(f, stream_code);
     (*stream_ptr)->host_path = host_file->path ;
-    (*stream_ptr)->set(&host_file->data, host_file->file_size) ;
+    (*stream_ptr)->set_data(&host_file->data, host_file->file_size) ;
 
 
     // calc size and blocks count = prefix +data
@@ -1788,7 +1779,7 @@ string filesystem_rt11_c::rt11_dir_entry_text(file_rt11_c *f)
 }
 
 
-void filesystem_rt11_c::print_dir(FILE *stream)
+void filesystem_rt11_c::print_directory(FILE *stream)
 {
     string line;
     // no header

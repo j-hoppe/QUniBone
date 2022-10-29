@@ -132,7 +132,7 @@ uint16_t rad50_encode(std::string s);
 
 
 
-void hexdump(FILE *stream, uint8_t *data, int size, char *fmt, ...);
+void hexdump(std::ostream &stream, uint8_t *data, int size, char *fmt, ...);
 
 
 //ool caseInsCompare(const std::string& s1, const std::string& s2) ;

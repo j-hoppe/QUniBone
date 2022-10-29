@@ -61,24 +61,37 @@ public:
     byte_buffer_c() ;
     virtual ~byte_buffer_c() ;
 
-    bool is_empty() ;
+	// "Rule of Three": manages buffer, needs copy and copy assignment 
+	// https://en.wikipedia.org/wiki/Rule_of_three_(C%2B%2B_programming)
+	// https://stackoverflow.com/questions/4172722/what-is-the-rule-of-three
+ 
+    byte_buffer_c(const byte_buffer_c& other) ;// copy constructor
+    byte_buffer_c& operator=(const byte_buffer_c& other) ;// copy assignment
+ 
+
+    bool is_empty() const {
+		return (_size == 0) ;
+	}
+	
 
     void set_size(unsigned new_size) ;
-    void set(uint8_t *src_data, unsigned src_size) ;
-    void set(byte_buffer_c *bb) ;
-    void set(std::string *s) ;
-    void set(std::istream *st, unsigned new_size) ;
+    void set_data(uint8_t *src_data, unsigned src_size) ;
+    void set_data(const byte_buffer_c *bb) ;
+//	void set_data(const byte_buffer_c &bb) ;
+	
+    void set_data(std::string *s) ;
+    void set_data(std::istream *st, unsigned new_size) ;
 
-    void get(std::ostream *st) ;
+    void get_data(std::ostream *st) ;
 
-    bool is_zero_data(uint8_t val) ;
+    bool is_zero_data(uint8_t val) const ;
 
     // inline accessors
-    uint8_t *data_ptr() {
+    uint8_t *data_ptr() const {
         return _data ;
     }
 
-    unsigned size() {
+    unsigned size() const {
         return _size ;
     }
 

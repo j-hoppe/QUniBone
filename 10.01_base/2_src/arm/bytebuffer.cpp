@@ -48,10 +48,27 @@ byte_buffer_c::    byte_buffer_c() {
 byte_buffer_c::~byte_buffer_c() {
     if (_data != nullptr)
         free (_data) ;
+    _data = nullptr ;
+    _size = 0 ;
 }
 
-bool byte_buffer_c::is_empty() {
-    return (_size == 0) ;
+// copy constructor
+byte_buffer_c::byte_buffer_c(const byte_buffer_c& other): byte_buffer_c() 
+{
+	image_position = other.image_position ;
+	zero_byte_val = other.zero_byte_val;
+	set_data(&other) ; // copy
+}
+
+// copy assignment
+byte_buffer_c& byte_buffer_c::operator=(const byte_buffer_c& other) 
+{
+	if (this == &other)
+		return *this ;
+	image_position = other.image_position ;
+	zero_byte_val = other.zero_byte_val;
+	set_data(&other) ; // copy
+	return *this ;
 }
 
 
@@ -80,19 +97,24 @@ void byte_buffer_c::set_size(unsigned new_size) {
 
 
 // several ways to set an empty or filled buffer
-void byte_buffer_c::set(uint8_t *src_data, unsigned src_size) {
+void byte_buffer_c::set_data(uint8_t *src_data, unsigned src_size) {
     set_size(src_size) ;
     assert(_data != nullptr) ;
     memcpy(_data, src_data, src_size);
 }
 
 // copy data_ptr
-void byte_buffer_c::set(byte_buffer_c *bb) {
-    set(bb->data_ptr(), bb->size()) ;
+void byte_buffer_c::set_data(const byte_buffer_c *bb) {
+    set_data(bb->data_ptr(), bb->size()) ;
 }
+/*
+void byte_buffer_c::set(const byte_buffer_c &bb) {
+    set(bb.data_ptr(), bb.size()) ;
+}
+*/
 
 // like strdup()
-void byte_buffer_c::set(std::string *s) {
+void byte_buffer_c::set_data(std::string *s) {
     unsigned new_size = s->size() +1 ; // include \0
     set_size(new_size) ;
     assert(_data != nullptr) ;
@@ -108,7 +130,7 @@ void byte_buffer_c::set(std::string *s) {
 */
 
 // read first "size" bytes into the array. stream must be opem, position is changed
-void byte_buffer_c::set(std::istream *st, unsigned new_size)
+void byte_buffer_c::set_data(std::istream *st, unsigned new_size)
 {
     set_size(new_size) ;
     assert(_data != nullptr) ;
@@ -117,7 +139,7 @@ void byte_buffer_c::set(std::istream *st, unsigned new_size)
 }
 
 // write bytes to stream
-void byte_buffer_c::get(std::ostream *st)
+void byte_buffer_c::get_data(std::ostream *st)
 {
     st->write((char *)_data, _size) ;
 }
@@ -127,7 +149,7 @@ void byte_buffer_c::get(std::ostream *st)
 // reverse operator to memset()
 // size == 0: true
 //int is_memset(void *ptr, uint8_t val, uint32_t size) {
-bool byte_buffer_c::is_zero_data(uint8_t val)
+bool byte_buffer_c::is_zero_data(uint8_t val) const
 {
     uint8_t *ptr = _data ;
     if (is_empty())

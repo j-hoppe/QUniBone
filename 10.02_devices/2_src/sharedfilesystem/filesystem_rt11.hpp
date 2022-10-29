@@ -56,7 +56,7 @@ class file_rt11_c ;
 // - file data, -prefixes and extra dir entries
 class rt11_stream_c: public file_dec_stream_c {
 public:
-    rt11_blocknr_t blocknr; // start block
+    rt11_blocknr_t start_block_nr; // start block
     uint32_t	byte_offset ; // offset in start block
     rt11_stream_c(file_rt11_c *file,  	rt11_stream_c *stream) ;
     rt11_stream_c(file_rt11_c *file, string stream_name) ;
@@ -165,9 +165,8 @@ class filesystem_rt11_c: public filesystem_dec_c {
 
     bool struct_changed ; // directories or homeblock changed
 
-
 public:
-    filesystem_rt11_c(drive_info_c drive_info, storageimage_base_c *image_partition,   	 uint64_t image_partition_size) ;
+    filesystem_rt11_c(drive_info_c drive_info, unsigned drive_unit, storageimage_base_c *image_partition,   	 uint64_t image_partition_size) ;
     ~filesystem_rt11_c() override ;
 
     void init() override ;
@@ -180,6 +179,7 @@ public:
     unsigned get_block_size() override {
         return layout_info.block_size ; // in bytes
     }
+
     // name of internal special files
     string bootblock_filename ;
     string monitor_filename ;
@@ -211,11 +211,11 @@ private:
     void rt11_image_set_word_at(rt11_blocknr_t blocknr,  uint32_t byte_offset, uint16_t val) ;
     void stream_parse(rt11_stream_c *stream, rt11_blocknr_t start, uint32_t byte_offset, uint32_t data_size) ;
     void stream_render(rt11_stream_c *stream) ;
-    unsigned rt11_dir_entries_per_segment() ;
-    unsigned rt11_dir_needed_segments(unsigned file_count) ;
+    unsigned directory_entries_per_segment() ;
+    unsigned directory_needed_segments(unsigned file_count) ;
     void calc_file_stream_change_flag(        rt11_stream_c *stream) ;
-    void calc_file_change_flags() override  ;
-    void rt11_filesystem_calc_block_use(unsigned test_data_size) ;
+    void calc_change_flags() override  ;
+    void calc_block_use(unsigned test_data_size) ;
 
 
 private:
@@ -230,7 +230,7 @@ public:
 
 
 private:
-    void rt11_filesystem_layout() ;
+    void calc_layout() ;
     void render_homeblock() ;
     void render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr) ;
     void render_directory() ;
@@ -260,7 +260,7 @@ private:
 public:
 
 
-    void print_dir(FILE *stream) override ;
+    void print_directory(FILE *stream) override ;
     void print_diag(FILE *stream) override;
 };
 

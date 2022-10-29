@@ -54,12 +54,13 @@ public:
     void clear(void);
     void bit_set(uint32_t i);
     void bit_clear(uint32_t i);
-    int bit_get(uint32_t i);
+	// unsecure & fast
+	bool bit_get(uint32_t i) {
+		return !! (flags[i / 32] & (1 << (i % 32))) ;
+	}
+    bool bit_get_secure(uint32_t i);
     void print_diag(FILE *stream, uint32_t bitcount, char *info) ;
+
 } ;
-
-// unsecure & fast
-#define BOOLARRAY_BIT_GET(_this,i) ( !! ((_this)->flags[(i) / 32] & (1 << ((i) % 32))) )
-
 
 #endif /* _BOOLARRAY_HPP_ */

@@ -70,7 +70,6 @@ public:
 
 // data of a file.
 // stream of DEC file == file on host
-// is itself a file, as it maps to a host file
 class file_dec_stream_c: /*public file_base_c, */public byte_buffer_c {
 public:
     string stream_name ; // empty for main data stream, additional filename extension for host file
@@ -82,7 +81,7 @@ public:
 
     file_dec_c *file ; // if stream is part of a file:  uplink to parent
 
-    bool	changed = false; // calc'd from image_changed_blocks
+    bool	changed = false; // calc'd from image_changed_blocks[]
 //	bool valid = false ; // in use
 
     // link to file in hostfilesystem.
@@ -145,6 +144,7 @@ class filesystem_dec_c: public filesystem_base_c {
 public:
 
     drive_info_c drive_info ;
+	unsigned drive_unit ; // unit number of drive
 
     // decoded/to-encode DEC filesystems are kept in-memory
     // only part of image is used for filesystem.
@@ -153,7 +153,7 @@ public:
     uint64_t image_partition_size ; // usable part of partition
 
 
-    filesystem_dec_c(drive_info_c drive_info, storageimage_base_c *image_partition, uint64_t image_partition_size) ;
+    filesystem_dec_c(drive_info_c drive_info, unsigned drive_unit, storageimage_base_c *image_partition, uint64_t image_partition_size) ;
 
     virtual ~filesystem_dec_c() override ;
 
@@ -165,6 +165,22 @@ public:
 
     virtual unsigned get_block_size() = 0 ; // != drive sector, filesystem specific
     unsigned blockcount ; // actual size of filesystem, corrects static layout info
+
+	// ptr to first byte of block
+	uint64_t blocknr2offset(unsigned blocknr) {
+		return (uint64_t)get_block_size() * blocknr ;
+	}
+	// convert pointer in image to block
+	unsigned offset2blocknr(uint64_t image_offset) {
+		return image_offset / get_block_size() ;
+	}
+	// offset in block in bytes
+	unsigned offset2blockoffset(uint64_t image_offset) {
+		return image_offset % get_block_size() ;
+	}
+	
+
+	
     boolarray_c *changed_blocks ;	 // visible to image
     unsigned needed_blocks(uint64_t byte_count) ;
     unsigned needed_blocks(unsigned block_size, uint64_t byte_count) ;
@@ -190,7 +206,7 @@ private:
                              bool produce_delete_create_pair_on_difference) ;
 public:
 
-    virtual void calc_file_change_flags() = 0 ; // only the file system knows
+    virtual void calc_change_flags() = 0 ; // only the file system knows
 
     void produce_events(filesystem_dec_c *metadata_snapshot) ;
 
@@ -203,7 +219,7 @@ public:
 
     virtual string filename_from_host(string *hostfname, string *result_filnam, string *result_ext) = 0 ;
 
-    virtual	void print_dir(FILE *stream) = 0 ;
+    virtual	void print_directory(FILE *stream) = 0 ;
     virtual	void print_diag(FILE *stream) = 0 ;
 
 };
