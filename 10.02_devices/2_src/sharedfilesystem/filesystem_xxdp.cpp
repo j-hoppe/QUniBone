@@ -494,7 +494,7 @@ filesystem_xxdp_c::filesystem_xxdp_c(drive_info_c &_drive_info, unsigned _drive_
         try {
             recalc_layout_info(blockcount) ;
         } catch(filesystem_exception &e) {
-            FATAL("filesystem_xxdp: Can not calculate new layout params");
+            FATAL("%s: filesystem_xxdp: Can not calculate new layout params", get_label().c_str());
             return ;
         }
     }
@@ -515,6 +515,16 @@ filesystem_xxdp_c::~filesystem_xxdp_c()
     delete rootdir ;
     rootdir = nullptr ;  // signal to base class destructor
 }
+
+// Like "XXDP @ RL02 #1"
+string filesystem_xxdp_c::get_label() 
+{
+	char buffer[80] ;
+	sprintf(buffer, "XXDP @ %s #%d", drive_info.device_name.c_str(), drive_unit);
+	return string(buffer) ;
+}
+
+
 
 // copy filesystem, but without file content
 // needed to get a snapshot for change compare
@@ -747,7 +757,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.monitor_core_image_start_block_nr = 23 ;
         break ;
     default:
-        FATAL("storageimage_xxdp_c::get_drive_info(): invalid drive") ;
+        FATAL("%s: storageimage_xxdp_c::get_drive_info(): invalid drive", get_label().c_str()) ;
     }
     return result ;
 }
@@ -945,7 +955,7 @@ void filesystem_xxdp_c::calc_layout()
         mfd_block_list.add_empty_block(layout_info.mfd1);
         bitmap.used[layout_info.mfd1] = true;
     } else
-        FATAL("MFD variety must be 1 or 2");
+        FATAL("%s: MFD variety must be 1 or 2", get_label().c_str());
 
     // UFD
     // starts in preallocated area, may extend into freespace
@@ -1041,7 +1051,7 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
         // 2 blocks. first predefined, fetch 2nd from image
         // Prefer MFD data over linked list scan, why?
         if (mfd_variety != 1)
-            WARNING("MFD is 2 blocks, variety 1 expected, but variety %d defined", mfd_variety);
+            WARNING("%s: MFD is 2 blocks, variety 1 expected, but variety %d defined", get_label().c_str(), mfd_variety);
         xxdp_linked_block_c *mfd_block1 = mfd_block_list.get_block_by_nr(mfd_start_block_nr) ;
         interleave = mfd_block1->get_word_at_word_offset(1);
 
@@ -1089,7 +1099,7 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
     } else if (mfd_block_list.size() == 1) {
         // var 2: "MFD1/2" RL01/2 ?
         if (mfd_variety != 2)
-            WARNING( "MFD is 1 blocks, variety 2 expected, but variety %d defined",
+            WARNING( "%s: MFD is 1 blocks, variety 2 expected, but variety %d defined", get_label().c_str(),
                      mfd_variety);
         xxdp_linked_block_c *mfd_block = mfd_block_list.get_block_by_nr(mfd_start_block_nr) ;
 
@@ -1101,7 +1111,7 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 //		ufd_block_list.print_diag(cout, "ufd_block_list") ;
         // verify len
         if (ufd_block_count != ufd_block_list.size())
-            WARNING( "UFD block count is %u, but %d in MFD1/2",
+            WARNING( "%s; UFD block count is %u, but %d in MFD1/2", get_label().c_str(),
                      ufd_block_list.size(), ufd_block_count);
         // best choice is len of disk list
 
@@ -1113,37 +1123,38 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 
         // verify len
         if (bit_block_count != bitmap.block_list.size())
-            WARNING("Bitmap block count is %u, but %d in MFD1/2", bitmap.block_list.size(), bit_block_count);
+            WARNING("%s: Bitmap block count is %u, but %d in MFD1/2", get_label().c_str(), bitmap.block_list.size(), bit_block_count);
 
         // total num of blocks
         unsigned n = mfd_block->get_word_at_word_offset(7);
         if (n != blockcount)
-            WARNING("Device blockcount is %u in layout_info, but %d in MFD1/2", blockcount, n);
+            WARNING("%s: Device blockcount is %u in layout_info, but %d in MFD1/2", get_label().c_str(), blockcount, n);
         blockcount = n ;
 
         preallocated_blockcount = mfd_block->get_word_at_word_offset(8);
         if (preallocated_blockcount != layout_info.prealloc_blocks_num)
-            WARNING("Device preallocated blocks are %u in layout_info, but %d in MFD1/2",
+            WARNING("%s: Device preallocated blocks are %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
                     layout_info.prealloc_blocks_num, preallocated_blockcount);
 
         interleave =  mfd_block->get_word_at_word_offset(9);
         if (interleave != layout_info.interleave)
-            WARNING("Device interleave is %u in layout_info, but %d in MFD1/2", layout_info.interleave, interleave);
+            WARNING("%s: Device interleave is %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
+            layout_info.interleave, interleave);
 
         monitor_start_block_nr =  mfd_block->get_word_at_word_offset(11);
         if (monitor_start_block_nr != layout_info.monitor_core_image_start_block_nr)
-            WARNING("Monitor core start is %u in layout_info, but %d in MFD1/2",
+            WARNING("%s: Monitor core start is %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
                     layout_info.monitor_core_image_start_block_nr, monitor_start_block_nr);
         // last monitor_core_image block = preallocated_blockcount
         monitor_max_block_count = preallocated_blockcount - monitor_start_block_nr ;
         if (monitor_max_block_count != layout_info.monitor_block_count)
-            WARNING("Monitor core len %d blocks, should be %u",monitor_max_block_count,
+            WARNING("%s: Monitor core len %d blocks, should be %u", get_label().c_str(), monitor_max_block_count,
                     layout_info.monitor_block_count) ;
 
 
-        WARNING("Position of bad block file not yet evaluated");
+        WARNING("%s: Position of bad block file not yet evaluated", get_label().c_str());
     } else
-        FATAL("Invalid block count in MFD: %d", mfd_block_list.size());
+        FATAL("%s: Invalid block count in MFD: %d", get_label().c_str(), mfd_block_list.size());
 }
 
 // bitmap blocks loaded, produce "used[]" flag array
@@ -1237,6 +1248,7 @@ void filesystem_xxdp_c::parse_ufd()
             file_xxdp_c *f = new file_xxdp_c();
             f->changed = false;
             f->internal = false;
+            f->is_contiguous_file = false;
 
             // basename: 6 chars
             f->basename.assign(rad50_decode(w)) ;
@@ -1388,6 +1400,8 @@ void filesystem_xxdp_c::parse()
     // events in the queue references streams, which get invalid on re-parse.
     assert(event_queue.empty()) ;
 
+	timer_start() ;
+
     init();
 
     try {
@@ -1417,6 +1431,7 @@ void filesystem_xxdp_c::parse()
     parse_volumeinfo() ;
 
 //    print_directory(stdout) ;
+		timer_debug_print(get_label() + " parse()") ;
 
     if (eptr != nullptr)
         std::rethrow_exception(eptr);
@@ -1515,7 +1530,7 @@ void filesystem_xxdp_c::render_mfd()
         mfd_block->set_word_at_word_offset(15, 0);
         mfd_block->set_word_at_word_offset(16, 0);
     } else
-        FATAL("MFD variety must be 1 or 2");
+        FATAL("%s: MFD variety must be 1 or 2", get_label().c_str());
     mfd_block_list.write_to_image() ;
 }
 
@@ -1580,7 +1595,7 @@ void filesystem_xxdp_c::render_file_data()
         assert(!f->is_contiguous_file) ; // boot block and monitor are internal
 
         if (f->block_count != f->block_nr_list.size())
-            WARNING("XXDP UFD read: file %s.%s: saved file size is %d, blocklist len is %d.\n",
+            WARNING("%s UFD read: file %s.%s: saved file size is %d, blocklist len is %d.\n", get_label().c_str(),
                     f->basename.c_str(), f->ext.c_str(), f->block_count, f->block_nr_list.size());
 
         // write byte stream to temporary linked block list
@@ -1599,6 +1614,8 @@ void filesystem_xxdp_c::render()
 {
     unsigned needed_size = blockcount * get_block_size();
 
+	timer_start() ;
+	
     // calc blocklists and sizes
     calc_layout() ; // throws
 
@@ -1635,6 +1652,8 @@ void filesystem_xxdp_c::render()
     render_file_data();
 
     parse_volumeinfo() ;
+
+	timer_debug_print(get_label() + " render()") ;
 
 }
 
@@ -1673,7 +1692,7 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
     // duplicate file name? Likely! because of trunc to six letters
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
     if (f != nullptr) {
-        DEBUG(printf_to_cstr("XXDP: Ignore \"create\" event for existing filename/stream %s.%s",
+        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for existing filename/stream %s.%s", get_label().c_str(),
                              _basename.c_str(), _ext.c_str())) ;
         return ;
     }
@@ -1749,7 +1768,7 @@ void filesystem_xxdp_c::delete_host_file(string host_path)
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
 
     if (f == nullptr) {
-        DEBUG(printf_to_cstr("XXDP: ignore \"delete\" event for missing file %s.", host_fname.c_str()));
+        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str()));
         return ;
     }
 

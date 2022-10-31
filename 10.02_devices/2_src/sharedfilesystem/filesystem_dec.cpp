@@ -64,7 +64,7 @@ string filesystem_dec_event_c::as_text()
 	assert(dynamic_cast<file_dec_stream_c*>(dec_stream)) ;
 	// delete events don't have file stream. 
 	const char *_host_path = (operation == op_delete) ? host_path.c_str() : dec_stream->host_path.c_str() ;
-    return printf_to_string("DEC event \"%s\" on %s %s %s\n", operation_text().c_str(), filesystem->get_name().c_str(), is_dir? "dir" : "file", 
+    return printf_to_string("DEC event \"%s\" on %s %s %s\n", operation_text().c_str(), filesystem->get_label().c_str(), is_dir? "dir" : "file", 
 			_host_path) ;
 
 }
@@ -200,7 +200,7 @@ void filesystem_dec_c::produce_events(filesystem_dec_c *metadata_snapshot)
 
 void filesystem_dec_c::consume_event(filesystem_host_event_c *event)
 {
-	DEBUG(printf_to_cstr("filesystem_dec_c::consume_event(): %s", event->as_text().c_str())) ;
+	DEBUG(printf_to_cstr("%s: filesystem_dec_c::consume_event(): %s", get_label().c_str(), event->as_text().c_str())) ;
 
     if (event->operation == filesystem_event_c::op_create) {
         import_host_file(event->host_file) ;

@@ -340,9 +340,7 @@ public:
 
     ~filesystem_xxdp_c() override ;
 
-    string get_name() override {
-        return "XXDP" ;
-    }
+    string get_label() override ;
 
     unsigned get_block_size() override {
         return layout_info.block_size ;// in bytes

@@ -307,6 +307,14 @@ filesystem_rt11_c::~filesystem_rt11_c()
     rootdir = nullptr ; // signal to base class destructor
 }
 
+// Like "RT11 @ RL02 #1"
+string filesystem_rt11_c::get_label() 
+{
+	char buffer[80] ;
+	sprintf(buffer, "RT11 @ %s #%d", drive_info.device_name.c_str(), drive_unit);
+	return string(buffer) ;
+}
+
 
 
 // free / clear all structures, set default values
@@ -322,7 +330,7 @@ void filesystem_rt11_c::init()
      */
 
     if (blockcount == 0)
-        FATAL("rt11_filesystem_init(): RT-11 blockcount for device %s not yet defined!",
+        FATAL("%s: init(): RT-11 blockcount for device %s not yet defined!", get_label().c_str(), 
               drive_info.device_name.c_str());
 
     // trunc large devices, only 64K blocks addressable = 32MB
@@ -463,7 +471,7 @@ filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(e
             result.dir_seg_count = 31 ; // max.
             result.replacable_bad_blocks = 0 ;
         } else
-            FATAL("storageimage_rt11_c::get_drive_info(): invalid drive") ;
+            FATAL("%s: get_drive_info(): invalid drive", get_label().c_str()) ;
     }
     result.block_count = drive_info.get_usable_capacity() / result.block_size ;
 
@@ -585,7 +593,7 @@ void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
     unsigned _available_blocks;
 
     if (dir_entry_extra_bytes > 16)
-        FATAL("Extra bytes in directory %d is > 16 ... how much is allowed?", dir_entry_extra_bytes);
+        FATAL("%s: Extra bytes in directory %d is > 16 ... how much is allowed?", get_label().c_str(), dir_entry_extra_bytes);
 
     // 1) calc segments & blocks needed for existing files
     _used_file_blocks = 0;
@@ -1067,6 +1075,7 @@ void filesystem_rt11_c::parse()
 
     // events in the queue references streams, which get invalid on re-parse.
     assert(event_queue.empty()) ;
+	timer_start() ;
 
     init();
     try {
@@ -1090,6 +1099,8 @@ void filesystem_rt11_c::parse()
 
     //  data now stable, generate internal volume info text last
     parse_volumeinfo() ;
+
+	timer_debug_print(get_label() + " parse()") ;
 
     if (eptr != nullptr)
         std::rethrow_exception(eptr);
@@ -1362,7 +1373,7 @@ void filesystem_rt11_c::render_file_data()
             // low byte of 1st word on volume is blockcount,
             uint16_t prefix_block_count = needed_blocks(f->stream_prefix->size() + 2);
             if (prefix_block_count > 255)
-                FATAL("Render: Prefix of file \"%s\" = %d blocks, maximum 255",
+                FATAL("%s: Render: Prefix of file \"%s\" = %d blocks, maximum 255", get_label().c_str(), 
                       f->get_filename().c_str(), prefix_block_count);
 
             cache.set_image_word_at(f->stream_prefix->start_block_nr, 0, prefix_block_count);
@@ -1386,6 +1397,8 @@ void filesystem_rt11_c::render_file_data()
 // return: 0 = OK
 void filesystem_rt11_c::render()
 {
+	timer_start() ;
+	
     // is there an efficient way to clear to probably huge image?
     // Else previous written stuff remains in unused blocks.
     // format media, all 0's
@@ -1416,6 +1429,8 @@ void filesystem_rt11_c::render()
     render_file_data();
 
     parse_volumeinfo() ;
+	
+	timer_debug_print(get_label() + " render()") ;
 }
 
 
@@ -1523,7 +1538,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     filename_from_host(&host_fname, &_basename, &_ext);
     // create event for existing file/stream? Is acknowledge from host, ignore.
     if (f != nullptr || stream != nullptr) {
-        DEBUG(printf_to_cstr("RT11: Ignore \"create\" event for existing filename/stream %s.%s %s",
+        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for existing filename/stream %s.%s %s", get_label().c_str(),
                              _basename.c_str(), _ext.c_str(), stream_code.c_str()));
         return ;
     }
@@ -1632,12 +1647,13 @@ void filesystem_rt11_c::delete_host_file(string host_path)
 
     // delete stream, must exist
     if (stream == nullptr) {
-        DEBUG(printf_to_cstr("RT11: ignore \"delete\" event for missing stream %s of file %s.", stream_code.c_str(), host_fname.c_str()));
+        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing stream %s of file %s.", get_label().c_str(),
+			stream_code.c_str(), host_fname.c_str()));
         return ;
     }
 
     if (f == nullptr) {
-        DEBUG(printf_to_cstr("RT11: ignore \"delete\" event for missing file %s.", host_fname.c_str()));
+        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str()));
         return ;
     }
 

@@ -72,7 +72,7 @@ string filesystem_host_event_c::as_text()
     assert(event_queue) ;
     filesystem_base_c *filesystem = event_queue->filesystem ;
     assert(filesystem) ;
-    return printf_to_string("Host event \"%s\" on %s %s %s\n", operation_text().c_str(), filesystem->get_name().c_str(), is_dir? "dir" : "file", host_path.c_str()) ;
+    return printf_to_string("Host event \"%s\" on %s %s %s\n", operation_text().c_str(), filesystem->get_label().c_str(), is_dir? "dir" : "file", host_path.c_str()) ;
 }
 
 
@@ -352,7 +352,7 @@ filesystem_host_c::filesystem_host_c(string _rootpath)
     // creating the INOTIFY instance, is used in add_directory()
     inotify_fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
     if (inotify_fd < 0) {
-        FATAL("inotify_init1()");
+        FATAL("%s: inotify_init1()", get_label().c_str());
     }
 
     // create root dir.
@@ -367,6 +367,14 @@ filesystem_host_c::~filesystem_host_c()
     close(inotify_fd) ;
     delete rootdir ;
     rootdir = nullptr ; // signal to base class destructor
+}
+
+// Like "Host dir /root/10.02_devices/3_test/sharedfilesystem/xxdp-rl02"
+// 			      /root/10.03_app_demo/5_applications/rt11.rl02/shared_rl1
+
+string filesystem_host_c::get_label() 
+{
+	return "Host dir " + rootpath ;
 }
 
 
@@ -406,7 +414,7 @@ string filesystem_host_c::get_absolute_filepath(string path)
     /*
     char *buffer = realpath(result.c_str(), NULL) ;
     if (!buffer)
-        FATAL("Invalid absolute host path: %s", result.c_str()) ;
+        FATAL("%s: Invalid absolute host path: %s", get_label().c_str(), result.c_str()) ;
     result = string(buffer) ;
     free(buffer) ;
     */
@@ -455,6 +463,8 @@ void filesystem_host_c::clear_disk_dir()
 // afterwards event-queue is filled with "delete" and "create" events
 void filesystem_host_c::parse()
 {
+	timer_start() ;
+	
     // create "delete events" for all existing files and subdirs
     auto rd = dynamic_cast<directory_host_c *>(rootdir) ;
     rd->create_events(filesystem_event_c::op_delete) ;
@@ -462,6 +472,8 @@ void filesystem_host_c::parse()
 
     rd->parse_from_disk_dir() ;
     rd->create_events(filesystem_event_c::op_create) ;
+
+	timer_debug_print(get_label() + " parse()") ;
 }
 
 
@@ -495,7 +507,7 @@ void filesystem_host_c::inotify_events_eval(bool discard)
             // checking for error. EAGAIN means: no data, "Resource temporarily unavailable" */
             // avail == 0 results in noop here
             if (errno != EAGAIN)
-                FATAL(" read(inotify_fd) failed with errno %d", errno) ;
+                FATAL("%s: read(inotify_fd) failed with errno %d", get_label().c_str(), errno) ;
         } else  {
             int offset = 0;
             while (offset < avail) {
@@ -1054,7 +1066,7 @@ void filesystem_host_c::consume_event_do_create(filesystem_dec_event_c *event)
 
     // event->dec_stream
     if (event->is_dir)	{
-        FATAL("filesystem_host_c::consume_event(): Directory import not yet implemented") ;
+        FATAL("%s: consume_event(): Directory import not yet implemented", get_label().c_str()) ;
     } else {
         import_dec_stream(event->dec_stream) ;
     }

@@ -134,10 +134,7 @@ public:
     filesystem_host_c(string rootpath) ;
     ~filesystem_host_c() override ;
 
-    virtual string get_name() override {
-        return "Host" ;
-    }
-
+    virtual string get_label() override ;
 
     // get the path of a file in the tree rleative to rootpath
     // "rootpath" is not part of path

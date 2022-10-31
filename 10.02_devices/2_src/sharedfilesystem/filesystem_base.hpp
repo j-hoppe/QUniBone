@@ -51,14 +51,14 @@ namespace sharedfilesystem {
 
 // error handling, nothing special to filesystems at the moment
 class filesystem_exception: public std::exception {
-	private:
-		std::string message;
-	public:
-		filesystem_exception(std::string msgfmt, ...) ;
-		virtual const char* what() const noexcept {
-			return message.c_str();
-		}
-	};
+private:
+    std::string message;
+public:
+    filesystem_exception(std::string msgfmt, ...) ;
+    virtual const char* what() const noexcept {
+        return message.c_str();
+    }
+};
 
 
 /*
@@ -216,7 +216,8 @@ public:
     directory_base_c *rootdir ; // derived filesystems must instantiate of correct type
     void clear_rootdir() ; // results in empty root node
 
-    virtual string get_name() = 0 ;
+    // label identifying this instance: "XXDP @ RL02 #1", "Host dir /root/10.02_devices/3_test/sharedfilesystem/xxdp-rl02"
+    virtual string get_label() = 0 ;
 
     bool changed ; // unprocessed changes? set by add/rmeove|directory/file
     uint64_t change_time_ms ;
@@ -271,6 +272,12 @@ protected:
 
 public:
     void debug_print(string info) ;
+
+protected:
+    uint64_t timer_start_ms ;
+    void timer_start() ;
+    void timer_debug_print(string info) ;
+
 
 } ;
 

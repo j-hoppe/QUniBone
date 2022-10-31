@@ -172,9 +172,7 @@ public:
     void init() override ;
     void copy_metadata_to(filesystem_base_c *metadata_copy) override ;
 
-    string get_name() override {
-        return "RT11" ;
-    }
+    string get_label() override ;
 
     unsigned get_block_size() override {
         return layout_info.block_size ; // in bytes

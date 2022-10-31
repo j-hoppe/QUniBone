@@ -102,11 +102,11 @@ void filesystem_event_queue_c::push(filesystem_event_c *event)
 {
     event->event_queue = this ;
     if (filesystem->ack_event_filter.is_filtered(event->host_path)) {
-        DEBUG(printf_to_cstr("%s event_qeue.push() blocked by ack_event_filter: %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
+        DEBUG(printf_to_cstr("%s event_qeue.push() blocked by ack_event_filter: %s", filesystem->get_label().c_str(), event->as_text().c_str())) ;
         return ;
     }
     std::queue<filesystem_event_c*>::push(event) ;
-    DEBUG(printf_to_cstr("%s event_qeue.push() %s", filesystem->get_name().c_str(), event->as_text().c_str())) ;
+    DEBUG(printf_to_cstr("%s event_qeue.push() %s", filesystem->get_label().c_str(), event->as_text().c_str())) ;
 }
 
 // implements front & pop. caller gets ownership
@@ -124,7 +124,7 @@ void filesystem_event_queue_c::debug_print(string info)
 
     // temporary copy, shares pointers
     filesystem_event_queue_c tmp_event_queue = *this ;
-    DEBUG(printf_to_cstr("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_name().c_str())) ;
+    DEBUG(printf_to_cstr("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_label().c_str())) ;
 //    printf("%s. Debug dump of %s file system event queue:\n", info.c_str(), filesystem->get_name().c_str()) ;
     while (!tmp_event_queue.empty()) {
         filesystem_event_c *event = tmp_event_queue.pop() ;
@@ -481,10 +481,23 @@ void filesystem_base_c::debug_print(string info)
 {
     if (logger->ignored(this, LL_DEBUG))
         return ;
-    printf("%s. Dump of filesystem %s:\n", info.c_str(), get_name().c_str()) ;
+    printf("%s. Dump of filesystem %s:\n", info.c_str(), get_label().c_str()) ;
     rootdir->debug_print(0) ;
 }
 
+void filesystem_base_c::timer_start()
+{
+    timer_start_ms = now_ms() ;
+}
+
+void filesystem_base_c::timer_debug_print(string info)
+{
+    if (logger->ignored(this, LL_DEBUG))
+        return ;
+
+    uint64_t elapsed_ms = now_ms() - timer_start_ms ;
+    DEBUG(printf_to_cstr("%s. Elapsed time %0.3f sec\n", info.c_str(), (double)elapsed_ms / 1000.0)) ;
+}
 
 } // namespace
 
