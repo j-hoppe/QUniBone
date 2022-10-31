@@ -144,7 +144,6 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/inputline.o	\
 	$(OBJDIR)/kbhit.o	\
 	$(OBJDIR)/bitcalc.o	\
-	$(OBJDIR)/boolarray.o	\
 	$(OBJDIR)/pru.o \
 	$(OBJDIR)/mailbox.o	\
 	$(OBJDIR)/ddrmem.o	\
@@ -367,9 +366,6 @@ $(OBJDIR)/kbhit.o :  $(COMMON_SRC_DIR)/kbhit.c $(COMMON_SRC_DIR)/kbhit.h
 	$(CC) $(CCFLAGS) -xc++ $< -o $@
 
 $(OBJDIR)/bitcalc.o :  $(COMMON_SRC_DIR)/bitcalc.cpp $(COMMON_SRC_DIR)/bitcalc.h
-	$(CC) $(CCFLAGS) $< -o $@
-
-$(OBJDIR)/boolarray.o :  $(COMMON_SRC_DIR)/boolarray.cpp $(COMMON_SRC_DIR)/boolarray.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/bytebuffer.o :  $(BASE_SRC_DIR)/bytebuffer.cpp $(BASE_SRC_DIR)/bytebuffer.hpp
