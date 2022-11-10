@@ -224,6 +224,10 @@ storageimage_shared_c::storageimage_shared_c(
     filesystem_host = nullptr ;
 
     image = nullptr ; // lives between	open() and close()
+
+    main_partition = nullptr ; // lives between	open() and close()
+    std144_partition = nullptr ; // bad sector file, null on some disks
+
 }
 
 
@@ -270,21 +274,32 @@ bool storageimage_shared_c::open(bool create)
     }
 
 
+    // Partitions:
     // the file system occupies only part of the image:
     // from start until the bad sector table.
-    // we call that area a "partition"
     uint64_t image_partition_size;
     if (drive_info.bad_sector_file_offset)
         image_partition_size = drive_info.bad_sector_file_offset ;
-    else image_partition_size =  image->size();
+    else image_partition_size = image->size();
+
+    main_partition = new storageimage_partition_c(this, 0, image_partition_size, drive_unit) ;
+    if (drive_info.bad_sector_file_offset) {
+        // write empty bad sector files to some disks, on highest track/cylinder
+        std144_partition = new storageimage_partition_c(this, drive_info.bad_sector_file_offset,
+                image->size()- drive_info.bad_sector_file_offset, drive_unit) ;
+        image_write_std144_bad_sector_table() ;
+    } else {
+        std144_partition = nullptr ;
+    }
+
 
     if (type == sharedfilesystem::fst_xxdp) {
-        filesystem_dec_metadata_snapshot = new filesystem_xxdp_c( drive_info, drive_unit, image, image_partition_size) ;
-        filesystem_dec = new filesystem_xxdp_c( drive_info,  drive_unit, image, image_partition_size) ;
+        filesystem_dec_metadata_snapshot = new filesystem_xxdp_c(main_partition) ;
+        filesystem_dec = new filesystem_xxdp_c(main_partition) ;
         filesystem_dec->log_label = "FsXXDP" ;
     } else if (type == sharedfilesystem::fst_rt11) {
-        filesystem_dec_metadata_snapshot = new filesystem_rt11_c(drive_info, drive_unit, image, image_partition_size) ;
-        filesystem_dec = new filesystem_rt11_c(drive_info, drive_unit, image, image_partition_size) ;
+        filesystem_dec_metadata_snapshot = new filesystem_rt11_c(main_partition) ;
+        filesystem_dec = new filesystem_rt11_c(main_partition) ;
         filesystem_dec->log_label = "FsRT11" ;
     } else {
         delete image ;
@@ -298,8 +313,7 @@ bool storageimage_shared_c::open(bool create)
     filesystem_dec->event_queue.log_level_ptr = log_level_ptr ;
     filesystem_dec_metadata_snapshot->log_level_ptr = log_level_ptr ;
 
-    // write empty bad sector files to some disks
-    image_write_std144_bad_sector_table() ;
+    filesystem_dec->image_partition->clear_changed_flags() ;
 
     readonly = false ;
 
@@ -362,14 +376,17 @@ bool storageimage_shared_c::open(bool create)
 // see DEC_STD_144.txt
 void storageimage_shared_c::image_write_std144_bad_sector_table()
 {
-    unsigned table_size ; // == sector size
-    unsigned table_count ;
 
+    // the bad sector area is an allocated partition on last track/cylinder
+    assert(std144_partition != nullptr);
+    assert(std144_partition->image_position > 0);
+
+    unsigned table_count ; // == used sectors
     if (drive_info.drive_type == devRL01) {
-        table_size = 256 ; // one sector
+        std144_partition->set_block_size(drive_info.sector_size) ; // 512
         table_count = 10 ; // SimH
     } else if (drive_info.drive_type == devRL02) {
-        table_size = 256 ; // one sector
+        std144_partition->set_block_size(drive_info.sector_size) ; // 512
         table_count = 10 ; // SimH
         //	}	else if (drive_info.drive_type == devRK067) {
         // complex repeated geometry
@@ -378,8 +395,8 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
         return ; // no bad sector table on cartridge
 
     // work on cached bad_sector file ... avoid many write()
-    byte_buffer_c bad_sector_file ;
-    get_bytes(&bad_sector_file, drive_info.bad_sector_file_offset, table_count * table_size);
+    byte_buffer_c bad_sector_file ; // is the whole std144 partition
+    std144_partition->get_bytes(&bad_sector_file, 0, table_count * std144_partition->block_size);
     uint8_t *wp = bad_sector_file.data_ptr(); // start
     // write repeated empty tables
     for (unsigned i=0 ; i < table_count ; i++) {
@@ -388,10 +405,10 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
         for (unsigned j=0 ;  j < 8 ;  j++)
             *wp++ = 0 ;
         // rest of table = ff: no bad sectors
-        for (unsigned j=8 ;  j < table_size ;  j++)
+        for (unsigned j=8 ;  j < std144_partition->block_size ;  j++)
             *wp++ = 0xff ;
     }
-    set_bytes(&bad_sector_file) ;
+    std144_partition->set_bytes(&bad_sector_file, 0) ;
 }
 
 
@@ -441,6 +458,12 @@ void storageimage_shared_c::close(void)
 //        assert(filesystem_mapper != nullptr) ;
 //		delete filesystem_mapper ;
 //		filesystem_mapper = nullptr ;
+    if (main_partition != nullptr)
+        delete main_partition ;
+    if (std144_partition != nullptr)
+        delete std144_partition ;
+    main_partition = nullptr ;
+    std144_partition = nullptr ;
 
     delete image ;
     image = nullptr ;
@@ -473,7 +496,6 @@ void storageimage_shared_c::read(uint8_t *buffer, uint64_t position, unsigned le
 
 void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned len)
 {
-    uint32_t blknr;
     if (! is_open()) {
         ERROR("sharedfilesystem::storageimage_shared_c::write(): image %s %d closed", drive_info.device_name.c_str(), drive_unit);
         return ;
@@ -490,10 +512,10 @@ void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned l
     // set dirty
     image_data_pdp_access(/*changing*/true) ;
 
-    // mark all filesystem blocks in range
-    unsigned block_size = filesystem_dec->get_block_size(); // alias
-    for (blknr = position / block_size; blknr < (position + len) / block_size; blknr++)
-        filesystem_dec->changed_blocks->bit_set(blknr);
+    // mark all physical blocks in range.
+    unsigned block_size = drive_info.sector_size ;
+    for (unsigned blknr = position / block_size; blknr < (position + len) / block_size; blknr++)
+        main_partition->on_image_block_write(blknr * block_size) ; // start position of all blocks
     // boolarray_print_diag(_this->changedblocks, stderr, _this->block_count, "IMAGE");
 
     unlock();
@@ -516,10 +538,10 @@ void storageimage_shared_c::get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_
 }
 
 // not really needed, but a storage_image_base_c must implement
-void storageimage_shared_c::set_bytes(byte_buffer_c *byte_buffer)
+void storageimage_shared_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset)
 {
     assert(is_open()) ;
-    image->set_bytes(byte_buffer) ;
+    image->set_bytes(byte_buffer, byte_offset) ;
 }
 
 // not really needed, but a storage_image_base_c must implement
@@ -560,7 +582,8 @@ void storageimage_shared_c::sync_dec_image_to_filesystem_and_events()
         ERROR(printf_to_cstr("Error parsing DEC image: %s", e.what())) ;
     }
 //    filesystem_dec->debug_print("sync_dec_image_to_filesystem_and_events() AFTER parse") ;
-    filesystem_dec->changed_blocks->clear() ;
+    // create and clear all block change flags
+    filesystem_dec->image_partition->clear_changed_flags() ;
 
     // which files have changed? generate change events
 //            if (filesystem_dec_metadata_snapshot_valid) {

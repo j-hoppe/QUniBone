@@ -41,7 +41,6 @@
 #include <stdint.h>
 #include <sstream>
 
-#include "blockcache_dec.hpp"
 #include "filesystem_dec.hpp"
 
 namespace sharedfilesystem {
@@ -139,11 +138,11 @@ class filesystem_rt11_c: public filesystem_dec_c {
         enum dec_drive_type_e drive_type;
         // units are in drive_info_c.blocksize != sector size!
 
-        int block_size  ; // 512 bytes for all drives
-        int	block_count ; // # of blocks RT-11 uses on disk surface
-        int	first_dir_blocknr ; /// always 6 ?
-        int	replacable_bad_blocks ;
-        int	dir_seg_count ; // default segment count
+        unsigned block_size  ; // 512 bytes for all drives
+        unsigned block_count ; // # of blocks RT-11 uses on disk surface
+        unsigned first_dir_blocknr ; /// always 6 ?
+        unsigned replacable_bad_blocks ;
+        unsigned dir_seg_count ; // default segment count
     } layout_info_t ;
 
     layout_info_t layout_info ;
@@ -166,7 +165,7 @@ class filesystem_rt11_c: public filesystem_dec_c {
     bool struct_changed ; // directories or homeblock changed
 
 public:
-    filesystem_rt11_c(drive_info_c drive_info, unsigned drive_unit, storageimage_base_c *image_partition,   	 uint64_t image_partition_size) ;
+    filesystem_rt11_c(storageimage_partition_c *image_partition) ;
     ~filesystem_rt11_c() override ;
 
     void init() override ;
@@ -205,8 +204,6 @@ private:
         return rootdir->file_count() ;
     }
 
-    uint16_t rt11_image_get_word_at(rt11_blocknr_t blocknr, uint32_t byte_offset) ;
-    void rt11_image_set_word_at(rt11_blocknr_t blocknr,  uint32_t byte_offset, uint16_t val) ;
     void stream_parse(rt11_stream_c *stream, rt11_blocknr_t start, uint32_t byte_offset, uint32_t data_size) ;
     void stream_render(rt11_stream_c *stream) ;
     unsigned directory_entries_per_segment() ;
@@ -230,7 +227,7 @@ public:
 private:
     void calc_layout() ;
     void render_homeblock() ;
-    void render_directory_entry(block_cache_dec_c &cache, file_rt11_c *f, int ds_nr, int de_nr) ;
+    void render_directory_entry(byte_buffer_c &block_buffer, file_rt11_c *f, int ds_nr, int de_nr) ;
     void render_directory() ;
     void render_file_data() ;
 public:

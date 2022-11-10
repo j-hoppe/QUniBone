@@ -53,17 +53,17 @@ public:
     virtual bool truncate(void)= 0 ;
     virtual void read(uint8_t *buffer, uint64_t position, unsigned len)=0;
     virtual void write(uint8_t *buffer, uint64_t position, unsigned len)= 0;
-	virtual void set_zero(uint64_t position, unsigned len) ;
-	virtual bool is_zero(uint64_t position, unsigned len) ;
-	
+    virtual void set_zero(uint64_t position, unsigned len) ;
+    virtual bool is_zero(uint64_t position, unsigned len) ;
+
     virtual uint64_t size(void)= 0;
     virtual void close(void)= 0;
-	virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) = 0;
-	virtual void set_bytes(byte_buffer_c *byte_buffer)= 0 ;
-	
-	//	bool image_load_from_disk(string host_filename, 		bool allowcreate, bool *filecreated) ;
-	virtual void save_to_file(string host_filename) = 0 ; // make a snapshot
-	
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) = 0;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset)= 0 ;
+
+    //	bool image_load_from_disk(string host_filename, 		bool allowcreate, bool *filecreated) ;
+    virtual void save_to_file(std::string host_filename) = 0 ; // make a snapshot
+
 } ;
 
 
@@ -72,20 +72,20 @@ public:
 class storageimage_binfile_c: public storageimage_base_c {
 private:
     bool readonly ;
-    fstream f; // image file
+    std::fstream f; // image file
     std::string image_fname ;
 
 public:
-	storageimage_binfile_c(std::string _image_fname) {
-		image_fname = _image_fname ;
-	}
+    storageimage_binfile_c(std::string _image_fname) {
+        image_fname = _image_fname ;
+    }
 
-	// nothing to free
-	virtual ~storageimage_binfile_c() override { 
-		// handle recreation via param change with open images
-		close() ; 
-	} 
-	
+    // nothing to free
+    virtual ~storageimage_binfile_c() override {
+        // handle recreation via param change with open images
+        close() ;
+    }
+
     virtual bool is_readonly() override {
         return readonly ;
     }
@@ -96,10 +96,10 @@ public:
     virtual void write(uint8_t *buffer, uint64_t position, unsigned len) override;
     virtual uint64_t size(void) override;
     virtual void close(void) override;
-	virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
-	virtual void set_bytes(byte_buffer_c *byte_buffer) override ;
-	virtual void save_to_file(string host_filename) override ; 
-	
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ;
+    virtual void save_to_file(std::string host_filename) override ;
+
 
 } ;
 
@@ -107,24 +107,24 @@ public:
 class storageimage_memory_c: public storageimage_base_c {
 private:
     bool readonly ;
-    fstream f; // image file
+    std::fstream f; // image file
     // std::string image_fname ;
     uint8_t 	*data ; // the disk image content
-	uint64_t	data_size ;
-	bool opened ; // between open() and close()
+    uint64_t	data_size ;
+    bool opened ; // between open() and close()
 
 public:
-	storageimage_memory_c(unsigned _capacity) {
-		opened = false;
-		data = nullptr ;
-		data_size = _capacity ;
-	}
+    storageimage_memory_c(unsigned _capacity) {
+        opened = false;
+        data = nullptr ;
+        data_size = _capacity ;
+    }
 
-	// nothing to free
-	virtual ~storageimage_memory_c() override { 
-		close() ; 
-	} 
-	
+    // nothing to free
+    virtual ~storageimage_memory_c() override {
+        close() ;
+    }
+
     virtual bool is_readonly() override {
         return readonly ;
     }
@@ -135,11 +135,11 @@ public:
     virtual void write(uint8_t *buffer, uint64_t position, unsigned len) override;
     virtual uint64_t size(void) override;
     virtual void close(void) override;
-	virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
-	virtual void set_bytes(byte_buffer_c *byte_buffer) override ;
-	bool load_from_file(string _host_filename,  	 bool allowcreate, bool *result_file_created);
-	void save_to_file(string _host_filename) override ;
-	
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ;
+    bool load_from_file(std::string _host_filename,  	 bool allowcreate, bool *result_file_created);
+    void save_to_file(std::string _host_filename) override ;
+
 
 } ;
 

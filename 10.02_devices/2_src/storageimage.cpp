@@ -49,7 +49,7 @@ using namespace std;
 #include "storageimage.hpp"
 
 
-
+// BIG use of memory
 void storageimage_base_c::set_zero(uint64_t position, unsigned len)
 {
     uint8_t *zeros = (uint8_t*) malloc(len) ;
@@ -243,15 +243,14 @@ void storageimage_binfile_c::close(void) {
 // read data from image into memory buffer (cache)
 void storageimage_binfile_c::get_bytes(byte_buffer_c* byte_buffer, uint64_t byte_offset, uint32_t len)
 {
-    byte_buffer->image_position = byte_offset ;
     byte_buffer->set_size(len) ;
     read(byte_buffer->data_ptr(), byte_offset, len) ;
 }
 
 // write cache buffer to image
-void storageimage_binfile_c::set_bytes(byte_buffer_c *byte_buffer)
+void storageimage_binfile_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset)
 {
-    write(byte_buffer->data_ptr(), byte_buffer->image_position, byte_buffer->size()) ;
+    write(byte_buffer->data_ptr(), byte_offset, byte_buffer->size()) ;
 }
 
 
@@ -286,8 +285,8 @@ void storageimage_binfile_c::save_to_file(string _host_filename)
 bool storageimage_memory_c::open(bool create)
 {
     UNUSED(create);
-	if (is_open())
-		close(); // after RL11 INIT
+    if (is_open())
+        close(); // after RL11 INIT
     if (data_size)
         data = (uint8_t *)malloc(data_size) ;
     opened = true ;
@@ -371,7 +370,6 @@ void storageimage_memory_c::close(void)
 // extract a smaller buffer, required by storage_image_base_c
 void storageimage_memory_c::get_bytes(byte_buffer_c* byte_buffer, uint64_t byte_offset, uint32_t len)
 {
-    byte_buffer->image_position = byte_offset ;
     byte_buffer->set_size(len) ;
     assert(byte_offset < data_size) ;
     uint8_t *src = &(data[byte_offset]) ;
@@ -381,11 +379,11 @@ void storageimage_memory_c::get_bytes(byte_buffer_c* byte_buffer, uint64_t byte_
 }
 
 // write and free cache buffer
-void storageimage_memory_c::set_bytes(byte_buffer_c *byte_buffer)
+void storageimage_memory_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset)
 {
     uint8_t *src = byte_buffer->data_ptr() ;
-    assert(byte_buffer->image_position < data_size) ;
-    uint8_t *dest = &(data[byte_buffer->image_position]);
+    assert(byte_offset < data_size) ;
+    uint8_t *dest = &(data[byte_offset]);
     memcpy(dest, src, byte_buffer->size()) ;
 }
 

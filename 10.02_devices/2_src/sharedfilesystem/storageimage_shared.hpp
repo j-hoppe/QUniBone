@@ -40,7 +40,6 @@
 //#include <future>
 #include <stdint.h>
 
-#include "boolarray.hpp"
 #include "driveinfo.hpp"
 #include "storageimage.hpp"
 
@@ -53,9 +52,7 @@ namespace sharedfilesystem {
 
 // common features for XXDP and RT11 filesystem
 class storageimage_shared_c: public storageimage_base_c {
-    enum filesystem_type_e type ;
-
-//    std::string type_text ; // "RT11", "XXDP"
+    friend class storageimage_partition_c ;
 
 public:
     storageimage_shared_c(
@@ -89,10 +86,12 @@ public:
     virtual uint64_t size(void) override ;
     virtual void close(void) override ;
     virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override; // mandatory
-    virtual void set_bytes(byte_buffer_c *byte_buffer) override ; // mandatory
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ; // mandatory
     virtual void save_to_file(string host_filename) override ; // mandatory
 
 protected:
+    enum filesystem_type_e type ;
+
     string image_path ; // DEC image on SDcard
     // derived file system implementation classes use this
     string		host_shared_rootdir ; // root of file tree on host, absolute path
@@ -106,6 +105,14 @@ protected:
     bool	dec_image_changed ; // did the PDP changed the image ?
     uint64_t	dec_image_change_time_ms ; // last PDP read or write operation
     void image_data_pdp_access(bool changing) ;
+
+    // interface to filesystem
+public:
+    // for now there's only one parttion, the leading disk area
+    // filesystem may have block_size differing from disk block size
+    storageimage_partition_c  *main_partition ;
+    storageimage_partition_c  *std144_partition ; // bad sector file
+
 
 public: // for tests
 

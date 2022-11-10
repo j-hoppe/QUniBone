@@ -88,9 +88,11 @@ namespace sharedfilesystem {
 //{
 //}
 
-xxdp_linked_block_c::xxdp_linked_block_c(filesystem_xxdp_c *_filesystem): block_cache_dec_c(_filesystem)
+xxdp_linked_block_c::xxdp_linked_block_c(filesystem_xxdp_c *_filesystem, xxdp_blocknr_t _start_block_nr)
+    : byte_buffer_c(endianness_pdp11)
 {
-    set_size(filesystem->get_block_size()) ;
+    start_block_nr = _start_block_nr ;
+    set_size(_filesystem->get_block_size()) ;
 }
 
 
@@ -112,41 +114,11 @@ xxdp_linked_block_c* xxdp_linked_block_list_c::get_block_by_nr(xxdp_blocknr_t _b
 }
 
 
-
-
-/*
-// here indexed by block relative wordnr!, not byte offset
-uint16_t xxdp_linked_block_list_c::block_get_word(xxdp_blocknr_t block_nr, uint8_t word_offset)
-{
-		xxdp_linked_block_c *block = get_block_by_nr(block_nr) ;
-	assert(block != nullptr) ;	// must be found in linked list.
-
-	return block->get_word_at_byte_offset(2*word_offset) ; // LSB first
-}
-
-void xxdp_linked_block_list_c::block_set_word(xxdp_blocknr_t block_nr,       uint8_t word_offset, uint16_t val)
-{
-	xxdp_linked_block_c *block = get_block_by_nr(block_nr) ;
-	assert(block != nullptr) ;	// must be found in linked list.
-
-	block->set_word_at_byte_offset(2*word_offset, val) ; // LSB first
-}
-*/
-
-/*
-xxdp_blocknr_t xxdp_linked_block_list_c::get_next_block_nr(xxdp_blocknr_t block_nr)
-{
-    xxdp_linked_block_c *block = get_block_by_nr(block_nr) ;
-    assert(block != nullptr) ;
-    return block->get_word_at_byte_offset(0) ;
-}
-*/
-
 // add an block cache, link to previous list end, and init with 00s
 void xxdp_linked_block_list_c::add_empty_block(xxdp_blocknr_t block_nr)
 {
-    xxdp_linked_block_c new_tail_block(this->filesystem) ;
-    new_tail_block.init_zero(block_nr, 1) ;
+    xxdp_linked_block_c new_tail_block(filesystem, block_nr) ;
+    new_tail_block.init_zero(new_tail_block.size()) ;
     if (size() > 0) {
         xxdp_linked_block_c &prev_tail_block = at(size()-1) ;
         // point first word of previous list tail to new new_tail_block nr
@@ -168,14 +140,15 @@ void xxdp_linked_block_list_c::add_empty_blocks(xxdp_block_nr_list_c *block_nr_l
 // bytes 0,1 = 1st word in block are # of next. Last blck has link "0".
 void xxdp_linked_block_list_c::load_from_image(xxdp_blocknr_t start_block_nr)
 {
-    xxdp_linked_block_c block(this->filesystem) ;
+    xxdp_linked_block_c block(filesystem, start_block_nr) ;
     xxdp_blocknr_t block_nr = start_block_nr;
     clear() ;
     do {
-        block.load_from_image(block_nr, 1) ;
+        // load block by block, follow links
+        filesystem->image_partition->get_blocks(&block, block_nr, 1) ;
         push_back(block) ;
         // follow link to next block
-        block_nr = block.get_word_at_byte_offset(0) ;
+        block_nr = block.get_next_block_nr();
     } while (size() < XXDP_MAX_BLOCKS_PER_LIST && block_nr > 0);
     if (block_nr > 0)
         throw filesystem_exception("xxdp_linked_block_list_c::load_from_image(): block list too long or recursion");
@@ -197,7 +170,7 @@ void xxdp_linked_block_list_c::verify()
             assert(prev_link_block_nr > 0) ;
             assert(prev_link_block_nr == block->get_block_nr()) ;
         }
-        prev_link_block_nr = block->get_word_at_word_offset(0) ;
+        prev_link_block_nr = block->get_next_block_nr() ;
     }
     // last block must have  0 link
     assert(prev_link_block_nr == 0) ;
@@ -209,7 +182,7 @@ void xxdp_linked_block_list_c::write_to_image()
 {
     for(auto it = begin(); it != end(); ++it) {
         xxdp_linked_block_c *block = &(*it) ;
-        block->flush_to_image() ;
+        filesystem->image_partition->set_blocks(block, block->get_block_nr()) ;
     }
 }
 
@@ -229,6 +202,7 @@ void xxdp_linked_block_list_c::write_to_file_buffer(file_xxdp_c *f)
 {
     unsigned block_datasize = filesystem->get_block_size() - 2; // data amount in block, after link word
     unsigned byte_count = size() * block_datasize;
+	f->linked_block_count = 0 ;
     f->set_size(byte_count) ; // data stream
     f->file_size = byte_count ;
     uint8_t	*dst = f->data_ptr() ;
@@ -238,6 +212,7 @@ void xxdp_linked_block_list_c::write_to_file_buffer(file_xxdp_c *f)
         uint8_t *src = block->data_ptr() + 2 ; // skip link word
         memcpy(dst, src, block_datasize);
         dst += block_datasize;
+		f->linked_block_count++ ;
         assert(dst <= f->data_ptr() + f->file_size);
     }
 }
@@ -250,6 +225,7 @@ void xxdp_linked_block_list_c::load_from_file_buffer(file_xxdp_c *f)
 
     unsigned bytes_to_copy = f->file_size;
     uint8_t *src = f->data_ptr();
+	f->linked_block_count = 0 ;
     for (auto it = begin() ; it != end() ; ++it) {
         // cat data to all blocks
         xxdp_linked_block_c *block = &(*it) ;
@@ -259,6 +235,7 @@ void xxdp_linked_block_list_c::load_from_file_buffer(file_xxdp_c *f)
         memcpy(dst, src, block_datasize);
         src += block_datasize;
         bytes_to_copy -= block_datasize;
+		f->linked_block_count++ ;
         assert(src <= f->data_ptr() + f->file_size);
     }
     assert(bytes_to_copy == 0);
@@ -355,7 +332,7 @@ bool file_xxdp_c::data_changed(file_base_c *_cmp)
     return changed
 //			basename.compare(cmp->basename) != 0
 //			|| ext.compare(cmp->ext) != 0
-           ||memcmp(&modification_time, &cmp->modification_time, sizeof(modification_time)) // faster
+           || memcmp(&modification_time, &cmp->modification_time, sizeof(modification_time)) // faster
            //	|| mktime(modification_time) == mktime(cmp->modification_time)
            || readonly != cmp->readonly
            || file_size != cmp->file_size ;
@@ -454,13 +431,12 @@ string filesystem_xxdp_c::make_filename(string basename, string ext)
 }
 
 
-filesystem_xxdp_c::filesystem_xxdp_c(drive_info_c &_drive_info, unsigned _drive_unit,
-                                     storageimage_base_c *_image_partition, uint64_t _image_partition_size)
-    : filesystem_dec_c(_drive_info, _drive_unit, _image_partition, _image_partition_size)
+filesystem_xxdp_c::filesystem_xxdp_c(       storageimage_partition_c *_image_partition)
+    : filesystem_dec_c(_image_partition)
 {
-    layout_info = get_documented_layout_info(_drive_info.drive_type) ;
-    changed_blocks = new boolarray_c(layout_info.blocks_num) ;
+    layout_info = get_documented_layout_info(image_partition->drive_info.drive_type) ;
 
+    image_partition->set_block_size(layout_info.block_size) ; // 256 words, fix for XXDP, independent of disk (RX01,2?)
 
     // create root dir.
     add_directory(nullptr, new directory_xxdp_c() ) ;
@@ -483,8 +459,13 @@ filesystem_xxdp_c::filesystem_xxdp_c(drive_info_c &_drive_info, unsigned _drive_
     sort_add_group_pattern(".*\\.BIN") ;  // *.bin and *.bic
 
     // available block = full disk capacity minus bad sector info
-    assert(_image_partition_size <= _drive_info.capacity) ;
-    blockcount = needed_blocks(_drive_info.get_usable_capacity());
+    assert(image_partition->size <= image_partition->drive_info.capacity) ;
+    blockcount = needed_blocks(image_partition->size);
+
+    // TODO: who defines the partition size?
+    // Is it the whole disk up to bad sector file, or defined by RT11 layout?
+    assert(image_partition->size >= layout_info.blocks_num * layout_info.block_size) ;
+
 
     // if image is enlarged, the precoded layout params of the device are not sufficient
     // for the enlarged blockcount.
@@ -510,18 +491,16 @@ filesystem_xxdp_c::~filesystem_xxdp_c()
 {
     init() ; // free files
 
-    delete changed_blocks ;
-    changed_blocks = nullptr ;  // signal to base class destructor
     delete rootdir ;
     rootdir = nullptr ;  // signal to base class destructor
 }
 
 // Like "XXDP @ RL02 #1"
-string filesystem_xxdp_c::get_label() 
+string filesystem_xxdp_c::get_label()
 {
-	char buffer[80] ;
-	sprintf(buffer, "XXDP @ %s #%d", drive_info.device_name.c_str(), drive_unit);
-	return string(buffer) ;
+    char buffer[80] ;
+    sprintf(buffer, "XXDP @ %s #%d", image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
+    return string(buffer) ;
 }
 
 
@@ -757,7 +736,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.monitor_core_image_start_block_nr = 23 ;
         break ;
     default:
-        FATAL("%s: storageimage_xxdp_c::get_drive_info(): invalid drive", get_label().c_str()) ;
+        FATAL("%s: storageimage_xxdp_c::get_documented_layout_info(): invalid drive", get_label().c_str()) ;
     }
     return result ;
 }
@@ -792,7 +771,7 @@ void filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
     // # of initial userdir entries
     // from XXDP: 1 UFD block serves ca. 280 file blocks
     // do not assign less than DEC table
-    unsigned ufd_blocks_num = needed_blocks(image_partition_size) / 280;
+    unsigned ufd_blocks_num = needed_blocks(image_partition->size) / 280;
     if (ufd_blocks_num > layout_info.ufd_blocks_num)
         layout_info.ufd_blocks_num = ufd_blocks_num;
     curblk += layout_info.ufd_blocks_num;
@@ -814,10 +793,6 @@ void filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
 //    curblk += 32;
 //    layout_info.prealloc_blocks_num = curblk;
 
-    // adapt block flags to new size
-    delete changed_blocks ;
-    changed_blocks = new boolarray_c(layout_info.blocks_num) ;
-
 }
 
 
@@ -825,26 +800,44 @@ void filesystem_xxdp_c::recalc_layout_info(unsigned _blockcount)
  * low level operators
  *************************************************************/
 
+// iterate all blocks of a file for change
+bool filesystem_xxdp_c::is_contiguous_file_changed(file_xxdp_c *f)
+{
+    assert(f->is_contiguous_file) ;
+    bool result = false ;
+
+    xxdp_blocknr_t block_nr, end_block_nr;
+    end_block_nr = f->start_block_nr + needed_blocks(f->size());
+    for (block_nr = f->start_block_nr; !result && block_nr < end_block_nr; block_nr++)
+        result |= image_partition->changed_blocks.at(block_nr);
+    return result ;
+}
+
 
 // true, if any block has his "change" flag set
 bool filesystem_xxdp_c::is_blocklist_changed(xxdp_linked_block_list_c *block_list)
 {
-    assert(changed_blocks) ;
     bool result = false ;
     for (auto it = block_list->begin() ; it != block_list->end() ; ++it) {
         xxdp_blocknr_t block_nr = it->get_block_nr() ;
-        result |= changed_blocks->bit_get(block_nr);
+        result |= image_partition->changed_blocks.at(block_nr);
     }
     return result ;
 }
 
-// use block_nr list of file
+// use block_nr_list[] of file
 bool filesystem_xxdp_c::is_file_blocklist_changed(file_xxdp_c *f)
 {
-    assert(changed_blocks) ;
+    assert(!f->is_contiguous_file) ;
     bool result = false ;
-    for (unsigned block_nr = 0 ; !result && block_nr < f->block_nr_list.size() ; block_nr++)
-        result |= changed_blocks->bit_get(block_nr);
+    for (unsigned i = 0 ; !result && i < f->block_nr_list.size() ; i++) {
+        xxdp_blocknr_t block_nr = f->block_nr_list[i] ;
+        result |= image_partition->changed_blocks.at(block_nr);
+        if (result) {
+            printf("f=%s, block_nr=%u @ %x\n", f->get_filename().c_str(),
+                   (unsigned)block_nr, (unsigned)block_nr*512 ) ;
+        }
+    }
     return result ;
 }
 
@@ -854,9 +847,6 @@ bool filesystem_xxdp_c::is_file_blocklist_changed(file_xxdp_c *f)
 void filesystem_xxdp_c::calc_change_flags()
 {
     file_xxdp_c *f ;
-
-    if (changed_blocks == nullptr)
-        return;
 
     struct_changed = false ;
 
@@ -873,12 +863,10 @@ void filesystem_xxdp_c::calc_change_flags()
     // boot block and monitor are files
     for (unsigned i = 0; i < file_count(); i++) {
         f = file_get(i);
-        f->changed = is_file_blocklist_changed(f) ;
-        assert(changed_blocks) ;
-        for (unsigned j = 0; !f->changed && j < f->block_nr_list.size(); j++) {
-            unsigned block_nr = f->block_nr_list[j];
-            f->changed |= changed_blocks->bit_get(block_nr);
-        }
+        if (f->is_contiguous_file)
+            f->changed = is_contiguous_file_changed(f) ;
+        else
+            f->changed = is_file_blocklist_changed(f) ;
     }
 }
 
@@ -1053,7 +1041,7 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
         if (mfd_variety != 1)
             WARNING("%s: MFD is 2 blocks, variety 1 expected, but variety %d defined", get_label().c_str(), mfd_variety);
         xxdp_linked_block_c *mfd_block1 = mfd_block_list.get_block_by_nr(mfd_start_block_nr) ;
-        interleave = mfd_block1->get_word_at_word_offset(1);
+        interleave = mfd_block1->get_word_at_word_offset(1); // word 1
 
         // build bitmap blocklist from MFD, do not read data yet
         // word[2] = bitmap start block, word[3] = pointer to bitmap #1, always the same?
@@ -1111,8 +1099,8 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 //		ufd_block_list.print_diag(cout, "ufd_block_list") ;
         // verify len
         if (ufd_block_count != ufd_block_list.size())
-            WARNING( "%s; UFD block count is %u, but %d in MFD1/2", get_label().c_str(),
-                     ufd_block_list.size(), ufd_block_count);
+            WARNING(printf_to_cstr("%s; UFD block count is %u, but %d in MFD1/2", get_label().c_str(),
+                                   ufd_block_list.size(), ufd_block_count));
         // best choice is len of disk list
 
         // Build Bitmap block list
@@ -1123,38 +1111,41 @@ void filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 
         // verify len
         if (bit_block_count != bitmap.block_list.size())
-            WARNING("%s: Bitmap block count is %u, but %d in MFD1/2", get_label().c_str(), bitmap.block_list.size(), bit_block_count);
+            WARNING(printf_to_cstr("%s: Bitmap block count is %u, but %d in MFD1/2",
+                                   get_label().c_str(), bitmap.block_list.size(), bit_block_count));
 
         // total num of blocks
         unsigned n = mfd_block->get_word_at_word_offset(7);
         if (n != blockcount)
-            WARNING("%s: Device blockcount is %u in layout_info, but %d in MFD1/2", get_label().c_str(), blockcount, n);
+            WARNING(printf_to_cstr("%s: Device blockcount is %u in layout_info, but %d in MFD1/2", get_label().c_str(), blockcount, n));
         blockcount = n ;
 
         preallocated_blockcount = mfd_block->get_word_at_word_offset(8);
         if (preallocated_blockcount != layout_info.prealloc_blocks_num)
-            WARNING("%s: Device preallocated blocks are %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
-                    layout_info.prealloc_blocks_num, preallocated_blockcount);
+            // DEC docs wrong?
+            DEBUG(printf_to_cstr("%s: Device preallocated blocks are %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                                 layout_info.prealloc_blocks_num, preallocated_blockcount));
 
         interleave =  mfd_block->get_word_at_word_offset(9);
         if (interleave != layout_info.interleave)
-            WARNING("%s: Device interleave is %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
-            layout_info.interleave, interleave);
+            WARNING(printf_to_cstr("%s: Device interleave is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                                   layout_info.interleave, interleave));
 
         monitor_start_block_nr =  mfd_block->get_word_at_word_offset(11);
         if (monitor_start_block_nr != layout_info.monitor_core_image_start_block_nr)
-            WARNING("%s: Monitor core start is %u in layout_info, but %d in MFD1/2", get_label().c_str(), 
-                    layout_info.monitor_core_image_start_block_nr, monitor_start_block_nr);
+            WARNING(printf_to_cstr("%s: Monitor core start is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                                   layout_info.monitor_core_image_start_block_nr, monitor_start_block_nr));
         // last monitor_core_image block = preallocated_blockcount
         monitor_max_block_count = preallocated_blockcount - monitor_start_block_nr ;
         if (monitor_max_block_count != layout_info.monitor_block_count)
-            WARNING("%s: Monitor core len %d blocks, should be %u", get_label().c_str(), monitor_max_block_count,
-                    layout_info.monitor_block_count) ;
+            // noprintf_to_cstr( problem: monitor extended here to end of preallocated area
+            DEBUG(printf_to_cstr("%s: Monitor core len %d blocks, should be %u", get_label().c_str(), monitor_max_block_count,
+                                 layout_info.monitor_block_count)) ;
 
 
-        WARNING("%s: Position of bad block file not yet evaluated", get_label().c_str());
+        DEBUG(printf_to_cstr("%s: Position of bad block file not yet evaluated", get_label().c_str()));
     } else
-        FATAL("%s: Invalid block count in MFD: %d", get_label().c_str(), mfd_block_list.size());
+        FATAL(printf_to_cstr("%s: Invalid block count in MFD: %d", get_label().c_str(), mfd_block_list.size()));
 }
 
 // bitmap blocks loaded, produce "used[]" flag array
@@ -1177,7 +1168,7 @@ void filesystem_xxdp_c::parse_bitmap()
         xxdp_blocknr_t bitmap_first_block_nr = bitmap_block->get_word_at_word_offset(3);
         assert(bitmap_first_block_nr == bitmap.block_list[0].get_block_nr()) ;
 
-        // hexdump(flog, blocknr2offset(map_blknr), 512, "Block %u = bitmap %u", map_blknr, i);
+        // hexdump(flog, get_block_size() * map_blknr, 512, "Block %u = bitmap %u", map_blknr, i);
         for (unsigned j = 0; j < bitmap_used_words_count; j++) {
             uint16_t bitmap_flags = bitmap_block->get_word_at_word_offset(j + 4);
             // 16 flags per word. LSB = lowest blocknr
@@ -1219,7 +1210,7 @@ void filesystem_xxdp_c::parse_internal_contiguous_file(    string _basename, str
     rootdir->add_file(f); //  before parse-stream
 
     unsigned data_size = get_block_size() * _block_count;
-    image_partition->get_bytes(f, blocknr2offset(_start_blocknr), data_size) ;
+    image_partition->get_bytes(f, get_block_size() * _start_blocknr, data_size) ;
     f->file_size = f->size() ; // size from inherited bytebuffer
     f->host_path = f->get_host_path() ;
 }
@@ -1232,7 +1223,7 @@ void filesystem_xxdp_c::parse_ufd()
     for (unsigned i = 0; i < ufd_block_list.size(); i++) {
         xxdp_linked_block_c *ufd_block = &(ufd_block_list[i]);
 //        blknr = ufd_block_list[i];
-        // hexdump(flog, blocknr2offset(blknr), 512, "Block %u = UFD block %u", blknr, i);
+        // hexdump(flog, get_block_size() * blknr, 512, "Block %u = UFD block %u", blknr, i);
         // 28 dir entries per block
         for (unsigned j = 0; j < XXDP_UFD_ENTRIES_PER_BLOCK; j++) {
             uint32_t file_entry_start_word_nr = 1 + j * XXDP_UFD_ENTRY_WORDCOUNT; // point to start of file entry in block
@@ -1317,7 +1308,7 @@ void filesystem_xxdp_c::parse_volumeinfo()
     char line[1024];
 
     sprintf(line, "# %s - info about XXDP volume on %s device #%u.\n",
-            volume_info_filename.c_str(), drive_info.device_name.c_str(), drive_unit);
+            volume_info_filename.c_str(), image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
     text_buffer.append(line);
 
     time_t t = time(NULL);
@@ -1326,16 +1317,21 @@ void filesystem_xxdp_c::parse_volumeinfo()
             tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
     text_buffer.append(line);
 
-    sprintf(line, "\n# Blocks on device\nblockcount=%d (XXDP doc says %d)\n", blockcount, layout_info.blocks_num);
+    sprintf(line, "\n# Logical blocks on device\nblockcount=%d (XXDP doc says %d)\n", blockcount, layout_info.blocks_num);
+    text_buffer.append(line);
+    sprintf(line, "\nLogical block size = %d bytes.\n", get_block_size());
+    text_buffer.append(line);
+    sprintf(line, "Physical device block size = %d bytes.\n", image_partition->drive_info.sector_size);
     text_buffer.append(line);
 
     sprintf(line, "prealloc_blocks_num=%d (XXDP doc says %d)\n", (unsigned) preallocated_blockcount, layout_info.prealloc_blocks_num);
     text_buffer.append(line);
     sprintf(line, "interleave=%d (XXDP doc says %d)\n", interleave, layout_info.interleave);
     text_buffer.append(line);
-    sprintf(line, "boot_block=%d\n", layout_info.boot_block_nr);
+    sprintf(line, "boot_block=%s\n", image_partition->block_nr_info(layout_info.boot_block_nr));
     text_buffer.append(line);
-    sprintf(line, "monitor_block=%d (XXDP doc says %d)\n", (unsigned) monitor_start_block_nr, layout_info.monitor_core_image_start_block_nr);
+    sprintf(line, "monitor_block=%s (XXDP doc says %d)\n", image_partition->block_nr_info(monitor_start_block_nr),
+            layout_info.monitor_core_image_start_block_nr);
     text_buffer.append(line);
     sprintf(line, "monitor_blockcount=%d (all remaining preallocated blocks, XXDP doc says %d) \n",
             (unsigned)  monitor_max_block_count, layout_info.monitor_block_count);
@@ -1343,7 +1339,7 @@ void filesystem_xxdp_c::parse_volumeinfo()
 
     sprintf(line, "\n# Master File Directory\n") ;
     text_buffer.append(line);
-    sprintf(line, "variety = %d (Var1: MFD1+MFD2, Var2: MFD1/2, XXDP doc says %d\n",
+    sprintf(line, "variety = %d (Var1: MFD1+MFD2, Var2: MFD1/2, XXDP doc says %d)\n",
             mfd_variety, layout_info.mfd2 < 0 ? 2 : 1) ;
     text_buffer.append(line);
     sprintf(line, "mfd1=%d\n", layout_info.mfd1); // = mfd_start_block_nr
@@ -1352,14 +1348,14 @@ void filesystem_xxdp_c::parse_volumeinfo()
         sprintf(line, "mfd2=%d\n", layout_info.mfd2);
         text_buffer.append(line);
     }
-    sprintf(line, "\n# Bitmap of used blocks:\nbitmap_block_1=%d (XXDP doc says %d)\n",
-            (unsigned)bitmap.block_list[0].get_block_nr(), layout_info.bitmap_block_1);
+    sprintf(line, "\n# Bitmap of used blocks:\nbitmap_block_1=%s (XXDP doc says %d)\n",
+            image_partition->block_nr_info(bitmap.block_list[0].get_block_nr()), layout_info.bitmap_block_1);
     text_buffer.append(line);
     sprintf(line, "bitmaps_num=%d (XXDP doc says %d)\n",  bitmap.block_list.size(), layout_info.bitmap_block_count);
     text_buffer.append(line);
 
-    sprintf(line, "\n# User File Directory:\nufd_block_1=%d (XXDP doc says %d)\n",
-            (unsigned)ufd_block_list[0].get_block_nr(),	layout_info.ufd_block_1);
+    sprintf(line, "\n# User File Directory:\nufd_block_1=%s (XXDP doc says %d)\n",
+            image_partition->block_nr_info(ufd_block_list[0].get_block_nr()), layout_info.ufd_block_1);
     text_buffer.append(line);
     sprintf(line, "ufd_blocks_num=%d (XXDP doc says %d)\n",
             ufd_block_list.size(), layout_info.ufd_blocks_num);
@@ -1372,11 +1368,12 @@ void filesystem_xxdp_c::parse_volumeinfo()
         sprintf(line, "\n# File %2d \"%s.%s\".", file_idx, f->basename.c_str(), f->ext.c_str());
         text_buffer.append(line);
         assert(f->block_nr_list.size() > 0) ;
-        sprintf(line, " Data %u = 0x%X bytes, start block %d @ 0x%X.", f->file_size,
-                f->file_size, f->start_block_nr,
-                f->start_block_nr * get_block_size());
+        sprintf(line, " Data = %u linked blocks = 0x%x bytes, logical start block %s.", 
+				f->linked_block_count, f->file_size,
+                image_partition->block_nr_info(f->start_block_nr));
         text_buffer.append(line);
     }
+	
     text_buffer.append("\n");
 
     fout->set_data(&text_buffer) ;
@@ -1400,7 +1397,7 @@ void filesystem_xxdp_c::parse()
     // events in the queue references streams, which get invalid on re-parse.
     assert(event_queue.empty()) ;
 
-	timer_start() ;
+    timer_start() ;
 
     init();
 
@@ -1431,7 +1428,7 @@ void filesystem_xxdp_c::parse()
     parse_volumeinfo() ;
 
 //    print_directory(stdout) ;
-		timer_debug_print(get_label() + " parse()") ;
+    timer_debug_print(get_label() + " parse()") ;
 
     if (eptr != nullptr)
         std::rethrow_exception(eptr);
@@ -1580,8 +1577,8 @@ void filesystem_xxdp_c::render_contiguous_file_data(file_xxdp_c *f)
     unsigned round_up_size = get_block_size() * needed_blocks(get_block_size(), f->size()) ;
     assert(round_up_size >= f->size()) ;
     f->set_size(round_up_size) ; // new space set to zero_byte_val
-    f->image_position = get_block_size() * f->start_block_nr ;
-    image_partition->set_bytes(f) ;
+    uint64_t partition_position = get_block_size() * f->start_block_nr ;
+    image_partition->set_bytes(f, partition_position) ;
 }
 
 // write file->data[] into linked blocks of pre-calced block_nr_list
@@ -1614,14 +1611,14 @@ void filesystem_xxdp_c::render()
 {
     unsigned needed_size = blockcount * get_block_size();
 
-	timer_start() ;
-	
+    timer_start() ;
+
     // calc blocklists and sizes
     calc_layout() ; // throws
 
-    if (needed_size > image_partition_size)
+    if (needed_size > image_partition->size)
         // more bytes needed than image provides. Expand?
-        throw filesystem_exception("Image only %d bytes large, filesystem needs %d *%d = %d.", image_partition_size,
+        throw filesystem_exception("Image only %d bytes large, filesystem needs %d *%d = %d.", image_partition->size,
                                    blockcount, get_block_size(), needed_size);
 
     // write boot block and monitor, if file exist
@@ -1634,7 +1631,7 @@ void filesystem_xxdp_c::render()
             throw filesystem_exception("bootblock has illegal size of %d bytes.", bootblock->size());
         render_contiguous_file_data(bootblock) ;
     } else
-        image_partition->set_zero(layout_info.boot_block_nr, get_block_size()) ; // clear area
+        image_partition->set_blocks_zero(layout_info.boot_block_nr, 1) ; // clear area
 
     file_xxdp_c* monitor = dynamic_cast<file_xxdp_c*>(file_by_path.get(monitor_filename));
     if (monitor) {
@@ -1643,7 +1640,7 @@ void filesystem_xxdp_c::render()
             throw filesystem_exception("monitor has illegal size of %d bytes.", monitor->size());
         render_contiguous_file_data(monitor);
     } else
-        image_partition->set_zero(monitor_start_block_nr * get_block_size(), monitor_max_block_count * get_block_size()) ; // clear area
+        image_partition->set_blocks_zero(monitor_start_block_nr, monitor_max_block_count) ; // clear area
 
     render_bitmap();
     render_mfd();
@@ -1653,7 +1650,7 @@ void filesystem_xxdp_c::render()
 
     parse_volumeinfo() ;
 
-	timer_debug_print(get_label() + " render()") ;
+    timer_debug_print(get_label() + " render()") ;
 
 }
 
@@ -1983,7 +1980,7 @@ void filesystem_xxdp_c::print_diag(FILE *stream)
             strcat(line, buff);
         }
         if (line[0]) {
-            int offset = (blocknr2offset(block_nr) - blocknr2offset(0));
+            int offset = get_block_size() * block_nr;
             fprintf(stream, "%5d @ 0x%06x = %#08o:	%s\n", block_nr, offset, offset, line);
         }
     }

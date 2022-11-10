@@ -47,42 +47,47 @@
 #include <assert.h>
 #include <iostream>
 
+#include "utils.hpp" // endianness
+
+
 class byte_buffer_c
 {
 private:
+    enum endianness_e endianness ;
     uint8_t	*_data ;
     uint32_t _size ;
 
 public:
-    uint64_t image_position ; // start position in storage image
-
     uint8_t	zero_byte_val ; // invalid memory is initialized with this value
 
     byte_buffer_c() ;
+    byte_buffer_c(enum endianness_e _endianness) ;
     virtual ~byte_buffer_c() ;
 
-	// "Rule of Three": manages buffer, needs copy and copy assignment 
-	// https://en.wikipedia.org/wiki/Rule_of_three_(C%2B%2B_programming)
-	// https://stackoverflow.com/questions/4172722/what-is-the-rule-of-three
- 
+    // "Rule of Three": manages buffer, needs copy and copy assignment
+    // https://en.wikipedia.org/wiki/Rule_of_three_(C%2B%2B_programming)
+    // https://stackoverflow.com/questions/4172722/what-is-the-rule-of-three
+
     byte_buffer_c(const byte_buffer_c& other) ;// copy constructor
     byte_buffer_c& operator=(const byte_buffer_c& other) ;// copy assignment
- 
+
 
     bool is_empty() const {
-		return (_size == 0) ;
-	}
-	
+        return (_size == 0) ;
+    }
+
 
     void set_size(unsigned new_size) ;
     void set_data(uint8_t *src_data, unsigned src_size) ;
     void set_data(const byte_buffer_c *bb) ;
 //	void set_data(const byte_buffer_c &bb) ;
-	
+
     void set_data(std::string *s) ;
     void set_data(std::istream *st, unsigned new_size) ;
 
     void get_data(std::ostream *st) ;
+
+    void init_zero(unsigned new_size) ;
 
     bool is_zero_data(uint8_t val) const ;
 
@@ -95,20 +100,38 @@ public:
         return _size ;
     }
 
-    uint8_t& operator [](unsigned idx) {
+    uint8_t& operator [](unsigned _byte_offset) {
         // assert(idx >= 0) ;
-        assert(idx < _size) ;
+        assert(_byte_offset < _size) ;
         assert(_data != nullptr) ;
-        return _data[idx];
+        return _data[_byte_offset];
     }
 
-    uint8_t operator [](unsigned idx) const {
+    uint8_t operator [](unsigned _byte_offset) const {
         // assert(idx >= 0) ;
-        assert(idx < _size) ;
+        assert(_byte_offset < _size) ;
         assert(_data != nullptr) ;
-        return _data[idx];
+        return _data[_byte_offset];
     }
 
+    // PDP11 endianness
+    uint16_t get_word_at_byte_offset(uint32_t _byte_offset) ;
+    void set_word_at_byte_offset(uint32_t _byte_offset, uint16_t val) ;
+    void set_bytes_at_byte_offset(uint32_t _byte_offset, const byte_buffer_c *bb) ;
+    uint16_t get_word_at_word_offset(uint32_t _word_offset) {
+        return get_word_at_byte_offset(2 * _word_offset) ;
+    }
+    void set_word_at_word_offset(uint32_t _word_offset, uint16_t val) {
+        set_word_at_byte_offset(2 * _word_offset, val) ;
+    }
+
+
+    /*
+    	uint8_t	*get_addr(uint32_t _byte_offset) {
+    		assert(_byte_offset < _size) ;
+    		return _data + _byte_offset ;
+    	}
+    */
 
 
 } ;

@@ -43,6 +43,13 @@
 
 
 
+enum endianness_e {
+    endianness_little, // lsb first
+    endianness_pdp11, // DEC: word = LSB first, dword: 0x01020304 => 02, 01, 04, 03
+    endianness_big // msb first
+} ;
+
+
 #ifndef _UTILS_CPP_
 extern volatile int SIGINTreceived;
 #endif
@@ -132,7 +139,7 @@ uint16_t rad50_encode(std::string s);
 
 
 
-void hexdump(std::ostream &stream, uint8_t *data, int size, char *fmt, ...);
+void hexdump(std::ostream &stream, uint8_t *data, int size, const char *fmt, ...);
 
 
 //ool caseInsCompare(const std::string& s1, const std::string& s2) ;

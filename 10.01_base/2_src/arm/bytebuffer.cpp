@@ -38,14 +38,22 @@
  */
 #include "bytebuffer.hpp"
 
-byte_buffer_c::    byte_buffer_c() {
+byte_buffer_c::byte_buffer_c()
+{
     _data = nullptr ;
     _size = 0 ;
     zero_byte_val = 0;
+    endianness = endianness_pdp11 ;
+}
+
+byte_buffer_c::byte_buffer_c(enum endianness_e _endianness): byte_buffer_c()
+{
+    endianness = _endianness ;
 }
 
 
-byte_buffer_c::~byte_buffer_c() {
+byte_buffer_c::~byte_buffer_c()
+{
     if (_data != nullptr)
         free (_data) ;
     _data = nullptr ;
@@ -53,28 +61,27 @@ byte_buffer_c::~byte_buffer_c() {
 }
 
 // copy constructor
-byte_buffer_c::byte_buffer_c(const byte_buffer_c& other): byte_buffer_c() 
+byte_buffer_c::byte_buffer_c(const byte_buffer_c& other): byte_buffer_c()
 {
-	image_position = other.image_position ;
-	zero_byte_val = other.zero_byte_val;
-	set_data(&other) ; // copy
+    zero_byte_val = other.zero_byte_val;
+    set_data(&other) ; // copy
 }
 
 // copy assignment
-byte_buffer_c& byte_buffer_c::operator=(const byte_buffer_c& other) 
+byte_buffer_c& byte_buffer_c::operator=(const byte_buffer_c& other)
 {
-	if (this == &other)
-		return *this ;
-	image_position = other.image_position ;
-	zero_byte_val = other.zero_byte_val;
-	set_data(&other) ; // copy
-	return *this ;
+    if (this == &other)
+        return *this ;
+    zero_byte_val = other.zero_byte_val;
+    set_data(&other) ; // copy
+    return *this ;
 }
 
 
 // set, update or erase buffer size.
 // intialise new data with "zero_byte_val"
-void byte_buffer_c::set_size(unsigned new_size) {
+void byte_buffer_c::set_size(unsigned new_size)
+{
     if (new_size == _size)
         return ;
     if (new_size > 0) {
@@ -97,14 +104,16 @@ void byte_buffer_c::set_size(unsigned new_size) {
 
 
 // several ways to set an empty or filled buffer
-void byte_buffer_c::set_data(uint8_t *src_data, unsigned src_size) {
+void byte_buffer_c::set_data(uint8_t *src_data, unsigned src_size)
+{
     set_size(src_size) ;
     assert(_data != nullptr) ;
     memcpy(_data, src_data, src_size);
 }
 
 // copy data_ptr
-void byte_buffer_c::set_data(const byte_buffer_c *bb) {
+void byte_buffer_c::set_data(const byte_buffer_c *bb)
+{
     set_data(bb->data_ptr(), bb->size()) ;
 }
 /*
@@ -114,7 +123,8 @@ void byte_buffer_c::set(const byte_buffer_c &bb) {
 */
 
 // like strdup()
-void byte_buffer_c::set_data(std::string *s) {
+void byte_buffer_c::set_data(std::string *s)
+{
     unsigned new_size = s->size() +1 ; // include \0
     set_size(new_size) ;
     assert(_data != nullptr) ;
@@ -144,6 +154,12 @@ void byte_buffer_c::get_data(std::ostream *st)
     st->write((char *)_data, _size) ;
 }
 
+void byte_buffer_c::init_zero(unsigned new_size)
+{
+    set_size(new_size) ;
+    memset(data_ptr(), zero_byte_val, size()) ;
+}
+
 
 // is memory all set with a const value?
 // reverse operator to memset()
@@ -159,6 +175,35 @@ bool byte_buffer_c::is_zero_data(uint8_t val) const
         if (*ptr != val)
             return false;
     return true;
+}
+
+// block relative
+uint16_t byte_buffer_c::get_word_at_byte_offset(uint32_t _byte_offset)
+{
+    assert(_byte_offset < _size) ;
+    assert(endianness == endianness_pdp11) ; // todo: implement other?
+    uint8_t *addr = data_ptr() + _byte_offset ;
+    // LSB first
+    return (uint16_t)addr[0] | (uint16_t)(addr[1] << 8);
+}
+
+void byte_buffer_c::set_word_at_byte_offset(uint32_t _byte_offset, uint16_t val)
+{
+    assert(_byte_offset < _size) ;
+    assert(endianness == endianness_pdp11) ; // todo: implement other?
+    uint8_t *addr = data_ptr() + _byte_offset ;
+    addr[0] = val & 0xff;
+    addr[1] = (val >> 8) & 0xff;
+}
+
+
+void byte_buffer_c::set_bytes_at_byte_offset(uint32_t _byte_offset, const byte_buffer_c *bb)
+{
+    uint8_t *dest_addr = &_data[_byte_offset] ;
+    // assert last byte in cache area
+    unsigned last_byte_offset = _byte_offset + bb->size() - 1 ;
+    assert(last_byte_offset < _size) ;
+    memcpy(dest_addr, bb->data_ptr(), bb->size()) ;
 }
 
 

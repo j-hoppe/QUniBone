@@ -118,6 +118,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/storageimage.o	\
 	$(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
+	$(OBJDIR)/sharedfilesystem/storageimage_partition.o \
 	$(OBJDIR)/sharedfilesystem/storageimage_shared.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_base.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_host.o \
@@ -297,6 +298,10 @@ $(OBJDIR)/storagedrive.o :  $(DEVICE_SRC_DIR)/storagedrive.cpp $(DEVICE_SRC_DIR)
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/storagecontroller.o :  $(DEVICE_SRC_DIR)/storagecontroller.cpp $(DEVICE_SRC_DIR)/storagecontroller.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/storageimage_partition.o :  $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_partition.cpp $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_partition.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/sharedfilesystem/storageimage_shared.o :  $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.cpp $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.hpp

@@ -42,7 +42,6 @@
 #include <vector>
 #include <iostream>
 
-#include "blockcache_dec.hpp"
 #include "filesystem_dec.hpp"
 #include "filesystem_xxdp.hpp"
 
@@ -85,40 +84,20 @@ class xxdp_block_nr_list_c: public vector<xxdp_blocknr_t>  {	} ; // alias
 
 
 // a single block iamge cache
-class xxdp_linked_block_c: public block_cache_dec_c {
+class xxdp_linked_block_c: public byte_buffer_c {
+private:
+    uint32_t	start_block_nr ; // cached data starts here
+
 public:
-    xxdp_linked_block_c(filesystem_xxdp_c *filesystem) ;
-    /*
-    		unsigned block_nr ; // # of block on image
 
-    	// return a word from the byte buffer, LSB first
-    	uint16_t get_word_at_byte_offset(uint32_t _byte_offset) {
-    		assert(_byte_offset < size()) ;
-    		uint8_t *addr = data_ptr() + _byte_offset ;
-    		// LSB first
-    		return (uint16_t)addr[0] | (uint16_t)(addr[1] << 8);
-    	}
-    	uint16_t get_word_at_word_offset(unsigned _word_offset) {
-    		return get_word_at_byte_offset(2*_word_offset) ;
-    	}
+    xxdp_linked_block_c(filesystem_xxdp_c *filesystem, xxdp_blocknr_t _start_block_nr) ;
 
-    	void set_word_at_byte_offset(uint32_t _byte_offset, uint16_t val) {
-    		assert(_byte_offset < size()) ;
-    		uint8_t *addr = data_ptr() + _byte_offset ;
-    		addr[0] = val & 0xff;
-    		addr[1] = (val >> 8) & 0xff;
-    	}
-
-    	void set_word_at_word_offset(uint32_t _word_offset, uint16_t val) {
-    		set_word_at_byte_offset(2 * _word_offset, val) ;
-    	}
-    */
     xxdp_blocknr_t get_block_nr() {
         return start_block_nr ;
     }
 
     xxdp_blocknr_t get_next_block_nr() {
-        return get_word_at_word_offset(0) ;
+        return get_word_at_byte_offset(0) ;
     }
 
 
@@ -216,19 +195,14 @@ public:
 
     xxdp_blocknr_t start_block_nr; // start block, from UFD
     xxdp_blocknr_t last_block_nr ; // from UFD
+	unsigned linked_block_count ; // info after render/parse
+    
 
-// these blocks are allocated, but no necessarily all used
-    xxdp_block_nr_list_c block_nr_list; // if linked block list
-//    bool contiguous; //	1: blocknumbers are numbered start, start+1, start+2, ...
-    //	char basename[80];  // normally 6 chars, encoded in 2 words RADIX50. Special filenames longer
-    //	char ext[40]; // normally 3 chars, encoded 1 word
+	// these blocks are allocated, but no necessarily all used
+    xxdp_block_nr_list_c block_nr_list; // if linked block list, not for contiguous
+
     xxdp_blocknr_t block_count ; // saved blockcount from UFD.
     // UFD should not differ from blocklist.count !
-    //	uint32_t data_size; // byte count in data_ptr[]
-    //	uint8_t *data_ptr; // dynamic array with 'get_size' entries
-    //	struct tm date; // file date. only y,m,d valid
-    //	uint8_t changed ; // calc'd from image_changed_blocks
-    //	int internal ; // is part of filesystem, can not be deleted
 
     string get_filename() override ;
     string get_host_path() override ;
@@ -336,7 +310,7 @@ private:
     bool struct_changed ; // directories or homeblock changed
 
 public:
-    filesystem_xxdp_c(drive_info_c &drive_info, unsigned drive_unit, storageimage_base_c *image_partition,   	 uint64_t image_partition_size) ;
+    filesystem_xxdp_c(storageimage_partition_c *image_partition) ;
 
     ~filesystem_xxdp_c() override ;
 
@@ -356,11 +330,7 @@ public:
 
     // low level image access operators
 private:
-    /* see block_cache_dec_c accessors
-        uint16_t xxdp_image_get_word(xxdp_blocknr_t blocknr,
-                                     uint8_t wordnr) ;
-        void xxdp_image_set_word(xxdp_blocknr_t blocknr, 		uint8_t wordnr, uint16_t val) ;
-    */
+    bool is_contiguous_file_changed(file_xxdp_c *f) ;
     bool is_blocklist_changed(xxdp_linked_block_list_c *block_list) ;
     bool is_file_blocklist_changed(file_xxdp_c *f) ;
     void calc_change_flags() override ;

@@ -40,10 +40,11 @@
 
 #include <stdio.h>
 #include <queue>
+#include <vector>
 
 #include "utils.hpp"
-#include "boolarray.hpp"
 #include "storageimage.hpp"
+#include "storageimage_partition.hpp"
 #include "filesystem_base.hpp"
 #include "filesystem_host.hpp"
 
@@ -143,17 +144,13 @@ class filesystem_dec_c: public filesystem_base_c {
 
 public:
 
-    drive_info_c drive_info ;
-	unsigned drive_unit ; // unit number of drive
-
     // decoded/to-encode DEC filesystems are kept in-memory
     // only part of image is used for filesystem.
     // currently: start until begin of STD144 bad block table
-    storageimage_base_c *image_partition ;
-    uint64_t image_partition_size ; // usable part of partition
+    storageimage_partition_c *image_partition ;
 
 
-    filesystem_dec_c(drive_info_c drive_info, unsigned drive_unit, storageimage_base_c *image_partition, uint64_t image_partition_size) ;
+    filesystem_dec_c(   storageimage_partition_c *image_partition) ;
 
     virtual ~filesystem_dec_c() override ;
 
@@ -164,24 +161,8 @@ public:
     virtual void init() = 0 ;
 
     virtual unsigned get_block_size() = 0 ; // != drive sector, filesystem specific
-    unsigned blockcount ; // actual size of filesystem, corrects static layout info
+    unsigned blockcount ; // actual size of filesystem, corrects static layout info and partition size
 
-	// ptr to first byte of block
-	uint64_t blocknr2offset(unsigned blocknr) {
-		return (uint64_t)get_block_size() * blocknr ;
-	}
-	// convert pointer in image to block
-	unsigned offset2blocknr(uint64_t image_offset) {
-		return image_offset / get_block_size() ;
-	}
-	// offset in block in bytes
-	unsigned offset2blockoffset(uint64_t image_offset) {
-		return image_offset % get_block_size() ;
-	}
-	
-
-	
-    boolarray_c *changed_blocks ;	 // visible to image
     unsigned needed_blocks(uint64_t byte_count) ;
     unsigned needed_blocks(unsigned block_size, uint64_t byte_count) ;
 
