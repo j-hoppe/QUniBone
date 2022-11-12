@@ -64,6 +64,13 @@ void strcpy_s(char *dest, int len, const char *src);
 
 #define USE(x) (void)(x)
 
+// string identifying source file and line
+// https://www.decompile.com/cpp/faq/file_and_line_error_string.htm
+#define STRINGIFY(x) #x    // a trick or de facto standard?
+#define TOSTRING(x) STRINGIFY(x)
+#define __FILE__LINE__ __FILE__ ":" TOSTRING(__LINE__)
+
+
 void SIGINTcatchnext();
 
 // dummy to have an executable line for break points
