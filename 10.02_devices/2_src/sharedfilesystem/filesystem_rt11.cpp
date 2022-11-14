@@ -277,8 +277,6 @@ filesystem_rt11_c::filesystem_rt11_c(	   storageimage_partition_c *_image_partit
     // create root dir.
     add_directory(nullptr, new directory_rt11_c() ) ;
     assert(rootdir->filesystem == this) ;
-//    rootdir = new directory_rt11_c() ; // simple list of files
-//    rootdir->filesystem = this ;
 
     // sort order for files. For regexes the . must be escaped by \.
     // and a * is .*"
@@ -505,23 +503,22 @@ void filesystem_rt11_c::stream_render(rt11_stream_c *stream)
 
 
 
-
 // needed dir segments for given count of entries
 // usable in 1 segment : 2 blocks - 5 header words
 // entry size = 7 words + dir_entry_extra_bytes
 unsigned filesystem_rt11_c::directory_entries_per_segment()
 {
     // without extra bytes: 72 [VFFM91] 1-15
-	unsigned space_for_entries = 2 * get_block_size() - /*5 header words */10 - /*EOS marker*/ 2 ;
-	unsigned size_of_entry = /* 7 words fix*/ 14 + dir_entry_extra_bytes ;
+    unsigned space_for_entries = 2 * get_block_size() - /*5 header words */10 - /*EOS marker*/ 2 ;
+    unsigned size_of_entry = /* 7 words fix*/ 14 + dir_entry_extra_bytes ;
     unsigned result = space_for_entries / size_of_entry ;
-/*	
-    int result = (2 * get_block_size() - 2 * 5) / (2 * 7 + dir_entry_extra_bytes);
+    /*
+        int result = (2 * get_block_size() - 2 * 5) / (2 * 7 + dir_entry_extra_bytes);
 
-    // in a segment 3 entries spare, including end-of-segment
-    assert(result > 3) ;
-    result -= 3;
-*/    
+        // in a segment 3 entries spare, including end-of-segment
+        assert(result > 3) ;
+        result -= 3;
+    */
     return result;
 }
 
@@ -701,7 +698,6 @@ void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _
     string fname = make_filename(_basename, _ext) ;
     file_base_c* fbase = file_by_path.get(fname);
     file_rt11_c* f = dynamic_cast<file_rt11_c*>(fbase);
-//    file_rt11_c* f = dynamic_cast<file_rt11_c*>(file_by_path(fname));
 
     assert(f == nullptr) ;
     f = new file_rt11_c(); // later own by rootdir
@@ -720,11 +716,11 @@ void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _
 }
 
 
-void filesystem_rt11_c::parse_homeblock()
+// result: false = home block empty
+bool filesystem_rt11_c::parse_homeblock()
 {
     uint16_t w;
     uint8_t *s ;
-    int i;
 
     // work on cache
     byte_buffer_c block_buffer(endianness_pdp11) ;
@@ -732,23 +728,27 @@ void filesystem_rt11_c::parse_homeblock()
 
     // first, verify home block
     bool all_zero = true ;
-    unsigned sum = 0;
+    unsigned actual_chksum = 0;
     homeblock_chksum = block_buffer.get_word_at_byte_offset(0776);
-//    homeblock_chksum = cache.get_word_at_byte_offset(0776);
-    // verify checksum. But found a RT-11 which writes 0000 here?
-    for (sum = i = 0; i < 0776; i += 2) {
+
+    // verify checksum.
+    for (unsigned i = actual_chksum = 0; i < get_block_size()-2; i += 2) {
         w = block_buffer.get_word_at_byte_offset(i);
-        sum += w ;
-        if (!w)
-            all_zero=false ;
+        actual_chksum += w ;
+        if (w != 0)
+            all_zero = false ;
     }
-    sum &= 0xffff;
+    actual_chksum &= 0xffff;
 
     if (all_zero)
-        throw filesystem_exception("parse_homeblock(): home block cleared to 0000s");
-    if (sum != homeblock_chksum)
+        return false ; // image empty: do not parse on.
+    // other errors throw exception
+
+    // speciality: at least RT11 v5.3 .INIT writes checksum always as 0 !
+    if (actual_chksum != homeblock_chksum && homeblock_chksum != 0) {
         throw filesystem_exception("parse_homeblock(): home block checksum error. Expected %06o, found %06o",
-                                   sum, homeblock_chksum);
+                                   homeblock_chksum, actual_chksum);
+    }
 
     // assume valid data
     // bad block bitmap not needed
@@ -778,13 +778,8 @@ void filesystem_rt11_c::parse_homeblock()
     strncpy(buffer, (char *)s, 12);
     buffer[12] = 0;
     system_id = string(buffer) ;
-    // !!! if everything is 00: valid checksum ?!
 
-    /*
-     if (sum != homeblock_chksum)
-     fprintf(flog, "Home block checksum error: is 0x%x, expected 0x%x\n", sum,
-     (int) homeblock_chksum);
-     */
+    return true ;
 }
 
 // point to start of  directory segment [i]
@@ -1001,7 +996,7 @@ void filesystem_rt11_c::parse_volumeinfo()
     text_buffer.append(line);
 
     sprintf(line, "\n# Block number of first %u byte directory segment\nfirst_dir_blocknr=%s\n",
-			2 * get_block_size(),
+            2 * get_block_size(),
             image_partition->block_nr_info(first_dir_blocknr));
     text_buffer.append(line);
 
@@ -1053,7 +1048,7 @@ void filesystem_rt11_c::parse_volumeinfo()
             text_buffer.append(" No prefix.");
         if (f->stream_data) {
             sprintf(line, " Data = %u blocks = 0x%x bytes, logical start block %s",
-                     needed_blocks(f->stream_data->size()), f->stream_data->size(),
+                    needed_blocks(f->stream_data->size()), f->stream_data->size(),
                     image_partition->block_nr_info(f->stream_data->start_block_nr));
             text_buffer.append(line);
         } else
@@ -1079,6 +1074,7 @@ void filesystem_rt11_c::parse_volumeinfo()
 //  file tree always valid, defective objects deleted
 void filesystem_rt11_c::parse()
 {
+    string parse_error ;
     std::exception_ptr eptr ;
 
     // events in the queue references streams, which get invalid on re-parse.
@@ -1087,17 +1083,21 @@ void filesystem_rt11_c::parse()
 
     init();
     try {
+        // if all_zero: empty image, no error, end with  empty filesystem
+        // else: parse errors are reported, also filesystem empty
+        if (parse_homeblock() ) {
 
-        parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, get_block_size()) ;
-        parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * get_block_size()) ;
+            parse_internal_blocks_to_file(RT11_BOOTBLOCK_BASENAME, RT11_BOOTBLOCK_EXT, 0, get_block_size()) ;
+            parse_internal_blocks_to_file(RT11_MONITOR_BASENAME, RT11_MONITOR_EXT, 2, 4 * get_block_size()) ;
 
-        parse_homeblock() ;
-        parse_directory() ;
+            parse_directory() ;
 
-        parse_file_data();
+            parse_file_data();
+        }
     }
     catch (filesystem_exception &e) {
         eptr = std::current_exception() ;
+        parse_error = e.what() ;
     }
     // in case of error: still cleanup
     // rt11_filesystem_print_diag(stderr);
@@ -1111,7 +1111,8 @@ void filesystem_rt11_c::parse()
     timer_debug_print(get_label() + " parse()") ;
 
     if (eptr != nullptr)
-        std::rethrow_exception(eptr);
+        WARNING("Error parsing filesystem: %s",  parse_error.c_str()) ;
+//        std::rethrow_exception(eptr);
 }
 
 
@@ -1264,7 +1265,7 @@ void filesystem_rt11_c::render_directory_entry(byte_buffer_c &block_buffer, file
     }
     // write dir_entry
     de_offset = 10 + de_nr * 2 * dir_entry_word_count;
-	// printf("block_nr=%u, ds_nr=%u, de_nr=%u, de_offset=%u\n", DIR_SEGMENT_BLOCK_NR(ds_nr), ds_nr, de_nr, de_offset) ;
+    // printf("block_nr=%u, ds_nr=%u, de_nr=%u, de_offset=%u\n", DIR_SEGMENT_BLOCK_NR(ds_nr), ds_nr, de_nr, de_offset) ;
     if (f == nullptr) {
         // write start of free chain: space after last file
         block_buffer.set_word_at_byte_offset(de_offset + 0, RT11_FILE_EMPTY);
@@ -1319,7 +1320,7 @@ void filesystem_rt11_c::render_directory_entry(byte_buffer_c &block_buffer, file
         }
     }
     // write end-of-segment marker behind dir_entry.
-	de_offset += 2 * dir_entry_word_count ; // point to byte behind
+    de_offset += 2 * dir_entry_word_count ; // point to byte behind
     block_buffer.set_word_at_byte_offset(de_offset, RT11_DIR_EEOS);
     // this EEOS is overwritten by next entry; and remains only in last entry of segment
 }
@@ -1345,7 +1346,7 @@ void filesystem_rt11_c::render_directory()
         // which entry in the segment?
         de_nr = dir_file_no % dir_entries_per_segment; // runs from 0
         if (next_ds_nr != ds_nr) { // move cache to next dir segment
-			// hexdump(cout, block_buffer.data_ptr(), block_buffer.size(), "dumping ds_nr=%u", ds_nr) ;
+            // hexdump(cout, block_buffer.data_ptr(), block_buffer.size(), "dumping ds_nr=%u", ds_nr) ;
             image_partition->set_blocks(&block_buffer, DIR_SEGMENT_BLOCK_NR(ds_nr)) ;
             ds_nr = next_ds_nr ;
             block_buffer.init_zero(2 * image_partition->block_size) ; // 1 seg = 2 blocks
@@ -1363,7 +1364,7 @@ void filesystem_rt11_c::render_directory()
     }
     render_directory_entry(block_buffer, nullptr, ds_nr, de_nr);
 
-	// hexdump(cout, block_buffer.data_ptr(), block_buffer.size(), "dumping ds_nr=%u", ds_nr) ;
+    // hexdump(cout, block_buffer.data_ptr(), block_buffer.size(), "dumping ds_nr=%u", ds_nr) ;
     image_partition->set_blocks(&block_buffer, DIR_SEGMENT_BLOCK_NR(ds_nr)) ;
 
 }

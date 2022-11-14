@@ -66,8 +66,8 @@ public:
     virtual ~storageimage_shared_c() override ;
     pthread_mutex_t mutex;
 
-    void lock() ; // mutex protection
-    void unlock() ;
+    void lock(const char *caller) ; // mutex protection, debuggable
+    void unlock(const char *caller) ;
 
 // memoryimage handling
 protected:

@@ -216,7 +216,7 @@ private:
 private:
 
     void parse_internal_blocks_to_file(string _basename, string _ext, uint32_t start_block_nr, uint32_t data_size) ;
-    void parse_homeblock() ;
+    bool parse_homeblock() ;
     void parse_directory() ;
     void parse_file_data() ;
     void parse_volumeinfo();

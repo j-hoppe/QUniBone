@@ -238,13 +238,17 @@ storageimage_shared_c::~storageimage_shared_c()
     pthread_mutex_destroy(&mutex) ;
 }
 
-void storageimage_shared_c::lock()
+void storageimage_shared_c::lock(const char *caller)
 {
+	UNUSED(caller) ;
+	// printf("lock(%s)\n", caller) ; // if you're lost ...
     pthread_mutex_lock(&mutex);
 }
 
-void storageimage_shared_c::unlock()
+void storageimage_shared_c::unlock(const char *caller)
 {
+	UNUSED(caller) ;
+	// printf("unlock(%s)\n", caller) ; // if you're lost ...
     pthread_mutex_unlock(&mutex);
 }
 
@@ -260,15 +264,15 @@ bool storageimage_shared_c::open(bool create)
     assert(filesystem_host == nullptr) ;
     assert(!image_path.empty()) ;
 
-    lock() ;
+    lock(__FILE__LINE__) ;
 
-    image  = new storageimage_binfile_c(image_path);
+    image = new storageimage_binfile_c(image_path);
 //    image = new storageimage_memory_c(drive_info.capacity);
 
     if (!image->open(create)) {
         delete image ;
         image = nullptr ;
-        unlock() ;
+        unlock(__FILE__LINE__) ;
         // image not opened, if filesystem invalid or dir not set
         return false ;
     }
@@ -282,11 +286,11 @@ bool storageimage_shared_c::open(bool create)
         image_partition_size = drive_info.bad_sector_file_offset ;
     else image_partition_size = image->size();
 
-    main_partition = new storageimage_partition_c(this, 0, image_partition_size, drive_unit) ;
+    main_partition = new storageimage_partition_c(image, 0, image_partition_size, drive_info, drive_unit) ;
     if (drive_info.bad_sector_file_offset) {
         // write empty bad sector files to some disks, on highest track/cylinder
-        std144_partition = new storageimage_partition_c(this, drive_info.bad_sector_file_offset,
-                image->size()- drive_info.bad_sector_file_offset, drive_unit) ;
+        std144_partition = new storageimage_partition_c(image, drive_info.bad_sector_file_offset,
+		        drive_info.capacity - drive_info.bad_sector_file_offset, drive_info, drive_unit) ;
         image_write_std144_bad_sector_table() ;
     } else {
         std144_partition = nullptr ;
@@ -304,7 +308,7 @@ bool storageimage_shared_c::open(bool create)
     } else {
         delete image ;
         image = nullptr ;
-        unlock() ;
+        unlock(__FILE__LINE__) ;
         // image not opened, if filesystem invalid or dir not set
         return false ;
     }
@@ -364,7 +368,7 @@ bool storageimage_shared_c::open(bool create)
         if (status != 0)
             FATAL("Failed to create storageimage_shared_c.syncer_pthread with status = %d", status);
     }
-    unlock() ;
+    unlock(__FILE__LINE__) ;
 
     return true ;
 }
@@ -484,13 +488,13 @@ void storageimage_shared_c::read(uint8_t *buffer, uint64_t position, unsigned le
         ERROR("sharedfilesystem::storageimage_shared_c::read(): image %s %d closed", drive_info.device_name.c_str(), drive_unit);
         return ;
     }
-    lock();
+    lock(__FILE__LINE__);
 
     image->read(buffer, position, len) ;
 
     image_data_pdp_access(/*changing*/false) ; // time access for syncer
 
-    unlock();
+    unlock(__FILE__LINE__);
 }
 
 
@@ -505,7 +509,7 @@ void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned l
         return ;
     }
 
-    lock();
+    lock(__FILE__LINE__);
 
     image->write(buffer, position, len) ;
 
@@ -518,7 +522,7 @@ void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned l
         main_partition->on_image_block_write(blknr * block_size) ; // start position of all blocks
     // boolarray_print_diag(_this->changedblocks, stderr, _this->block_count, "IMAGE");
 
-    unlock();
+    unlock(__FILE__LINE__);
     //return count
 }
 
@@ -673,7 +677,7 @@ void storageimage_shared_c::sync_worker()
     while (!syncer_terminate) {
         timeout_c::wait_ms(1000) ; // TEST inotify
 
-        lock() ; // block PDP access to image
+        lock(__FILE__LINE__) ; // block PDP access to image
 
         // A.1 poll host for changes, also recognizes "stable" condition
         // (inotifys are synced with file access, so no need to wait for "stable")
@@ -719,7 +723,7 @@ void storageimage_shared_c::sync_worker()
         }
 
 
-        unlock() ;
+        unlock(__FILE__LINE__) ;
     }
 }
 

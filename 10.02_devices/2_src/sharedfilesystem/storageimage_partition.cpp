@@ -77,14 +77,14 @@
 
 namespace sharedfilesystem {
 
-storageimage_partition_c::storageimage_partition_c(storageimage_shared_c*_image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
-        unsigned _drive_unit)
+storageimage_partition_c::storageimage_partition_c(storageimage_base_c*_image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
+        drive_info_c _drive_info, unsigned _drive_unit)
 {
     image = _image ;
     image_position = _image_byte_offset ;
     size = _image_partition_size ;
 
-    drive_info = image->drive_info ; // copy from image
+    drive_info = _drive_info ; 
     drive_unit = _drive_unit ;
 
     // set later by file system
@@ -92,7 +92,7 @@ storageimage_partition_c::storageimage_partition_c(storageimage_shared_c*_image,
     block_count = 0 ;
 
     // fits onto disk?
-    assert(image_position + size <= image->drive_info.capacity);
+    assert(image_position + size <= drive_info.capacity);
 }
 
 
@@ -162,10 +162,10 @@ void storageimage_partition_c::set_blocks_zero(uint32_t _start_block_nr, uint32_
 
 
 // the disk driver changed a data block on the image, block = sector
+// TODO: interleave
 void storageimage_partition_c::on_image_block_write(uint64_t changed_position) {
     assert(changed_position >= image_position) ;
     assert(changed_position < image_position + block_count * block_size) ;
-    // TODO: interleave
     unsigned block_nr = get_position_from_image(changed_position) / block_size ;
     changed_blocks.at(block_nr) = true ;
 //    printf("storageimage_partition_c::on_image_block_write(): image_position =0x%llx, partition block = %s\n",
@@ -174,6 +174,7 @@ void storageimage_partition_c::on_image_block_write(uint64_t changed_position) {
 
 
 // use like: printf("Logical block %s", block_nr_info(block_nr)) ;
+// TODO: interleave
 char *storageimage_partition_c::block_nr_info(unsigned block_nr)
 {
     static char buffer[80] ;

@@ -80,7 +80,7 @@ class storageimage_shared_c ;
 
 class storageimage_partition_c {
 public:
-    storageimage_shared_c *image ;
+    storageimage_base_c *image ;
     uint64_t image_position; // position on image in bytes
     uint64_t size ; // len in bytes
 
@@ -88,8 +88,8 @@ public:
     unsigned block_size ; // must be a multiple of physical image->block_size
     unsigned block_count ; // size is block_size * block_count
 
-    storageimage_partition_c(storageimage_shared_c *image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
-			unsigned drive_unit) ;
+    storageimage_partition_c(storageimage_base_c *image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
+			drive_info_c _drive_info, unsigned drive_unit) ;
     ~storageimage_partition_c()	;
 
 	drive_info_c drive_info ; // copy from image

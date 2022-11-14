@@ -133,11 +133,11 @@ public:
         xxdp_blocknr_t block_nr = block->get_next_block_nr() ;
         if (block_nr == 0)
             return nullptr ;
-        return get_block_by_nr(block_nr) ;
+        return get_block_by_block_nr(block_nr) ;
     }
 
 
-    xxdp_linked_block_c *get_block_by_nr(xxdp_blocknr_t block_nr);
+    xxdp_linked_block_c *get_block_by_block_nr(xxdp_blocknr_t block_nr);
 
 //    xxdp_blocknr_t get_next_block_nr(xxdp_blocknr_t block_nr) ;
 
@@ -195,10 +195,8 @@ public:
 
     xxdp_blocknr_t start_block_nr; // start block, from UFD
     xxdp_blocknr_t last_block_nr ; // from UFD
-	unsigned linked_block_count ; // info after render/parse
-    
 
-	// these blocks are allocated, but no necessarily all used
+    // these blocks are allocated, but no necessarily all used
     xxdp_block_nr_list_c block_nr_list; // if linked block list, not for contiguous
 
     xxdp_blocknr_t block_count ; // saved blockcount from UFD.
@@ -342,7 +340,7 @@ private:
 
     // parser
 private:
-    void parse_mfd_load_bitmap_ufd() ;
+    bool parse_mfd_load_bitmap_ufd() ;
     void parse_bitmap() ;
     void parse_internal_contiguous_file(string _basename, string _ext,
                                         xxdp_blocknr_t _start_blocknr, xxdp_blocknr_t _block_count)	 ;
