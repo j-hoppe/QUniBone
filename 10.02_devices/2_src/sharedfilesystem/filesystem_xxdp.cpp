@@ -827,10 +827,9 @@ bool filesystem_xxdp_c::is_file_blocklist_changed(file_xxdp_c *f)
     for (unsigned i = 0 ; !result && i < f->block_nr_list.size() ; i++) {
         xxdp_blocknr_t block_nr = f->block_nr_list[i] ;
         result |= image_partition->changed_blocks.at(block_nr);
-        if (result) {
-            printf("f=%s, block_nr=%u @ %x\n", f->get_filename().c_str(),
-                   (unsigned)block_nr, (unsigned)block_nr*512 ) ;
-        }
+        if (result)
+            DEBUG(printf_to_cstr("%s: is_file_blocklist_changed(),  f=%s, block_nr=%s", get_label().c_str(),
+                                 f->get_filename().c_str(), image_partition->block_nr_info(block_nr)))  ;
     }
     return result ;
 }
