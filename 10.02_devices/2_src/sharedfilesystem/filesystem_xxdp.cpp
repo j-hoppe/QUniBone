@@ -850,8 +850,8 @@ void filesystem_xxdp_c::calc_change_flags()
 
     // volume info changed?
     f = dynamic_cast<file_xxdp_c *>(file_by_path.get(volume_info_filename)) ;
-    if (f)
-        f->changed = struct_changed ;
+    if (f && struct_changed)
+        f->changed = true ;
 
     // boot block and monitor are files
     for (unsigned i = 0; i < file_count(); i++) {
@@ -1557,16 +1557,17 @@ void filesystem_xxdp_c::render_mfd()
 // block_list[] already allocated and linked by calc_layout()
 void filesystem_xxdp_c::render_ufd()
 {
+    unsigned ufd_file_no = 0 ; // count only files in directory, not internals
     for (unsigned file_idx = 0; file_idx < file_count(); file_idx++) {
         file_xxdp_c *f = file_get(file_idx);
         if (f->internal)
             continue ;
 
-        xxdp_blocknr_t ufd_relative_block_nr = file_idx / XXDP_UFD_ENTRIES_PER_BLOCK ;
+        xxdp_blocknr_t ufd_relative_block_nr = ufd_file_no / XXDP_UFD_ENTRIES_PER_BLOCK ;
         xxdp_linked_block_c *ufd_block = &ufd_block_list[ufd_relative_block_nr] ;
 
         // word nr of cur entry in cur block. skip link word.
-        int ufd_word_offset = 1 + (file_idx % XXDP_UFD_ENTRIES_PER_BLOCK) * XXDP_UFD_ENTRY_WORDCOUNT;
+        int ufd_word_offset = 1 + (ufd_file_no % XXDP_UFD_ENTRIES_PER_BLOCK) * XXDP_UFD_ENTRY_WORDCOUNT;
 
         char buff[80];
         // filename chars 0..2
@@ -1587,6 +1588,8 @@ void filesystem_xxdp_c::render_ufd()
         ufd_block->set_word_at_word_offset(ufd_word_offset + 6, f->block_count); // file length in blocks
         ufd_block->set_word_at_word_offset(ufd_word_offset + 7, f->last_block_nr); // last block
         ufd_block->set_word_at_word_offset(ufd_word_offset + 8, 0); // ACT-11 logical 52
+
+        ufd_file_no++ ;
     }
     ufd_block_list.write_to_image() ;
 }
