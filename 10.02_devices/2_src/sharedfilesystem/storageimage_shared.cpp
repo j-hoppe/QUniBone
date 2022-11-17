@@ -387,10 +387,11 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
 
     unsigned table_count ; // == used sectors
     if (drive_info.drive_type == devRL01) {
-        std144_partition->set_block_size(drive_info.sector_size) ; // 512
+		// two sectors à 128 words, 20 double-sector blocks per track
+        std144_partition->set_block_size(512) ; // two sectors a 128 words
         table_count = 10 ; // SimH
     } else if (drive_info.drive_type == devRL02) {
-        std144_partition->set_block_size(drive_info.sector_size) ; // 512
+        std144_partition->set_block_size(512) ; 
         table_count = 10 ; // SimH
         //	}	else if (drive_info.drive_type == devRK067) {
         // complex repeated geometry
