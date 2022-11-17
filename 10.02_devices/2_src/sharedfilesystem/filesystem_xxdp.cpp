@@ -1562,8 +1562,8 @@ void filesystem_xxdp_c::render_ufd()
         if (f->internal)
             continue ;
 
-        xxdp_blocknr_t ufd_block_nr = layout_info.ufd_block_1 + (file_idx / XXDP_UFD_ENTRIES_PER_BLOCK);
-        xxdp_linked_block_c *ufd_block = &ufd_block_list[ufd_block_nr] ;
+        xxdp_blocknr_t ufd_relative_block_nr = file_idx / XXDP_UFD_ENTRIES_PER_BLOCK ;
+        xxdp_linked_block_c *ufd_block = &ufd_block_list[ufd_relative_block_nr] ;
 
         // word nr of cur entry in cur block. skip link word.
         int ufd_word_offset = 1 + (file_idx % XXDP_UFD_ENTRIES_PER_BLOCK) * XXDP_UFD_ENTRY_WORDCOUNT;
