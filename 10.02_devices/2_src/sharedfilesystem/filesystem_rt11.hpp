@@ -219,9 +219,10 @@ private:
     bool parse_homeblock() ;
     void parse_directory() ;
     void parse_file_data() ;
-    void parse_volumeinfo();
+	
 public:
     void parse()   override ;
+	void produce_volume_info(std::stringstream &buffer) override ;
 
 
 private:

@@ -356,6 +356,8 @@ bool storageimage_shared_c::open(bool create)
         // snapshot is clear, so all files are created on host
         sync_dec_filesystem_events_to_host() ;
     }
+	filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
+
     sync_dec_snapshot() ; // init snapshot
     filesystem_host->changed = false ;
     filesystem_dec->changed = false ;
@@ -633,12 +635,14 @@ void storageimage_shared_c::sync_host_filesystem_events_to_dec()
             auto event = dynamic_cast<filesystem_host_event_c*>(filesystem_host->event_queue.pop()) ;
             assert(event) ;
             filesystem_host->update_event(event) ;
-            filesystem_dec->consume_event(event) ;
+			filesystem_dec->consume_event(event) ;
         }
+//		assert(filesystem_dec->changed) ; // has processed events
 
 //        filesystem_dec->debug_print("sync_host_filesystem_events_to_dec()") ;
         //filesystem_dec->file_by_path.debug_print("DEC") ;
-        filesystem_dec->render() ;
+        if (filesystem_dec->changed) // events may get filtered (host volume info)
+	        filesystem_dec->render() ;
 //        image->save_to_file("/tmp/sync_worker_2.dump") ;
     }
 
@@ -666,7 +670,6 @@ void storageimage_shared_c::sync_host_restart()
 }
 
 
-
 // polls for changes in the PDP image and on shared host filesystem
 // !! runs in parallel thread -> mutex !!
 void storageimage_shared_c::sync_worker()
@@ -680,7 +683,7 @@ void storageimage_shared_c::sync_worker()
 
         lock(__FILE__LINE__) ; // block PDP access to image
 
-        // A.1 poll host for changes, also recognizes "stable" condition
+        // Poll host for changes and produce host events, also recognizes "stable" condition
         // (inotifys are synced with file access, so no need to wait for "stable")
         sync_host_shared_dir_to_filesystem_and_events() ; // updates host_filesystem_changed
         bool host_filesystem_stable = ( now_ms() - filesystem_host->change_time_ms) > 1000 ;
@@ -688,31 +691,34 @@ void storageimage_shared_c::sync_worker()
         // is operation on these filesystem allowed? probably no further access now
         bool dec_image_stable = ( now_ms() - dec_image_change_time_ms) > 1000 ;
 
-
         // wait until operations on shared dir and DEC image completed
         if (host_filesystem_stable && dec_image_stable) {
 
-            // A.2 Update DEC fileystem from image and generate change events
-//            if (dec_image_changed)
-//                sync_dec_image_to_filesystem_and_events() ; // may change filesystem_dec->changed
-
-            // B. consume DEC and host events to update the respective other side
+            // Consume DEC and host events to update the respective other side
             // ! Produces new ack-events on the other side, which are ignored.
             // ! parallel changes in the DEC image are lost
             // ! parallel changes on the host remain, but are not synced to DEC.
 
-            // render DEC file system again if no host events for 1 sec
-            sync_host_filesystem_events_to_dec() ;
+            // Consume host events, render DEC file system if no more host events for 1 sec
+            sync_host_filesystem_events_to_dec() ; // if events: render DEC
             filesystem_host->changed = false ; // events produced -> changes processed
 
             // if one side has changed, the other is also changed now.
             // reset producer, and wipe ack-events on consumer
-            if (dec_image_changed || filesystem_dec->changed) {
+            if (dec_image_changed /*|| filesystem_dec->changed*/) {
+				// parse dec
                 sync_dec_image_to_filesystem_and_events() ; // may change filesystem_dec->changed
                 // changed by DEC write() or sync_host_filesystem_events_to_dec()
                 sync_dec_snapshot() ;
-            }
-            filesystem_dec->changed = false ;
+				
+       	    }
+
+			// the volumne info file on host must be updated when DEC filesystem has changed
+			// changed by image_change and parse(), or consumed host events
+			if (filesystem_dec->changed)
+				filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
+		 
+            filesystem_dec->changed = false ; // only reset point!
             dec_image_changed = false ;
 
             // update host. triggered by sync_dec_image_to_filesystem_and_events() or sync_host_filesystem_events_to_dec()

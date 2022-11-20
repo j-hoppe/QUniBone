@@ -274,6 +274,8 @@ filesystem_rt11_c::filesystem_rt11_c(	   storageimage_partition_c *_image_partit
 
     image_partition->set_block_size(layout_info.block_size) ; // 256 words, fix for RT11, independent of disk (RX01,2?)
 
+    volume_info_host_path = "/" + make_filename(RT11_VOLUMEINFO_BASENAME, RT11_VOLUMEINFO_EXT) ;
+
     // create root dir.
     add_directory(nullptr, new directory_rt11_c() ) ;
     assert(rootdir->filesystem == this) ;
@@ -950,87 +952,69 @@ void filesystem_rt11_c::parse_file_data()
 }
 
 // fill the pseudo file with textual volume information
-void filesystem_rt11_c::parse_volumeinfo()
+void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
 {
-    file_rt11_c* fout = dynamic_cast<file_rt11_c*>(file_by_path.get(volume_info_filename));
-    if (fout == nullptr) {
-        fout = new file_rt11_c(); // later owned by rootdir
-        fout->internal = true ;
-        fout->basename = RT11_VOLUMEINFO_BASENAME ;
-        fout->ext  = RT11_VOLUMEINFO_EXT ;
-        fout->block_nr = 0; // not needed
-        fout->block_count = 0 ;
-        fout->readonly = true ;
-
-        rootdir->add_file(fout); // before stream creation
-
-        // other properties from init()
-        fout->stream_data = new rt11_stream_c(fout, "");
-        fout->stream_data->host_path = fout->stream_data->get_host_path() ;
-    }
-
-    // volume info is synthetic, maps not from disk area
-    // so own buffer.  freed by ~file_dec_stream_c()
-    string text_buffer ; // may grow large, but data kept on heap
-
     // 1. generate the data
     char line[1024];
 
+    buffer.str(""); // empty
+    buffer.clear() ; // reset errors
+
     sprintf(line, "# %s - info about RT-11 volume on %s device #%u.\n",
             volume_info_filename.c_str(), image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
-    text_buffer.append(line) ;
+    buffer << line ;
 
     time_t t = time(NULL); // now
     struct tm tm = *localtime(&t);
-    fout->modification_time = tm ;
-    sprintf(line, "# Produced by QUniBone at %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900,
+
+    sprintf(line, "# Produced by QUniBone at %d-%d-%d %d:%02d:%02d\n", tm.tm_year + 1900,
             tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\nLogical block size = %d bytes.\n", get_block_size());
-    text_buffer.append(line);
+    buffer << line ;
     sprintf(line, "Physical device block size = %d bytes.\n", image_partition->drive_info.sector_size);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\npack_cluster_size=%d\n", pack_cluster_size);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# Block number of first %u byte directory segment\nfirst_dir_blocknr=%s\n",
             2 * get_block_size(),
             image_partition->block_nr_info(first_dir_blocknr));
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\nsystem_version=%s\n", system_version.c_str());
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\nvolume_id=%s\n", volume_id.c_str());
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\nowner_name=%s\n", owner_name.c_str());
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\nsystem_id=%s\n", system_id.c_str());
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# number of logical %d byte blocks on partition\nblock_count=%d\n",
             get_block_size(), blockcount);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# number of extra bytes per directory entry\ndir_entry_extra_bytes=%d\n",
             dir_entry_extra_bytes);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# Total number of segments in this directory (can hold %d files) \n"
             "dir_total_seg_num=%d\n",
             directory_entries_per_segment() * dir_total_seg_num, dir_total_seg_num);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# Number of highest dir segment in use\ndir_max_seg_nr=%d\n",
             dir_max_seg_nr);
-    text_buffer.append(line);
+    buffer << line ;
 
     sprintf(line, "\n# Start block of file area = %s\n", image_partition->block_nr_info(file_space_blocknr));
-    text_buffer.append(line);
+    buffer << line ;
 
     unsigned dir_file_no = 0 ; // count only files in directory, not internals
     for (unsigned i = 0; i < file_count(); i++) {
@@ -1038,32 +1022,25 @@ void filesystem_rt11_c::parse_volumeinfo()
         if (f->internal)
             continue ;
         sprintf(line, "\n# File %2d \"%s\".", dir_file_no, f->get_filename().c_str());
-        text_buffer.append(line);
+        buffer << line ;
         if (f->stream_prefix) {
             sprintf(line, " Prefix %u = 0x%x bytes, logical start block %s.",
                     f->stream_prefix->size(), f->stream_prefix->size(),
                     image_partition->block_nr_info(f->stream_prefix->start_block_nr));
-            text_buffer.append(line);
+            buffer << line ;
         } else
-            text_buffer.append(" No prefix.");
+            buffer << " No prefix." ;
         if (f->stream_data) {
             sprintf(line, " Data = %u blocks = 0x%x bytes, logical start block %s",
                     needed_blocks(f->stream_data->size()), f->stream_data->size(),
                     image_partition->block_nr_info(f->stream_data->start_block_nr));
-            text_buffer.append(line);
+            buffer << line ;
         } else
-            text_buffer.append(" No data.");
+            buffer << " No data." ;
         dir_file_no++ ;
     }
 
-    text_buffer.append("\n");
-
-    // ?? assert(text_buffer.size() < fout->stream_data->size()) ;
-    fout->stream_data->set_data(&text_buffer) ;
-    fout->file_size = fout->stream_data->size() ;
-
-    // VOLUM INF is "changed", if home block or directories changed
-    fout->stream_data->changed = struct_changed;
+    buffer << "\n" ;
 }
 
 
@@ -1104,9 +1081,6 @@ void filesystem_rt11_c::parse()
 
     // mark file->data , ->prefix as changed, for changed image blocks
     calc_change_flags();
-
-    //  data now stable, generate internal volume info text last
-    parse_volumeinfo() ;
 
     timer_debug_print(get_label() + " parse()") ;
 
@@ -1436,8 +1410,6 @@ void filesystem_rt11_c::render()
     render_directory();
     render_file_data();
 
-    parse_volumeinfo() ;
-
     timer_debug_print(get_label() + " render()") ;
 }
 
@@ -1548,6 +1520,12 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     if (f != nullptr || stream != nullptr) {
         DEBUG(printf_to_cstr("%s: Ignore \"create\" event for existing filename/stream %s.%s %s", get_label().c_str(),
                              _basename.c_str(), _ext.c_str(), stream_code.c_str()));
+        return ;
+    }
+
+    // files with zero size not possible under RT11:
+    if (host_file->file_size == 0) {
+        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str())) ;
         return ;
     }
 

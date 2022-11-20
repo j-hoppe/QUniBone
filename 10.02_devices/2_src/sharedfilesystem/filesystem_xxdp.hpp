@@ -362,8 +362,8 @@ public:
     void render() override ;
 
     // files
-    void parse_volumeinfo() ;
-
+	void produce_volume_info(std::stringstream &buffer) override ;
+	
     void import_host_file(file_host_c *host_file) override ;
     void delete_host_file(string host_path) override ;
 

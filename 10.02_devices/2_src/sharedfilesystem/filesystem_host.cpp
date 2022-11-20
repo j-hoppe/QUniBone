@@ -401,9 +401,12 @@ string filesystem_host_c::get_host_path(file_base_c *f)
     return result ;
 }
 
+// empty path allowed
 string filesystem_host_c::get_absolute_filepath(string path)
 {
     string result = rootpath ;
+	if (path.empty()) 
+		return result ;
 
     // the local path begins usally with a "/", don't double it
     if (path.at(0) != '/')

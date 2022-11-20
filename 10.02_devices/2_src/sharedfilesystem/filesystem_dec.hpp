@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <queue>
 #include <vector>
+#include <sstream>
 
 #include "utils.hpp"
 #include "storageimage.hpp"
@@ -62,7 +63,7 @@ public:
     file_dec_stream_c *dec_stream ;
     filesystem_dec_event_c() ;
     filesystem_dec_event_c(          enum operation_e _operation,
-                                     string _host_path, bool _is_dir, file_dec_stream_c *_stream)	 ;
+                                     std::string _host_path, bool _is_dir, file_dec_stream_c *_stream)	 ;
     ~filesystem_dec_event_c() override {}
     virtual string as_text() override ;
 } ;
@@ -198,7 +199,13 @@ public:
 
     virtual void render() = 0 ;
 
-    virtual string filename_from_host(string *hostfname, string *result_filnam, string *result_ext) = 0 ;
+    virtual std::string filename_from_host(string *hostfname, string *result_filnam, string *result_ext) = 0 ;
+
+	std::string volume_info_host_path ;
+
+	virtual void produce_volume_info(std::stringstream &buffer) = 0 ;
+
+	virtual void update_host_volume_info(std::string rootpath) ;
 
     virtual	void print_directory(FILE *stream) = 0 ;
     virtual	void print_diag(FILE *stream) = 0 ;

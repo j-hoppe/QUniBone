@@ -145,6 +145,8 @@ private:
     void sync_host_filesystem_events_to_dec() ;
     void sync_dec_snapshot() ;
     void sync_host_restart() ;
+	void sync_update_host_volume_info() ;
+	
 
 
 

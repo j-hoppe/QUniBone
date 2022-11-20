@@ -209,6 +209,21 @@ void filesystem_dec_c::consume_event(filesystem_host_event_c *event)
     delete event ;
 }
 
+// create file system info and write to host
+// VOLUMNE INFO not part of DEC filesystem, but part of host file system
+void filesystem_dec_c::update_host_volume_info(std::string root_path)
+{
+    std::stringstream buffer ;
+// printf("DEC filesystem changed, %s updated\n", volume_info_host_path.c_str()) ;
+
+    produce_volume_info(buffer) ;
+    ofstream fout(root_path + "/" + volume_info_host_path) ;
+    fout << buffer.str() ;
+
+    // host event to ignore list !!!
+    // additionally: host event for file creation must be filtered by filesystem_dec->import_host_file()
+    ack_event_filter.add(volume_info_host_path) ;
+}
 
 
 } // namespace

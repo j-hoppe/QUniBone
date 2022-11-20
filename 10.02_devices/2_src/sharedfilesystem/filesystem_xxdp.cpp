@@ -434,6 +434,8 @@ filesystem_xxdp_c::filesystem_xxdp_c(       storageimage_partition_c *_image_par
 
     image_partition->set_block_size(layout_info.block_size) ; // 256 words, fix for XXDP, independent of disk (RX01,2?)
 
+    volume_info_host_path = "/" + make_filename(XXDP_VOLUMEINFO_BASENAME, XXDP_VOLUMEINFO_EXT) ;
+
     // create root dir.
     add_directory(nullptr, new directory_xxdp_c() ) ;
     assert(rootdir->filesystem == this) ;
@@ -1292,116 +1294,92 @@ void filesystem_xxdp_c::parse_file_data(file_xxdp_c *f)
     block_list.write_to_file_buffer(f) ;
 }
 
+
 // fill the pseudo file with textual volume information
-// it never changes
-void filesystem_xxdp_c::parse_volumeinfo()
+void filesystem_xxdp_c::produce_volume_info(std::stringstream &buffer)
 {
-    file_xxdp_c* fout = dynamic_cast<file_xxdp_c*>(file_by_path.get(volume_info_filename));
-    if (fout == nullptr) {
-        fout = new file_xxdp_c(); // later owned by rootdir
-        fout->internal = true ;
-        fout->basename = XXDP_VOLUMEINFO_BASENAME ;
-        fout->ext  = XXDP_VOLUMEINFO_EXT ;
-        fout->start_block_nr = 0; // not needed
-        fout->block_count = 0 ;
-        fout->readonly = true ;
-
-        rootdir->add_file(fout); // before stream creation
-        fout->host_path = fout->get_host_path() ;  // after insert into filesystem!
-    }
-
-    string text_buffer ; // may grow large, but data kept on heap
-
     char line[1024];
 
     sprintf(line, "# %s - info about XXDP volume on %s device #%u.\n",
             volume_info_filename.c_str(), image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
-    text_buffer.append(line);
+    buffer << line;
 
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    sprintf(line, "# Produced by QUnibone at %d-%d-%d %d:%d:%d\n", tm.tm_year + 1900,
+    sprintf(line, "# Produced by QUnibone at %d-%d-%d %d:%02d:%02d\n", tm.tm_year + 1900,
             tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-    text_buffer.append(line);
+    buffer << line;
 
     sprintf(line, "\n# Logical blocks on device\nblockcount=%d (XXDP doc says %d)\n", blockcount, layout_info.blocks_num);
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "\nLogical block size = %d bytes.\n", get_block_size());
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "Physical device block size = %d bytes.\n", image_partition->drive_info.sector_size);
-    text_buffer.append(line);
+    buffer << line;
 
     sprintf(line, "prealloc_blocks_num=%d (XXDP doc says %d)\n", (unsigned) preallocated_blockcount, layout_info.prealloc_blocks_num);
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "interleave=%d (XXDP doc says %d)\n", interleave, layout_info.interleave);
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "boot_block=%s\n", image_partition->block_nr_info(layout_info.boot_block_nr));
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "monitor_block=%s (XXDP doc says %d)\n", image_partition->block_nr_info(monitor_start_block_nr),
             layout_info.monitor_core_image_start_block_nr);
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "monitor_blockcount=%d (all remaining preallocated blocks, XXDP doc says %d) \n",
             (unsigned)  monitor_max_block_count, layout_info.monitor_block_count);
-    text_buffer.append(line);
+    buffer << line;
 
     sprintf(line, "\n# Master File Directory\n") ;
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "variety = %d (Var1: MFD1+MFD2, Var2: MFD1/2, XXDP doc says %d)\n",
             mfd_variety, layout_info.mfd2 < 0 ? 2 : 1) ;
-    text_buffer.append(line);
+    buffer << line;
     sprintf(line, "mfd1=%d\n", layout_info.mfd1); // = mfd_start_block_nr
-    text_buffer.append(line);
+    buffer << line;
     if (layout_info.mfd2 > 0) {
         sprintf(line, "mfd2=%d\n", layout_info.mfd2);
-        text_buffer.append(line);
+        buffer << line;
     }
     if (bitmap.block_list.size() == 0) {
         sprintf(line, "\n# NO bitmap, empty image.\n");
-        text_buffer.append(line);
+        buffer << line;
     } else  {
         sprintf(line, "\n# Bitmap of used blocks:\nbitmap_block_1=%s (XXDP doc says %d)\n",
                 image_partition->block_nr_info(bitmap.block_list[0].get_block_nr()), layout_info.bitmap_block_1);
-        text_buffer.append(line);
+        buffer << line;
         sprintf(line, "bitmaps_num=%d (XXDP doc says %d)\n",  bitmap.block_list.size(), layout_info.bitmap_block_count);
-        text_buffer.append(line);
+        buffer << line;
     }
 
     if (bitmap.block_list.size() == 0) {
         sprintf(line, "\n# NO User File Directory, empty image\n");
-        text_buffer.append(line);
+        buffer << line;
     } else {
         sprintf(line, "\n# User File Directory:\nufd_block_1=%s (XXDP doc says %d)\n",
                 image_partition->block_nr_info(ufd_block_list[0].get_block_nr()), layout_info.ufd_block_1);
-        text_buffer.append(line);
+        buffer << line;
         sprintf(line, "ufd_blocks_num=%d (XXDP doc says %d)\n",
                 ufd_block_list.size(), layout_info.ufd_blocks_num);
-        text_buffer.append(line);
+        buffer << line;
     }
 
+    unsigned dir_file_no = 0 ; // count only files in directory, not internals
     for (unsigned file_idx = 0; file_idx < file_count(); file_idx++) {
         file_xxdp_c *f = file_get(file_idx);
         if (f->internal)
             continue ;
-        sprintf(line, "\n# File %2d \"%s.%s\".", file_idx, f->basename.c_str(), f->ext.c_str());
-        text_buffer.append(line);
+        sprintf(line, "\n# File %2d \"%s.%s\".", dir_file_no, f->basename.c_str(), f->ext.c_str());
+        buffer << line;
         assert(f->block_nr_list.size() > 0) ;
         sprintf(line, " Data = %u linked blocks = 0x%x bytes, logical start block %s.",
                 f->block_count, f->file_size,
                 image_partition->block_nr_info(f->start_block_nr));
-        text_buffer.append(line);
+        buffer << line;
+        dir_file_no++ ;
     }
-
-    text_buffer.append("\n");
-
-    fout->set_data(&text_buffer) ;
-    fout->file_size = fout->size() ; // stream -> file
-
-    // VOLUM INF is "changed", if home block or directories changed
-    fout->changed = struct_changed;
+    buffer << "\n" ;
 }
-
-
-
 
 
 // analyse the image, build filesystem data structure
@@ -1445,9 +1423,6 @@ void filesystem_xxdp_c::parse()
     }
 
     calc_change_flags();
-
-    //  data now stable, generate internal volume info text last
-    parse_volumeinfo() ;
 
 //    print_directory(stdout) ;
     timer_debug_print(get_label() + " parse()") ;
@@ -1674,8 +1649,6 @@ void filesystem_xxdp_c::render()
 
     render_file_data();
 
-    parse_volumeinfo() ;
-
     timer_debug_print(get_label() + " render()") ;
 
 }
@@ -1703,7 +1676,6 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
     if (host_file->parentdir->parentdir != nullptr)
         return ; // file in host root subdirectory
 
-
     string host_fname = host_file->get_filename(); // XXDP:  path == name
 
     // make filename.extension to "FILN  .E  "
@@ -1719,6 +1691,13 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
                              _basename.c_str(), _ext.c_str())) ;
         return ;
     }
+
+    // files with zero size not possible under XXDP:
+    if (host_file->file_size == 0) {
+        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str())) ;
+        return ;
+    }
+
 
     host_file->data_open(/*write*/ false) ; // need file size early
 
