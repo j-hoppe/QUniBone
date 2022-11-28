@@ -277,7 +277,6 @@ public:
 
 } ;
 
-#endif
-
+#endif // __BYTEBUFFER_HPP_
 
 

@@ -38,5 +38,5 @@
  */
 #include "bytebuffer.hpp"
 
-
+// all methods in hpp, for better inlining
 
