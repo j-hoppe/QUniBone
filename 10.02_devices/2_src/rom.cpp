@@ -147,7 +147,7 @@ void rom_c::install(void) {
 	// check whether all cells are in IOpage
 
 	// register onto QBUS/UNIBUS IOpage
-	// if a IOpage address is already marked as "devcie register"
+	// if a IOpage address is already marked as "device register"
 	// that address is silently NOT defined to be a ROM
 	// so ROM ranges may be superseded with registers 
 	// (M9312, 773024/26)
