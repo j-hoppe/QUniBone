@@ -240,15 +240,15 @@ storageimage_shared_c::~storageimage_shared_c()
 
 void storageimage_shared_c::lock(const char *caller)
 {
-	UNUSED(caller) ;
-	// printf("lock(%s)\n", caller) ; // if you're lost ...
+    UNUSED(caller) ;
+    // printf("lock(%s)\n", caller) ; // if you're lost ...
     pthread_mutex_lock(&mutex);
 }
 
 void storageimage_shared_c::unlock(const char *caller)
 {
-	UNUSED(caller) ;
-	// printf("unlock(%s)\n", caller) ; // if you're lost ...
+    UNUSED(caller) ;
+    // printf("unlock(%s)\n", caller) ; // if you're lost ...
     pthread_mutex_unlock(&mutex);
 }
 
@@ -279,18 +279,29 @@ bool storageimage_shared_c::open(bool create)
 
 
     // Partitions:
-    // the file system occupies only part of the image:
+    // On some disks the file system occupies only part of the image:
     // from start until the bad sector table.
     uint64_t image_partition_size;
-    if (drive_info.bad_sector_file_offset)
-        image_partition_size = drive_info.bad_sector_file_offset ;
-    else image_partition_size = image->size();
 
-    main_partition = new storageimage_partition_c(image, 0, image_partition_size, drive_info, drive_unit) ;
+    // special logic for RX01,RX02: unused track0 sometimes part of image,
+    // only then is filesystem_offset == 1 track size
+    // Luckily RX01 has no bad sector file, so calculations are easier.
+    if (filesystem_offset > 0) {
+        //if (drive_info.drive_type == devRX01 || drive_info.drive_type == devRX02) {
+        assert( drive_info.bad_sector_file_offset == 0 ) ;
+        image_partition_size = image->size() - filesystem_offset ; // exclude track 0
+    } else if (drive_info.bad_sector_file_offset)
+        image_partition_size = drive_info.bad_sector_file_offset ; // 0 .. bad sector track
+    else image_partition_size = image->size() ; // full
+
+    main_partition = new storageimage_partition_c(image, filesystem_offset, image_partition_size, type, drive_info, drive_unit) ;
+    main_partition->log_level_ptr = log_level_ptr ; // same log level as drive
+
     if (drive_info.bad_sector_file_offset) {
         // write empty bad sector files to some disks, on highest track/cylinder
         std144_partition = new storageimage_partition_c(image, drive_info.bad_sector_file_offset,
-		        drive_info.capacity - drive_info.bad_sector_file_offset, drive_info, drive_unit) ;
+                drive_info.capacity - drive_info.bad_sector_file_offset, type, drive_info, drive_unit) ;
+        std144_partition->log_level_ptr = log_level_ptr ; // same log level as drive
         image_write_std144_bad_sector_table() ;
     } else {
         std144_partition = nullptr ;
@@ -356,7 +367,7 @@ bool storageimage_shared_c::open(bool create)
         // snapshot is clear, so all files are created on host
         sync_dec_filesystem_events_to_host() ;
     }
-	filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
+    filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
 
     sync_dec_snapshot() ; // init snapshot
     filesystem_host->changed = false ;
@@ -389,11 +400,11 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
 
     unsigned table_count ; // == used sectors
     if (drive_info.drive_type == devRL01) {
-		// two sectors à 128 words, 20 double-sector blocks per track
-        std144_partition->set_block_size(512) ; // two sectors a 128 words
+        // two sectors à 128 words, 20 double-sector blocks per track
+        std144_partition->init(512) ; // two sectors a 128 words
         table_count = 10 ; // SimH
     } else if (drive_info.drive_type == devRL02) {
-        std144_partition->set_block_size(512) ; 
+        std144_partition->init(512) ;
         table_count = 10 ; // SimH
         //	}	else if (drive_info.drive_type == devRK067) {
         // complex repeated geometry
@@ -403,7 +414,7 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
 
     // work on cached bad_sector file ... avoid many write()
     byte_buffer_c bad_sector_file ; // is the whole std144 partition
-    std144_partition->get_bytes(&bad_sector_file, 0, table_count * std144_partition->block_size);
+    std144_partition->get_blocks(&bad_sector_file, 0, table_count) ;
     uint8_t *wp = bad_sector_file.data_ptr(); // start
     // write repeated empty tables
     for (unsigned i=0 ; i < table_count ; i++) {
@@ -415,7 +426,7 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
         for (unsigned j=8 ;  j < std144_partition->block_size ;  j++)
             *wp++ = 0xff ;
     }
-    std144_partition->set_bytes(&bad_sector_file, 0) ;
+    std144_partition->set_blocks(&bad_sector_file, 0) ;
 }
 
 
@@ -520,9 +531,10 @@ void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned l
     image_data_pdp_access(/*changing*/true) ;
 
     // mark all physical blocks in range.
+    //TODO: benachrichtige die richtige Partition.
     unsigned block_size = drive_info.sector_size ;
     for (unsigned blknr = position / block_size; blknr < (position + len) / block_size; blknr++)
-        main_partition->on_image_block_write(blknr * block_size) ; // start position of all blocks
+        main_partition->on_image_sector_write(blknr * block_size) ; // start position of all blocks
     // boolarray_print_diag(_this->changedblocks, stderr, _this->block_count, "IMAGE");
 
     unlock(__FILE__LINE__);
@@ -635,14 +647,14 @@ void storageimage_shared_c::sync_host_filesystem_events_to_dec()
             auto event = dynamic_cast<filesystem_host_event_c*>(filesystem_host->event_queue.pop()) ;
             assert(event) ;
             filesystem_host->update_event(event) ;
-			filesystem_dec->consume_event(event) ;
+            filesystem_dec->consume_event(event) ;
         }
 //		assert(filesystem_dec->changed) ; // has processed events
 
 //        filesystem_dec->debug_print("sync_host_filesystem_events_to_dec()") ;
         //filesystem_dec->file_by_path.debug_print("DEC") ;
         if (filesystem_dec->changed) // events may get filtered (host volume info)
-	        filesystem_dec->render() ;
+            filesystem_dec->render() ;
 //        image->save_to_file("/tmp/sync_worker_2.dump") ;
     }
 
@@ -706,18 +718,18 @@ void storageimage_shared_c::sync_worker()
             // if one side has changed, the other is also changed now.
             // reset producer, and wipe ack-events on consumer
             if (dec_image_changed /*|| filesystem_dec->changed*/) {
-				// parse dec
+                // parse dec
                 sync_dec_image_to_filesystem_and_events() ; // may change filesystem_dec->changed
                 // changed by DEC write() or sync_host_filesystem_events_to_dec()
                 sync_dec_snapshot() ;
-				
-       	    }
 
-			// the volumne info file on host must be updated when DEC filesystem has changed
-			// changed by image_change and parse(), or consumed host events
-			if (filesystem_dec->changed)
-				filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
-		 
+            }
+
+            // the volumne info file on host must be updated when DEC filesystem has changed
+            // changed by image_change and parse(), or consumed host events
+            if (filesystem_dec->changed)
+                filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
+
             filesystem_dec->changed = false ; // only reset point!
             dec_image_changed = false ;
 

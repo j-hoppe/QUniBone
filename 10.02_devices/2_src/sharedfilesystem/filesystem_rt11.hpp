@@ -56,7 +56,6 @@ class file_rt11_c ;
 class rt11_stream_c: public file_dec_stream_c {
 public:
     rt11_blocknr_t start_block_nr; // start block
-    uint32_t	byte_offset ; // offset in start block
     rt11_stream_c(file_rt11_c *file,  	rt11_stream_c *stream) ;
     rt11_stream_c(file_rt11_c *file, string stream_name) ;
     ~rt11_stream_c() override ;
@@ -139,7 +138,7 @@ class filesystem_rt11_c: public filesystem_dec_c {
         // units are in drive_info_c.blocksize != sector size!
 
         unsigned block_size  ; // 512 bytes for all drives
-        unsigned block_count ; // # of blocks RT-11 uses on disk surface
+        // unsigned block_count ; // # of blocks RT-11 uses on disk surface, equal to partition size
         unsigned first_dir_blocknr ; /// always 6 ?
         unsigned replacable_bad_blocks ;
         unsigned dir_seg_count ; // default segment count
@@ -203,9 +202,12 @@ private:
     unsigned file_count() override {
         return rootdir->file_count() ;
     }
+	
+    void stream_parse_blocks(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, unsigned block_count) ;
+    void stream_parse_bytes(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, uint8_t *data, unsigned byte_count) ;
 
-    void stream_parse(rt11_stream_c *stream, rt11_blocknr_t start, uint32_t byte_offset, uint32_t data_size) ;
-    void stream_render(rt11_stream_c *stream) ;
+//    void stream_parse_blocks(rt11_stream_c *stream, rt11_blocknr_t start, uint32_t byte_offset, uint32_t data_size) ;
+//    void stream_render(rt11_stream_c *stream) ;
     unsigned directory_entries_per_segment() ;
     unsigned directory_needed_segments(unsigned file_count) ;
     void calc_file_stream_change_flag(        rt11_stream_c *stream) ;
@@ -219,10 +221,10 @@ private:
     bool parse_homeblock() ;
     void parse_directory() ;
     void parse_file_data() ;
-	
+
 public:
     void parse()   override ;
-	void produce_volume_info(std::stringstream &buffer) override ;
+    void produce_volume_info(std::stringstream &buffer) override ;
 
 
 private:

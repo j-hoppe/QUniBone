@@ -426,13 +426,12 @@ string filesystem_xxdp_c::make_filename(string basename, string ext)
     return result ;
 }
 
-
 filesystem_xxdp_c::filesystem_xxdp_c(       storageimage_partition_c *_image_partition)
     : filesystem_dec_c(_image_partition)
 {
     layout_info = get_documented_layout_info(image_partition->drive_info.drive_type) ;
 
-    image_partition->set_block_size(layout_info.block_size) ; // 256 words, fix for XXDP, independent of disk (RX01,2?)
+    image_partition->init(layout_info.block_size) ; // 256 words, fix for XXDP, independent of disk (RX01,2?)
 
     volume_info_host_path = "/" + make_filename(XXDP_VOLUMEINFO_BASENAME, XXDP_VOLUMEINFO_EXT) ;
 
@@ -1200,7 +1199,7 @@ void filesystem_xxdp_c::parse_bitmap()
 
 // parse filesystem special blocks to new file
 void filesystem_xxdp_c::parse_internal_contiguous_file(    string _basename, string _ext,
-        xxdp_blocknr_t _start_blocknr, xxdp_blocknr_t _block_count)
+        xxdp_blocknr_t _start_block_nr, xxdp_blocknr_t _block_count)
 {
     string fname = make_filename(_basename, _ext) ;
     file_base_c* fbase = file_by_path.get(fname);
@@ -1212,14 +1211,12 @@ void filesystem_xxdp_c::parse_internal_contiguous_file(    string _basename, str
     f->is_contiguous_file = true ;
     f->basename = _basename ;
     f->ext = _ext ;
-    f->start_block_nr = _start_blocknr;
+    f->start_block_nr = _start_block_nr;
     f->block_count = _block_count;
-    f->last_block_nr = _start_blocknr + _block_count - 1;
+    f->last_block_nr = _start_block_nr + _block_count - 1;
     f->readonly = true ;
     rootdir->add_file(f); //  before parse-stream
-
-    unsigned data_size = get_block_size() * _block_count;
-    image_partition->get_bytes(f, get_block_size() * _start_blocknr, data_size) ;
+    image_partition->get_blocks(f, _start_block_nr, _block_count)  ;
     f->file_size = f->size() ; // size from inherited bytebuffer
     f->host_path = f->get_host_path() ;
 }
@@ -1578,8 +1575,7 @@ void filesystem_xxdp_c::render_contiguous_file_data(file_xxdp_c *f)
     unsigned round_up_size = get_block_size() * needed_blocks(get_block_size(), f->size()) ;
     assert(round_up_size >= f->size()) ;
     f->set_size(round_up_size) ; // new space set to zero_byte_val
-    uint64_t partition_position = get_block_size() * f->start_block_nr ;
-    image_partition->set_bytes(f, partition_position) ;
+    image_partition->set_blocks(f, f->start_block_nr) ;
 }
 
 // write file->data[] into linked blocks of pre-calced block_nr_list

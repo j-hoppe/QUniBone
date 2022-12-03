@@ -67,9 +67,12 @@
 #include <iostream>
 #include <assert.h>
 
+#include "logsource.hpp"
 #include "bytebuffer.hpp"
 #include "driveinfo.hpp"
 #include "storageimage.hpp"
+#include "filesystem_base.hpp"
+
 
 
 namespace sharedfilesystem {
@@ -78,24 +81,25 @@ namespace sharedfilesystem {
 //class storageimage_base_c ;
 class storageimage_shared_c ;
 
-class storageimage_partition_c {
+class storageimage_partition_c: public logsource_c {
 public:
     storageimage_base_c *image ;
-    uint64_t image_position; // position on image in bytes
+    uint64_t image_position; // offset on image in bytes
     uint64_t size ; // len in bytes
+    filesystem_type_e filesystem_type  ;
 
     // logical file system blocks, composed of multiple physical disk blocks
     unsigned block_size ; // must be a multiple of physical image->block_size
     unsigned block_count ; // size is block_size * block_count
 
     storageimage_partition_c(storageimage_base_c *image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
-			drive_info_c _drive_info, unsigned drive_unit) ;
+                             filesystem_type_e _filesystem_type, drive_info_c _drive_info, unsigned drive_unit) ;
     ~storageimage_partition_c()	;
 
-	drive_info_c drive_info ; // copy from image
-	unsigned drive_unit ;
+    drive_info_c drive_info ; // copy from image
+    unsigned drive_unit ;
 
-    void set_block_size(unsigned _block_size) ;
+    void init(unsigned _block_size) ;
 
     /*
         // convert position on partition to image
@@ -105,23 +109,46 @@ public:
     */
     std::vector<bool> changed_blocks ;
 
-    void on_image_block_write(uint64_t byte_offset) ;
+    bool on_image_sector_write(uint64_t byte_offset) ;
     void clear_changed_flags() {
         changed_blocks.assign(changed_blocks.size(), false);
     }
 
-	uint64_t get_image_position(uint64_t byte_offset) const ;
-	uint64_t get_position_from_image(uint64_t image_byte_offset) const ;
-	
-    void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) const ;
-    void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) ;
+    uint64_t get_image_position_from_physical_sector_nr(unsigned phy_sector_nr) const ;
+    unsigned get_physical_sector_nr_from_image_position(uint64_t image_byte_offset) const ;
+
+    vector<unsigned> get_physical_sector_nrs_from_blocks(uint32_t _start_block_nr, uint32_t _block_count) const ;
 
     void get_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr, uint32_t _block_count) const ;
     void set_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr) ;
 
     void set_blocks_zero(uint32_t _start_block_nr, uint32_t _block_count) ; // clear area
 
-	char *block_nr_info(unsigned block_nr) ;
+    char *block_nr_info(unsigned block_nr) ;
+    char *block_nr_list_info(unsigned _start_block_nr, unsigned _block_count) ;
+	
+
+	bool is_interleaved() const {
+			return log_sector_nr_to_phy.size() > 0 ;
+	}
+
+private:
+    unsigned sectors_per_block ; // # of image sector for a partition block
+
+    // index: linear logical nr of sector on disk
+    // result: interleaved physical nr of that sector in the image
+    // all sector_nr relative to partition start, not to image start.
+    vector<unsigned> log_sector_nr_to_phy ;
+
+    // reverse table: for each sector in the image, given
+    // index: interleaved physical nr of that sector in the image
+    // result: linear logical nr of sector on disk
+    vector<unsigned> phy_sector_nr_to_log ;
+
+    void  build_interleave_table(const vector<unsigned> &track_phy_to_log_pattern,   unsigned cylinder_skew, unsigned head_skew) ;
+	
+	void  save_to_file(string _host_filename) ;
+
 } ;
 
 }

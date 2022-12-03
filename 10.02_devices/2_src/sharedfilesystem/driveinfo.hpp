@@ -60,9 +60,9 @@ public:
     enum dec_drive_type_e drive_type;
     string 	device_name; // "RL02"
     string 	mnemonic; // "DL"
-    uint64_t	capacity ; // full surface
-    unsigned heads, cylinders, sectors, sector_size ;
-    uint64_t	bad_sector_file_offset ; // optional start of bad sector track
+    uint64_t capacity ; // full surface
+    unsigned cylinder_count, head_count, sector_count, sector_size ;
+    uint64_t bad_sector_file_offset ; // optional start of bad sector track
     unsigned mscp_block_count ;
     unsigned mscp_rct_size ;  // Replacement and Caching Table
 
@@ -78,51 +78,51 @@ public:
         case devRK035:
             device_name = "RK035" ;
             mnemonic = "DK" ;
-            cylinders = 400 ; // total 403 tracks, RK05F has 806 tracks
-            heads = 1 ;
-            sectors = 12 ;
+            cylinder_count = 400 ; // total 403 tracks, RK05F has 806 tracks
+            head_count = 1 ;
+            sector_count = 12 ;
             sector_size = 512 ;
-            capacity = cylinders * heads * sectors * sector_size ;
+            capacity = cylinder_count * head_count * sector_count * sector_size ;
             break ;
         case devRL01:
             device_name = "RL01" ;
             mnemonic = "DL" ;
-            cylinders = 256 ; // total 403 tracks, RK05F has 806 tracks
-            heads = 2 ;
-            sectors = 40 ;
+            cylinder_count = 256 ; // total 403 tracks, RK05F has 806 tracks
+            head_count = 2 ;
+            sector_count = 40 ;
             sector_size = 256 ;
-            capacity = cylinders * heads * sectors * sector_size ;
+            capacity = cylinder_count * head_count * sector_count * sector_size ;
             // last track reserved
-            bad_sector_file_offset = (heads*cylinders-1) * sectors * sector_size ;
+            bad_sector_file_offset = (head_count*cylinder_count-1) * sector_count * sector_size ;
             break ;
         case devRL02:
             device_name = "RL02" ;
             mnemonic = "DL" ;
-            cylinders = 512 ; // total 403 tracks, RK05F has 806 tracks
-            heads = 2 ;
-            sectors = 40 ;
+            cylinder_count = 512 ; // total 403 tracks, RK05F has 806 tracks
+            head_count = 2 ;
+            sector_count = 40 ;
             sector_size = 256 ;
-            capacity = cylinders * heads * sectors * sector_size ;
+            capacity = cylinder_count * head_count * sector_count * sector_size ;
             // last track reserved
-            bad_sector_file_offset = (heads*cylinders-1) * sectors * sector_size ;
+            bad_sector_file_offset = (head_count*cylinder_count-1) * sector_count * sector_size ;
             break ;
         case devRX01:
             device_name = "RX01" ;
             mnemonic = "DX" ;
-            cylinders = 77 ; // total 403 tracks, RK05F has 806 tracks
-            heads = 1 ;
-            sectors = 26 ;
+            cylinder_count = 77 ; // total 403 tracks, RK05F has 806 tracks
+            head_count = 1 ;
+            sector_count = 26 ;
             sector_size =128 ;
-            capacity = cylinders * heads * sectors * sector_size ;
+            capacity = cylinder_count * head_count * sector_count * sector_size ;
             break ;
         case devRX02: // RX02 single density is RX01
             device_name = "RX02" ;
             mnemonic = "DY" ;
-            cylinders = 77 ; // total 403 tracks, RK05F has 806 tracks
-            heads = 1 ;
-            sectors = 26 ;
+            cylinder_count = 77 ; // total 403 tracks, RK05F has 806 tracks
+            head_count = 1 ;
+            sector_count = 26 ;
             sector_size = 256 ;
-            capacity = cylinders * heads * sectors * sector_size ;
+            capacity = cylinder_count * head_count * sector_count * sector_size ;
             break ;
 
 
@@ -270,13 +270,38 @@ public:
     }
 
 
-    // return capacity without bad sector area in bytes
-    unsigned get_usable_capacity() {
-        if (bad_sector_file_offset > 0)
-            return bad_sector_file_offset ;
-        else
-            return capacity ;
+  //
+    uint64_t get_track_capacity() const {
+        return sector_count * sector_size ;
     }
+
+    uint64_t get_cylinder_capacity() const {
+        return head_count * get_track_capacity() ;
+    }
+
+    unsigned get_track_nr(unsigned cylinder, unsigned head) const
+    {
+        return cylinder * head_count + head ;
+    }
+
+
+    // for a gicen position in the image, return cylinder, head within cylinder,
+    // sector within track and offset within sector
+    void get_chs(uint64_t image_offset, unsigned *cylinder, unsigned *head, unsigned *sector, unsigned *sector_offset) const
+    {
+        if (sector_offset != nullptr)
+            *sector_offset = image_offset % sector_size ;
+        unsigned image_sector_nr = image_offset / sector_size ;
+        if (sector != nullptr)
+            *sector = image_sector_nr % sector_count ;
+        unsigned image_track_nr = image_sector_nr / sector_count ;
+        if (head != nullptr)
+            *head =image_track_nr % head_count ;
+        unsigned cylinder_nr = image_track_nr / head_count ;
+        if (cylinder != nullptr)
+            *cylinder = cylinder_nr ;
+    }
+
 };
 
 } // namespace

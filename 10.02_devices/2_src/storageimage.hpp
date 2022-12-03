@@ -64,6 +64,9 @@ public:
     //	bool image_load_from_disk(string host_filename, 		bool allowcreate, bool *filecreated) ;
     virtual void save_to_file(std::string host_filename) = 0 ; // make a snapshot
 
+	// for storageimage_shared: 
+	uint64_t	filesystem_offset = 0 ; // RX01,02 may have has unused track #0
+
 } ;
 
 

@@ -40,6 +40,7 @@
 #include <string.h>
 #include <inttypes.h> // PRI* formats
 #include <fcntl.h>
+#include <algorithm>
 
 
 #include "logger.hpp"
@@ -107,7 +108,6 @@ void rt11_stream_c::init()
 {
     file_dec_stream_c::init() ;
     start_block_nr = 0;
-    byte_offset = 0;
     changed = false ;
 }
 
@@ -272,7 +272,7 @@ filesystem_rt11_c::filesystem_rt11_c(	   storageimage_partition_c *_image_partit
 {
     layout_info = get_documented_layout_info(image_partition->drive_info.drive_type) ;
 
-    image_partition->set_block_size(layout_info.block_size) ; // 256 words, fix for RT11, independent of disk (RX01,2?)
+    image_partition->init(layout_info.block_size) ; // 256 words, fix for RT11, independent of disk (RX01,2?)
 
     volume_info_host_path = "/" + make_filename(RT11_VOLUMEINFO_BASENAME, RT11_VOLUMEINFO_EXT) ;
 
@@ -322,7 +322,7 @@ void filesystem_rt11_c::init()
 
     // TODO: who defines the partition size?
     // Is it the whole disk up to bad sector file, or defined by RT11 layout?
-    assert(image_partition->size >= layout_info.block_count * layout_info.block_size) ;
+//    assert(image_partition->size >= layout_info.block_count * layout_info.block_size) ;
 
     // image may be variable sized !
     blockcount = needed_blocks(image_partition->size);
@@ -473,8 +473,7 @@ filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(e
         } else
             FATAL("%s: get_documented_layout_info(): invalid drive", get_label().c_str()) ;
     }
-    result.block_count = image_partition->drive_info.get_usable_capacity() / result.block_size ;
-
+    // result.block_count = image_partition->drive_info.get_usable_capacity() / result.block_size ;
     return result ;
 } ;
 
@@ -484,24 +483,27 @@ filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(e
  *************************************************************/
 
 // read block[start] ... block[start+blockcount-1] into data[]
-void filesystem_rt11_c::stream_parse(rt11_stream_c *stream, rt11_blocknr_t start,
-                                     uint32_t byte_offset, uint32_t data_size)
+
+// get whole blocks from partition
+void filesystem_rt11_c::stream_parse_blocks(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, unsigned block_count)
 {
-    stream->start_block_nr = start;
-    stream->byte_offset = byte_offset;
-    image_partition->get_bytes(stream, get_block_size() * start + byte_offset, data_size) ;
+    stream->start_block_nr = start_block_nr;
+    image_partition->get_blocks(stream, start_block_nr, block_count) ;
+
     // stream not imported from host
     assert(stream->host_path.empty())  ;
     stream->host_path = stream->get_host_path() ;
 }
 
-// write stream to image
-void filesystem_rt11_c::stream_render(rt11_stream_c *stream)
+// get bytes from loaded buffer
+void filesystem_rt11_c::stream_parse_bytes(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, uint8_t *data, unsigned byte_count)
 {
-    uint64_t partition_position = get_block_size() * stream->start_block_nr + stream->byte_offset ;
-    image_partition->set_bytes(stream, partition_position) ;
+    stream->start_block_nr = start_block_nr;
+    memcpy(stream->data_ptr(), data, byte_count) ;
+    // stream not imported from host
+    assert(stream->host_path.empty())  ;
+    stream->host_path = stream->get_host_path() ;
 }
-
 
 
 
@@ -712,7 +714,7 @@ void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _
     rootdir->add_file(f); //  before parse-stream
 
     f->stream_data = new rt11_stream_c(f, "");
-    stream_parse(f->stream_data, f->block_nr, 0, f->block_count * get_block_size());
+    stream_parse_blocks(f->stream_data, start_block_nr, f->block_count);
     f->file_size = f->stream_data->size() ;
 
 }
@@ -887,10 +889,10 @@ void filesystem_rt11_c::parse_directory()
                 if (dir_entry_extra_bytes) {
                     assert(f->stream_dir_ext == nullptr);
                     f->stream_dir_ext = new rt11_stream_c(f, RT11_STREAMNAME_DIREXT);
-                    stream_parse(f->stream_dir_ext, // word #8 extra words
-                                 DIR_SEGMENT_BLOCK_NR(ds_nr), // current dir block
-                                 /* byte_offset*/de_offset + 14,
-                                 dir_entry_extra_bytes);
+
+                    stream_parse_bytes(f->stream_dir_ext, // word #8 extra words
+                                       DIR_SEGMENT_BLOCK_NR(ds_nr), // current dir block
+                                       block_buffer.data_ptr() + de_offset + 14, dir_entry_extra_bytes) ;
                     // generate only a stream if any bytes set <> 00
                     if (f->stream_dir_ext->is_zero_data(0)) {
                         delete f->stream_dir_ext;
@@ -930,23 +932,25 @@ void filesystem_rt11_c::parse_file_data()
         // data area may have "prefix" block.
         // format not mandatory, use DEC recommendation
         if (f->status & RT11_FILE_EPRE) {
-            byte_buffer_c block_buffer ; // only to read 1st byte in prefix block
+            byte_buffer_c block_buffer ;
+            // load 1st block for block count
             image_partition->get_blocks(&block_buffer, f->block_nr, 1) ;
             prefix_block_count = *block_buffer.data_ptr();// first byte in block
+            // 2nd load: all blocks
+            image_partition->get_blocks(&block_buffer, f->block_nr, prefix_block_count) ;
             // DEC: low byte of first word = blockcount
             assert(f->stream_prefix == nullptr);
 
             f->stream_prefix = new rt11_stream_c(f, RT11_STREAMNAME_PREFIX);
-            // stream is everything behind first word
-            stream_parse(f->stream_prefix, f->block_nr, 2, prefix_block_count * get_block_size() - 2);
+            // stream is everything behind first word: subtract 1st word from size
+            stream_parse_bytes(f->stream_prefix, f->block_nr, block_buffer.data_ptr()+2, block_buffer.size() - 2);
         } else
             prefix_block_count = 0;
 
         // after prefix: remaining blocks are data
         assert(f->stream_data == nullptr);
         f->stream_data = new rt11_stream_c(f, "");
-        stream_parse(f->stream_data, f->block_nr + prefix_block_count, 0,
-                     (f->block_count - prefix_block_count) * get_block_size());
+        stream_parse_blocks(f->stream_data, f->block_nr + prefix_block_count, f->block_count - prefix_block_count);
         f->file_size = f->stream_data->size() ;
     }
 }
@@ -1035,6 +1039,18 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
                     needed_blocks(f->stream_data->size()), f->stream_data->size(),
                     image_partition->block_nr_info(f->stream_data->start_block_nr));
             buffer << line ;
+            if (image_partition->is_interleaved()) {
+                // dump out image sectors
+                for (unsigned j = 0 ; j < f->block_count ; j += 10) {
+//                for (unsigned block_nr = f->stream_data->start_block_nr ; block_nr < f->block_count ; block_nr += 10) {
+					if (j == 0)
+						buffer << "\n    physical sectors = " ;
+					else buffer << "\n    " ; 
+					unsigned blocks_to_print = std::min((unsigned)10,  f->block_count - j) ;
+                    sprintf(line, "%s",  image_partition->block_nr_list_info(f->stream_data->start_block_nr + j, blocks_to_print)) ;
+                    buffer << line ;
+                }
+            }
         } else
             buffer << " No data." ;
         dir_file_no++ ;
@@ -1123,7 +1139,6 @@ void filesystem_rt11_c::calc_layout()
         if (f->stream_prefix) {
             f->stream_prefix->start_block_nr = file_start_blocknr;
             // prefix needs 1 extra word for blockcount
-            f->stream_prefix->byte_offset = 2;
             file_start_blocknr += needed_blocks(f->stream_prefix->size() + 2);
         }
         if (f->stream_data) {
@@ -1137,20 +1152,6 @@ void filesystem_rt11_c::calc_layout()
     render_free_space_blocknr = file_start_blocknr;
 
 }
-
-/*
-// write moni.tor und boot.block files to image
-void filesystem_rt11_c::render_internal_blocks_from_file(file_rt11_c *f,
-			uint32_t start_block_nr, uint32_t data_size)
-	{
-		rt11_stream_c *stream = f->stream_data ;
-		stream->blocknr = start_block_nr ;
-		stream->byte_offset = 0 ;
-		stream->set_size(data_size) ;
-		stream_render(stream) ;
-		return ERROR_OK;
-}
-**/
 
 void filesystem_rt11_c::render_homeblock()
 {
@@ -1351,24 +1352,22 @@ void filesystem_rt11_c::render_file_data()
         if (f->internal)
             continue ;
         if (f->stream_prefix) { 		// prefix block?
-            byte_buffer_c block_buffer ; // just to write the prefix block count word
-            image_partition->get_blocks(&block_buffer, f->stream_prefix->start_block_nr, 1) ;
-            // low byte of 1st word on volume is blockcount,
             uint16_t prefix_block_count = needed_blocks(f->stream_prefix->size() + 2);
             if (prefix_block_count > 255)
                 FATAL("%s: Render: Prefix of file \"%s\" = %d blocks, maximum 255", get_label().c_str(),
                       f->get_filename().c_str(), prefix_block_count);
+            byte_buffer_c block_buffer ; // just to write the prefix block count word
+            block_buffer.init_zero(f->stream_prefix->size() + 2) ; // size in bytes: data + block count
             block_buffer.set_word_at_byte_offset(0, prefix_block_count);
-            // start block and byte offset 2 already set by layout()
+            memcpy(block_buffer.data_ptr()+2, f->stream_prefix->data_ptr(), f->stream_prefix->size()) ;
             image_partition->set_blocks(&block_buffer, f->stream_prefix->start_block_nr) ;
-            stream_render(f->stream_prefix); // loads and saves again
         }
         if (f->stream_data != nullptr) {
             // RT11 files fill whole blocks
             unsigned round_up_size = get_block_size() * needed_blocks(get_block_size(), f->stream_data->size()) ;
             assert(round_up_size >= f->stream_data->size()) ;
             f->stream_data->set_size(round_up_size) ; // new space set to zero_byte_val
-            stream_render(f->stream_data);
+            image_partition->set_blocks(f->stream_data, f->stream_data->start_block_nr) ;
         }
     }
 }
@@ -1390,19 +1389,17 @@ void filesystem_rt11_c::render()
     file_rt11_c* bootblock = dynamic_cast<file_rt11_c*>(file_by_path.get(bootblock_filename));
     if (bootblock) {
         bootblock->stream_data->start_block_nr = 0;
-        bootblock->stream_data->byte_offset = 0 ;
         if (bootblock->stream_data->size() != get_block_size())
             throw filesystem_exception("bootblock has illegal size of %d bytes.", bootblock->stream_data->size());
-        stream_render(bootblock->stream_data);
+        image_partition->set_blocks(bootblock->stream_data,  bootblock->stream_data->start_block_nr) ;
     } else
         image_partition->set_blocks_zero(0, 1) ; // clear area
     file_rt11_c* monitor = dynamic_cast<file_rt11_c*>(file_by_path.get(monitor_filename));
     if (monitor) {
         monitor->stream_data->start_block_nr = 2; // 2...5
-        monitor->stream_data->byte_offset = 0 ;
         if (monitor->stream_data->size() > 4 * get_block_size())
             throw filesystem_exception("monitor has illegal size of %d bytes.", monitor->stream_data->size());
-        stream_render(monitor->stream_data);
+        image_partition->set_blocks(monitor->stream_data,  monitor->stream_data->start_block_nr) ;
     } else
         image_partition->set_blocks_zero(2, 4) ; // clear area
 

@@ -50,7 +50,7 @@ class storagedrive_c: public device_c {
 private:
     uint8_t	zeros[4096] ; // a block of 00s
 
-    // several implemenatation of the "magnetic surface" possible
+    // several implementations of the "magnetic surface" possible
     // hide from devices
     storageimage_base_c	*image = nullptr ;
 
@@ -104,6 +104,7 @@ public:
     void image_close(void) ;
     bool image_is_open(void) ;
     bool image_is_readonly() ;
+	void image_set_filesystem_offset(uint64_t offset) ;
     bool image_truncate(void) ;
     uint64_t image_size(void) ;
     void image_read(uint8_t *buffer, uint64_t position, unsigned len) ;

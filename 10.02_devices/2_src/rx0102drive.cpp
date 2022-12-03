@@ -92,6 +92,12 @@ bool RX0102drive_c::on_param_changed(parameter_c *param) {
         // change of file image changes state, results also in close()
         // assume new "floppy" has no delete marks set
         memset(deleted_data_marks, 0, sizeof(deleted_data_marks)) ;
+
+        if (imagetrack0.value)  // image contains unused track 0
+            image_set_filesystem_offset(sector_count * sector_size_bytes) ; // disk data, boot loader at track #1
+        else
+            image_set_filesystem_offset(0) ; // disk data, boot loader at image start
+		
         image_open(true) ; // may fail
         // file size determines is_double_density
         if (is_RX02 && image_is_open()) {

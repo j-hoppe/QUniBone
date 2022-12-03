@@ -189,6 +189,10 @@ bool storagedrive_c::image_is_readonly() {
     return image->is_readonly() ;
 }
 
+void storagedrive_c::image_set_filesystem_offset(uint64_t offset) {
+    if (image != nullptr)
+    	image->filesystem_offset = offset ;
+}
 
 bool storagedrive_c::image_truncate(void) {
     if (image == nullptr)
