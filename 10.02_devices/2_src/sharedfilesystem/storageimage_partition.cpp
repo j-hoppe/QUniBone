@@ -188,9 +188,7 @@ void storageimage_partition_c::init(unsigned _block_size)
         }
     }
 
-    save_to_file("partition.bin") ;
-
-
+    // save_to_file("partition.bin") ;
 }
 
 // Convert position in partition via partiiton-relative to position to absolute image offset
@@ -241,7 +239,7 @@ void storageimage_partition_c::get_blocks(byte_buffer_c *byte_buffer, uint32_t _
         return ;
     }
 
-    // list of image sectors to receive data buffer
+    // list of physical image sectors to receive data buffer
     vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     // list of contiguous blocks -> list of non-contiguous sectors
 
@@ -275,7 +273,7 @@ void storageimage_partition_c::set_blocks(byte_buffer_c *byte_buffer, uint32_t _
     unsigned _block_count = byte_buffer->size() / block_size ;
     assert( byte_buffer->size() % block_size == 0) ;
 
-    // list of image sectors to receive data buffer
+    // list of physical image sectors to receive data buffer
     vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     // list of contiguous blocks -> list of non-contiguous sectors
 
@@ -313,16 +311,16 @@ bool storageimage_partition_c::on_image_sector_write(uint64_t changed_position)
     if (changed_position < image_position || changed_position >= (image_position + block_count * block_size))
         return false ;
 
-    // a single byte position maps to a image sector,
+    // a single byte position maps to a physical image sector,
     // which maps to a partition section via interleaving,
     // which maps to a partition block
     unsigned block_nr ;
     unsigned phy_sector_nr = get_physical_sector_nr_from_image_position(changed_position) ;
     if (phy_sector_nr_to_log.size() == 0)
-        block_nr = phy_sector_nr * sectors_per_block ; // no interleaving
+        block_nr = phy_sector_nr / sectors_per_block ; // no interleaving
     else {
         unsigned log_sector_nr = phy_sector_nr_to_log[phy_sector_nr] ;
-        block_nr = log_sector_nr * sectors_per_block ;
+        block_nr = log_sector_nr / sectors_per_block ;
     }
     changed_blocks.at(block_nr) = true ;
     return true ;
@@ -333,7 +331,7 @@ bool storageimage_partition_c::on_image_sector_write(uint64_t changed_position)
 
 
 // use like: printf("Logical block %s", block_nr_info(block_nr)) ;
-// list the physical image sectors of a block the image (not: of partition!)
+// list the physical sectors of a block of image (not: of partition!)
 char *storageimage_partition_c::block_nr_info(unsigned block_nr)
 {
     static char result[256] ;
@@ -346,7 +344,7 @@ char *storageimage_partition_c::block_nr_info(unsigned block_nr)
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++)
         phy_sector_nrs[i] += image_position_sector_nr ; // now sectors in whole image
 
-    // "<block> is image sectors@offset 12 @ x00d000, 14 @ x00d800, 18 @ x00e000, 20 @ x00e800"
+    // "<block> is physical image sectors@offset 12 @ x00d000, 14 @ x00d800, 18 @ x00e000, 20 @ x00e800"
     // comma list of sector numbers
     sector_list_text[0] = 0;
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++) {
@@ -357,9 +355,9 @@ char *storageimage_partition_c::block_nr_info(unsigned block_nr)
         strcat(sector_list_text, buffer) ;
     }
     if (phy_sector_nrs.size() == 1)
-        sprintf(result, "%u is image sector %s", block_nr, sector_list_text) ;
+        sprintf(result, "%u is physical image sector %s", block_nr, sector_list_text) ;
     else
-        sprintf(result, "%u is image sectors %s", block_nr, sector_list_text) ;
+        sprintf(result, "%u is physical image sectors %s", block_nr, sector_list_text) ;
 
     return result ;
 }
