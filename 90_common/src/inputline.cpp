@@ -67,7 +67,8 @@
  */
 
 // reset input source and internal states
-void inputline_c::init() {
+void inputline_c::init() 
+{
 	// close file, if open
 	if (file)
 		fclose(file);
@@ -75,7 +76,8 @@ void inputline_c::init() {
 	skip_lines = false ;
 }
 
-bool inputline_c::open_file(char *filename) {
+bool inputline_c::open_file(char *filename) 
+{
 	file = fopen(filename, "r");
 	return (file != nullptr);
 }
@@ -102,7 +104,8 @@ bool inputline_c::is_file_open()
 // .print <text>
 // result: true = internal command processed
 //	false = unkwown
-bool inputline_c::internal_command(char *line) {
+bool inputline_c::internal_command(char *line) 
+{
 	// endif termiantes skipped line range
 	if (!strncasecmp(line, ".endif", 6)) {
 		skip_lines = false ;
@@ -151,7 +154,8 @@ bool inputline_c::internal_command(char *line) {
 	return false;
 }
 
-char *inputline_c::readline(char *buffer, int buffer_size, const char *prompt) {
+char *inputline_c::readline(char *buffer, int buffer_size, const char *prompt) 
+{
 	char *s;
 	if (file != nullptr) {
 		// read from file

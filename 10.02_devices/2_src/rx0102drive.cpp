@@ -32,8 +32,6 @@
 
 #include <array>
 
-using namespace std;
-
 #include "logger.hpp"
 #include "timeout.hpp"
 #include "utils.hpp"
@@ -74,7 +72,8 @@ RX0102drive_c::RX0102drive_c(RX0102uCPU_c *_uCPU, bool _is_RX02) :
 // SD/DD can be set when image loaded, reinterprets image. User must know!
 // over-long images may be generated
 // load of image: SD/DD determined from file size
-bool RX0102drive_c::on_param_changed(parameter_c *param) {
+bool RX0102drive_c::on_param_changed(parameter_c *param) 
+{
     if (param == &density_name) {
         // toupper() ... really!
         std::transform(density_name.new_value.begin(), density_name.new_value.end(), density_name.new_value.begin(), ::toupper);
@@ -113,7 +112,8 @@ bool RX0102drive_c::on_param_changed(parameter_c *param) {
     return storagedrive_c::on_param_changed(param); // more actions (for enable)
 }
 
-void RX0102drive_c::set_density(bool double_density) {
+void RX0102drive_c::set_density(bool double_density) 
+{
     this->is_double_density = double_density;
     if (!double_density) {
         // RX01, RX02 FM encoding
@@ -135,22 +135,26 @@ void RX0102drive_c::set_density(bool double_density) {
 
 // uCPU may query the "ready/ door open state"
 // true: file image loaded: "door closed" + "floppy inserted"
-bool RX0102drive_c::check_ready(void) {
+bool RX0102drive_c::check_ready(void) 
+{
     return image_is_open() ;
 }
 
 
-void RX0102drive_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RX0102drive_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     UNUSED(dclo_edge) ;
     UNUSED(aclo_edge) ;
     uCPU->on_drive_state_changed(this) ; // not needed, uCPU controls power
 }
 
 // if seeking or ontrack: retrack head to 0
-void RX0102drive_c::on_init_changed(void) {
+void RX0102drive_c::on_init_changed(void) 
+{
 }
 
-unsigned RX0102drive_c::get_rotation_ms() {
+unsigned RX0102drive_c::get_rotation_ms() 
+{
     return (1000*60) / full_rpm ; // time for index hole to pass
 }
 
@@ -158,25 +162,29 @@ unsigned RX0102drive_c::get_cylinder() {
     return cylinder ;
 }
 
-void RX0102drive_c::set_cylinder(unsigned cyl) {
+void RX0102drive_c::set_cylinder(unsigned cyl) 
+{
     cylinder = cyl ;
     current_track.set(cyl) ;
 }
 
 
-bool RX0102drive_c::check_disk_address(unsigned track, unsigned sector) {
+bool RX0102drive_c::check_disk_address(unsigned track, unsigned sector) 
+{
     error_illegal_track = (track >= cylinder_count) ;
     error_illegal_sector = (sector < 1 || sector > sector_count) ;
     return !error_illegal_track && !error_illegal_sector ;
 }
 
 // sector offset in image file in bytes
-int RX0102drive_c::get_sector_image_offset(unsigned track, unsigned sector) {
+int RX0102drive_c::get_sector_image_offset(unsigned track, unsigned sector) 
+{
     return ((track * sector_count) + (sector-1)) * sector_size_bytes ;
 }
 
 // false: error
-bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark, unsigned track, unsigned sector, bool with_delay) {
+bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark, unsigned track, unsigned sector, bool with_delay) 
+{
     if (!check_disk_address(track,sector))
         return false ;
     if (!check_ready())
@@ -208,7 +216,8 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
 }
 
 // false: error
-bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark, unsigned track, unsigned sector, bool with_delay) {
+bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark, unsigned track, unsigned sector, bool with_delay) 
+{
     if (!check_disk_address(track,sector))
         return false ;
     if (!check_ready())
@@ -249,7 +258,8 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
 
 
 // no thread, just passive mechnical device
-void RX0102drive_c::worker(unsigned instance) {
+void RX0102drive_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
 }
 

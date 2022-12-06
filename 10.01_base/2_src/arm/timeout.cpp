@@ -53,38 +53,45 @@
 
 /*** standard timeouts, always based on world time ***/
 
-timeout_c::timeout_c() {
+timeout_c::timeout_c() 
+{
     log_label = "TO";
 }
 
-uint64_t timeout_c::get_resolution_ns() {
+uint64_t timeout_c::get_resolution_ns() 
+{
     struct timespec res;
     clock_getres(CLOCK_MONOTONIC, &res);
     return BILLION * res.tv_sec + res.tv_nsec;
 }
 
-uint64_t timeout_c::abstime_ns(void) {
+uint64_t timeout_c::abstime_ns(void) 
+{
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     uint64_t result = (uint64_t) BILLION * now.tv_sec + (uint64_t) now.tv_nsec ;
     return result;
 }
 
-void timeout_c::start_ns(uint64_t _duration_ns) {
+void timeout_c::start_ns(uint64_t _duration_ns) 
+{
     duration_ns = _duration_ns;
     clock_gettime(CLOCK_MONOTONIC, &starttime);
 }
 
-void timeout_c::start_us(uint64_t duration_us) {
+void timeout_c::start_us(uint64_t duration_us) 
+{
     start_ns(duration_us * 1000);
 }
 
-void timeout_c::start_ms(uint64_t duration_ms) {
+void timeout_c::start_ms(uint64_t duration_ms) 
+{
     start_ns(duration_ms * MILLION);
 }
 
 
-uint64_t timeout_c::elapsed_ns(void) {
+uint64_t timeout_c::elapsed_ns(void) 
+{
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     uint64_t result = (uint64_t) BILLION * (now.tv_sec - starttime.tv_sec)
@@ -92,15 +99,18 @@ uint64_t timeout_c::elapsed_ns(void) {
     return result;
 }
 
-uint64_t timeout_c::elapsed_us(void) {
+uint64_t timeout_c::elapsed_us(void) 
+{
     return elapsed_ns() / 1000;
 }
 
-uint64_t timeout_c::elapsed_ms(void) {
+uint64_t timeout_c::elapsed_ms(void) 
+{
     return elapsed_ns() / MILLION;
 }
 
-bool timeout_c::reached() {
+bool timeout_c::reached() 
+{
     return (elapsed_ns() > duration_ns);
 }
 
@@ -109,7 +119,8 @@ bool timeout_c::reached() {
  ***/
 
 // wait a number of nanoseconds, resolution in 0.1 millisecs
-void timeout_c::wait_ns(uint64_t duration_ns) {
+void timeout_c::wait_ns(uint64_t duration_ns) 
+{
     struct timespec ts = { (long) (duration_ns / BILLION), (long) (duration_ns % BILLION) };
     int res = nanosleep(&ts, NULL);
     assert(res == 0 || (res == -1 && errno == EINTR)); // ^C abort may happen.
@@ -117,11 +128,13 @@ void timeout_c::wait_ns(uint64_t duration_ns) {
 }
 
 // wait a number of milliseconds
-void timeout_c::wait_ms(unsigned duration_ms) {
+void timeout_c::wait_ms(unsigned duration_ms) 
+{
     wait_ns(MILLION * duration_ms);
 }
 
-void timeout_c::wait_us(unsigned duration_us) {
+void timeout_c::wait_us(unsigned duration_us) 
+{
     wait_ns(1000L * duration_us);
 }
 
@@ -130,7 +143,8 @@ void timeout_c::wait_us(unsigned duration_us) {
 /* global singleton */
 flexi_timeout_controller_c *the_flexi_timeout_controller;
 
-flexi_timeout_c::flexi_timeout_c() {
+flexi_timeout_c::flexi_timeout_c() 
+{
     log_label = "FTO";
     timeout_controller = the_flexi_timeout_controller;
     timeout_controller->insert_timeout(this);
@@ -139,7 +153,9 @@ flexi_timeout_c::flexi_timeout_c() {
         assert(res == 0);
     }
 }
-flexi_timeout_c::~flexi_timeout_c() {
+
+flexi_timeout_c::~flexi_timeout_c() 
+{
     if (timeout_controller->mode == emulated_time) {
         int sval;
         sem_getvalue(&semaphore, &sval);
@@ -150,7 +166,8 @@ flexi_timeout_c::~flexi_timeout_c() {
     timeout_controller->erase_timeout(this);
 }
 
-uint64_t flexi_timeout_c::get_resolution_ns() {
+uint64_t flexi_timeout_c::get_resolution_ns() 
+{
     struct timespec res;
     clock_getres(CLOCK_MONOTONIC, &res);
     return BILLION * res.tv_sec + res.tv_nsec;
@@ -158,7 +175,8 @@ uint64_t flexi_timeout_c::get_resolution_ns() {
 
 // current time in nanosecons
 
-void flexi_timeout_c::start_ns(uint64_t duration_ns) {
+void flexi_timeout_c::start_ns(uint64_t duration_ns) 
+{
     if (timeout_controller->mode == world_time) {
         starttime_ns = timeout_controller->world_now_ns();
         signaltime_ns = starttime_ns + +duration_ns;
@@ -170,7 +188,8 @@ void flexi_timeout_c::start_ns(uint64_t duration_ns) {
     }
 }
 
-void flexi_timeout_c::start_us(uint64_t duration_us) {
+void flexi_timeout_c::start_us(uint64_t duration_us) 
+{
     start_ns(duration_us * 1000);
 }
 
@@ -178,7 +197,8 @@ void flexi_timeout_c::start_ms(uint64_t duration_ms) {
     start_ns(duration_ms * MILLION);
 }
 
-uint64_t flexi_timeout_c::elapsed_ns(void) {
+uint64_t flexi_timeout_c::elapsed_ns(void) 
+{
     if (timeout_controller->mode == world_time) {
         return timeout_controller->world_now_ns() - starttime_ns;
     } else {
@@ -187,7 +207,8 @@ uint64_t flexi_timeout_c::elapsed_ns(void) {
     }
 }
 
-uint64_t flexi_timeout_c::elapsed_us(void) {
+uint64_t flexi_timeout_c::elapsed_us(void) 
+{
     return elapsed_ns() / 1000;
 }
 
@@ -195,7 +216,8 @@ uint64_t flexi_timeout_c::elapsed_ms(void) {
     return elapsed_ns() / MILLION;
 }
 
-bool flexi_timeout_c::reached() {
+bool flexi_timeout_c::reached() 
+{
     if (timeout_controller->mode == world_time) {
         return (timeout_controller->world_now_ns() >= signaltime_ns);
     } else {
@@ -209,7 +231,8 @@ bool flexi_timeout_c::reached() {
  ***/
 
 // wait a number of nanoseconds, resolution in 0.1 millisecs
-void flexi_timeout_c::wait_ns(uint64_t duration_ns) {
+void flexi_timeout_c::wait_ns(uint64_t duration_ns) 
+{
     if (the_flexi_timeout_controller->mode == world_time) {
         struct timespec ts = { (long) (duration_ns / BILLION), (long) (duration_ns % BILLION) };
         int res = nanosleep(&ts, NULL);
@@ -231,28 +254,33 @@ void flexi_timeout_c::wait_ns(uint64_t duration_ns) {
 }
 
 // wait a number of milliseconds
-void flexi_timeout_c::wait_ms(unsigned duration_ms) {
+void flexi_timeout_c::wait_ms(unsigned duration_ms) 
+{
     wait_ns(MILLION * duration_ms);
 }
 
-void flexi_timeout_c::wait_us(unsigned duration_us) {
+void flexi_timeout_c::wait_us(unsigned duration_us) 
+{
     wait_ns(1000L * duration_us);
 }
 
-flexi_timeout_controller_c::flexi_timeout_controller_c() {
+flexi_timeout_controller_c::flexi_timeout_controller_c() 
+{
     mode = flexi_timeout_c::world_time; // downward copatibility
 // "emulated_time" only used when emulated CPU
     emu_now_ns = 0;
     emu_oldest_signal_time_ns = 0;
 }
 
-void flexi_timeout_controller_c::insert_timeout(flexi_timeout_c *timeout) {
+void flexi_timeout_controller_c::insert_timeout(flexi_timeout_c *timeout) 
+{
     pthread_mutex_lock(&mutex);
     timeout_list.push_back(timeout);
     pthread_mutex_unlock(&mutex);
 }
 
-void flexi_timeout_controller_c::erase_timeout(flexi_timeout_c *timeout) {
+void flexi_timeout_controller_c::erase_timeout(flexi_timeout_c *timeout) 
+{
     pthread_mutex_lock(&mutex);
     // remove from list
     std::list<flexi_timeout_c*>::iterator p;
@@ -262,7 +290,8 @@ void flexi_timeout_controller_c::erase_timeout(flexi_timeout_c *timeout) {
     pthread_mutex_unlock(&mutex);
 }
 
-uint64_t flexi_timeout_controller_c::world_now_ns() {
+uint64_t flexi_timeout_controller_c::world_now_ns() 
+{
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
     uint64_t result = (uint64_t) BILLION * now.tv_sec + (uint64_t) now.tv_nsec;
@@ -270,7 +299,8 @@ uint64_t flexi_timeout_controller_c::world_now_ns() {
 }
 
 // mode can change while threads are waiting
-void flexi_timeout_controller_c::set_mode(enum flexi_timeout_c::mode new_mode) {
+void flexi_timeout_controller_c::set_mode(enum flexi_timeout_c::mode new_mode) 
+{
     if (mode == new_mode)
         return;
     pthread_mutex_lock(&mutex);
@@ -311,7 +341,8 @@ void flexi_timeout_controller_c::set_mode(enum flexi_timeout_c::mode new_mode) {
 
 // advance emulated clock
 // and signal elapsed timeouts.
-void flexi_timeout_controller_c::emu_step_ns(unsigned emu_delta_ns) {
+void flexi_timeout_controller_c::emu_step_ns(unsigned emu_delta_ns) 
+{
     if (mode != flexi_timeout_c::emulated_time)
         return;
 
@@ -356,31 +387,36 @@ public:
 private:
     uint64_t world_starttime_us; // test start time in real world
 
-    char * text_us(uint64_t us) {
+    char * text_us(uint64_t us) 
+		{
         static char buff[256];
         sprintf(buff, "%0.6f", us / 1000.0);
         return buff;
     }
 
-    uint64_t world_now_us(void) {
+    uint64_t world_now_us(void) 
+    {
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         uint64_t result = (uint64_t) MILLION * now.tv_sec + (uint64_t) now.tv_nsec / 1000;
         return result;
     }
 
-    void world_wait_ns(uint64_t duration_ns) {
+    void world_wait_ns(uint64_t duration_ns) 
+    {
         struct timespec ts = { (long) (duration_ns / BILLION), (long) (duration_ns % BILLION) };
         nanosleep(&ts, NULL);
     }
 
     // abs time relative to test start
-    uint64_t test_now_us() {
+    uint64_t test_now_us() 
+    {
         return world_now_us() - world_starttime_us;
     }
 
 // print string with test-timestamp.
-    void print(const char *s) {
+    void print(const char *s) 
+    {
         printf("[%9.6f] %s\n", test_now_us() / 1000000.0, s);
     }
 
@@ -421,7 +457,8 @@ private:
 
     std::thread *tA, *tB, *tC;
 
-    void start_simulation() {
+    void start_simulation() 
+	{
         // thread bodies as lambda
         tA = new std::thread([this] {
             print("A.1 @ 0");
@@ -453,7 +490,8 @@ private:
         // after 2500 ms, A.4, B.3, C.3 are reached
     }
 
-    void waitfor_simulation() {
+    void waitfor_simulation() 
+    {
         tA->join();
         tB->join();
         tC->join();
@@ -467,7 +505,8 @@ private:
     //	e.g.: 200 -> emulated time double as fast as world time
     //		50: -> emulated time half as fast as world time
     void emulated_random_steps(uint64_t end_total_ticks_ns, unsigned max_step_duration_ns,
-                               unsigned speed_factor_percent) {
+                               unsigned speed_factor_percent) 
+    {
         while (totaltick_ns < end_total_ticks_ns) {
             // steps in range 0..10ms
             //			uint64_t emu_ticks_ns = 1000 * (rand() % 50);
@@ -480,7 +519,8 @@ private:
         }
     }
 
-    void test1() {
+    void test1() 
+    {
         printf("Test 1: wait() with real world time\n");
         world_starttime_us = world_now_us();
         the_flexi_timeout_controller->set_mode(flexi_timeout_c::world_time);
@@ -488,7 +528,8 @@ private:
         waitfor_simulation();
     }
 
-    void test2() {
+    void test2() 
+    {
         printf("\nTest 2: wait() with emulated time, half speed\n");
         world_starttime_us = world_now_us();
         // clock system runs with emulated "ticks"
@@ -503,7 +544,8 @@ private:
         // if threads not terminating clock system is damaged
     }
 
-    void test3() {
+    void test3() 
+    {
         printf("\nTest 3: wait() with emulated time, 10x speed, high frequency steps\n");
         world_starttime_us = world_now_us();
         totaltick_ns = 0;
@@ -515,7 +557,8 @@ private:
         // if threads not terminating clock system is damaged
     }
 
-    void test4() {
+    void test4() 
+    {
         printf(
             "\nTest 4: changing from world time to emulated time @ 2500ms, threads waits not completed\n");
         world_starttime_us = world_now_us();
@@ -535,7 +578,8 @@ private:
         waitfor_simulation();
     }
 
-    void test5() {
+    void test5() 
+    {
         printf(
             "\nTest 5: changing from world time to emulated time in middle of 1st wait (@ 2500ms)\n");
         world_starttime_us = world_now_us();
@@ -550,7 +594,8 @@ private:
         waitfor_simulation();
     }
 
-    void test6() {
+    void test6() 
+    {
         printf(
             "\nTest 6: changing from emulated time to world time in middle of 1st wait (@ 2500ms)\n");
         world_starttime_us = world_now_us();
@@ -571,7 +616,8 @@ private:
     }
 
     // all tests
-    void run() {
+    void run() 
+    {
         test1();
         test2();
         test3();

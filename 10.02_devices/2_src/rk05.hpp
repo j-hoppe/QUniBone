@@ -10,7 +10,6 @@
 
 #include <stdint.h>
 #include <string.h>
-using namespace std;
 
 #include "storagedrive.hpp"
 #include "rk11.hpp"

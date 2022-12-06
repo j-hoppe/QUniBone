@@ -47,7 +47,8 @@
  * slow moving zero
  */
 
-void application_c::menu_qunibus_signals(const char *menu_code) {
+void application_c::menu_qunibus_signals(const char *menu_code) 
+{
 	mcout_t mcout; // Multi Column OUTput
 	unsigned i;
 	qunibus_signal_c *qusi;

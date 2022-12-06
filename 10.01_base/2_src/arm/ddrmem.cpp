@@ -42,13 +42,15 @@
 /* another singleton */
 ddrmem_c *ddrmem;
 
-ddrmem_c::ddrmem_c() {
+ddrmem_c::ddrmem_c() 
+{
 	log_label = "DDRMEM";
 	pmi_address_overlay = 0 ;
 }
 
 // check allocated memory and print info
-void ddrmem_c::info() {
+void ddrmem_c::info() 
+{
 	INFO("Shared DDR memory: %u bytes available, %u bytes needed.", len, sizeof(ddrmem_t));
 	if (len < sizeof(ddrmem_t)) {
 		FATAL("Not enough shared DDR memory allocated by \"uio_pruss\"!\n"
@@ -66,14 +68,16 @@ void ddrmem_c::info() {
 
 // read/write ddr memory locally
 // result: true =OK, else illegal address ("timeout")
-bool ddrmem_c::deposit(uint32_t addr, uint16_t w) {
+bool ddrmem_c::deposit(uint32_t addr, uint16_t w) 
+{
 	if (!enabled || addr < qunibus_startaddr || addr > qunibus_endaddr)
 		return false;
 	base_virtual->memory.words[addr / 2] = w;
 	return true;
 }
 
-bool ddrmem_c::exam(uint32_t addr, uint16_t *w) {
+bool ddrmem_c::exam(uint32_t addr, uint16_t *w) 
+{
 	if (!enabled || addr < qunibus_startaddr || addr > qunibus_endaddr)
 		return false;
 	*w = base_virtual->memory.words[addr / 2];
@@ -83,14 +87,16 @@ bool ddrmem_c::exam(uint32_t addr, uint16_t *w) {
 // if CPU accesses memory direct and not via QBUS/UNIBUS
 // PMI = "Private Memory Interconnect" = local memory bus on 11/44,60,84 etc.
 // No QBUS/UNIBUS range, always memory present at all addresses
-bool ddrmem_c::pmi_deposit(uint32_t addr, uint16_t w) {
+bool ddrmem_c::pmi_deposit(uint32_t addr, uint16_t w) 
+{
 	assert((addr & 1) == 0); // must be even
 	assert(addr < qunibus->iopage_start_addr);
 	base_virtual->memory.words[addr / 2] = w;
 	return true;
 }
 
-bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) {
+bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) 
+{
 	assert((addr & 1) == 0); // must be even
 //	assert(addr < qunibus->iopage_start_addr); IOPAGE ROM also allowed
 	*w = base_virtual->memory.words[addr / 2];
@@ -104,13 +110,15 @@ bool ddrmem_c::pmi_exam(uint32_t addr, uint16_t *w) {
 //
 // This is something not existent on real PDP11s with separate memory bus:
 // The M9312 in IO UNIBUS cannot manipulated addresses on the Memory BUS.
-void ddrmem_c::set_pmi_address_overlay(uint32_t _address_overlay) {
+void ddrmem_c::set_pmi_address_overlay(uint32_t _address_overlay) 
+{
 	pmi_address_overlay = _address_overlay ;
 }
 
 
 // independent of memory emulation, memory used for IOpage ROM is always accessible
-bool ddrmem_c::iopage_deposit(uint32_t addr, uint16_t w) {
+bool ddrmem_c::iopage_deposit(uint32_t addr, uint16_t w) 
+{
 	if (addr < qunibus->iopage_start_addr || addr >= qunibus->addr_space_byte_count)
 		return false;
 	assert(len >= addr/2) ;
@@ -118,7 +126,8 @@ bool ddrmem_c::iopage_deposit(uint32_t addr, uint16_t w) {
 	return true;
 }
 
-bool ddrmem_c::iopage_exam(uint32_t addr, uint16_t *w) {
+bool ddrmem_c::iopage_exam(uint32_t addr, uint16_t *w) 
+{
 	if (addr < qunibus->iopage_start_addr || addr >= qunibus->addr_space_byte_count)
 		return false;
 	assert(len >= addr/2) ;
@@ -129,7 +138,8 @@ bool ddrmem_c::iopage_exam(uint32_t addr, uint16_t *w) {
 
 // write to disk file
 
-void ddrmem_c::save(char *fname) {
+void ddrmem_c::save(char *fname) 
+{
 	FILE *fout;
 	unsigned wordcount = qunibus->addr_space_word_count;
 	unsigned n;
@@ -148,7 +158,8 @@ void ddrmem_c::save(char *fname) {
 }
 
 // load from disk file
-void ddrmem_c::load(char *fname) {
+void ddrmem_c::load(char *fname) 
+{
 	FILE *fin;
 	fin = fopen(fname, "rb");
 	if (!fin) {
@@ -161,12 +172,14 @@ void ddrmem_c::load(char *fname) {
 }
 
 // fill whole memory with 0
-void ddrmem_c::clear(void) {
+void ddrmem_c::clear(void) 
+{
 	memset((void *) base_virtual, 0, sizeof(qunibus_memory_t));
 }
 
 // fill whole memory with pattern, with local code
-void ddrmem_c::fill_pattern(void) {
+void ddrmem_c::fill_pattern(void) 
+{
 	unsigned n;
 	volatile uint16_t *wordaddr = base_virtual->memory.words;
 	for (n = 0; n < qunibus->addr_space_word_count; n++) {
@@ -175,7 +188,8 @@ void ddrmem_c::fill_pattern(void) {
 }
 
 // fill whole memory with pattern, by PRU
-void ddrmem_c::fill_pattern_pru(void) {
+void ddrmem_c::fill_pattern_pru(void) 
+{
 	// ddrmem_base_physical and _len already set
 	assert((uint32_t )mailbox->ddrmem_base_physical == base_physical);
 	mailbox_execute(ARM2PRU_DDR_FILL_PATTERN);
@@ -186,7 +200,8 @@ void ddrmem_c::fill_pattern_pru(void) {
 // operates on addressmap.pagetable[]
 // precondition:  deviceregister_init()
 // result: false = error
-bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
+bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) 
+{
 	// init empty pagetable, just iopage
 	bool error;
 
@@ -230,8 +245,8 @@ bool ddrmem_c::set_range(uint32_t startaddr, uint32_t endaddr) {
 
 // implement an QBUS/UNIBUS memory card with DDR memory
 // PRU act as slave to qunibus master cycles
-void ddrmem_c::unibus_slave(uint32_t startaddr, uint32_t endaddr) {
-
+void ddrmem_c::unibus_slave(uint32_t startaddr, uint32_t endaddr) 
+{
 	char *s, buf[20]; // dummy
 	// this command starts QBUS/UNIBUS slave logic in PRU
 	set_range(startaddr, endaddr);

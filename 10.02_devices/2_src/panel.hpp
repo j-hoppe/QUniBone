@@ -51,9 +51,9 @@ public:
 	// and arbitrary control name.
 	// device name ideally same as device-> name
 	// control name ideally same as deviceparameter->name
-	string device_name; // "rl1"
-	string control_name; // "load_button"
-	string full_name();
+	std::string device_name; // "rl1"
+	std::string control_name; // "load_button"
+	std::string full_name();
 
 	bool is_input; // false = 0 = output
 	unsigned bitwidth = 1; 	// later non-binary controls?
@@ -74,7 +74,7 @@ public:
 	// output lamps can be linekd to their including buttons
 	panelcontrol_c *associate;
 
-	panelcontrol_c(string device_name, string control_name,
+	panelcontrol_c(std::string device_name, std::string control_name,
 	bool is_input, uint8_t chip_addr, uint8_t reg_addr, uint8_t reg_bitmask);
 
 	void set_param_from_register_value(i2c_chip_register_c *chip_register, uint8_t reg_value);
@@ -88,7 +88,7 @@ private:
 	int i2c_device_file; // file handle to I2C bus devive
 	const char *i2c_device_fname = "/dev/i2c-2"; // BUS I2C2
 
-	vector<i2c_chip_register_c> i2c_chip_registers;
+	std::vector<i2c_chip_register_c> i2c_chip_registers;
 
 public:
 	paneldriver_c();
@@ -96,11 +96,11 @@ public:
 
 	bool on_param_changed(parameter_c *param) override;  // must implement
 
-	vector<panelcontrol_c *> controls;
+	std::vector<panelcontrol_c *> controls;
 
 	void unregister_controls(void); // clear static list of all connected controls
 	void register_controls(void); // build static list of all connected controls
-	panelcontrol_c *control_by_name(string device_name, string control_name);
+	panelcontrol_c *control_by_name(std::string device_name, std::string control_name);
 
 	void reset(void);
 

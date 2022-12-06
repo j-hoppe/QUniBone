@@ -44,7 +44,8 @@
  * */
 
 #if defined(UNIBUS)
-static void buslatches_m9302_sack_test() {
+static void buslatches_m9302_sack_test() 
+{
 #define GRANT_LINE_COUNT	5
 	unsigned count;
 	unsigned i;
@@ -115,7 +116,8 @@ static void buslatches_m9302_sack_test() {
 }
 #endif
 
-void application_c::menu_buslatches(const char *menu_code) {
+void application_c::menu_buslatches(const char *menu_code) 
+{
 	bool show_help = true ; // show cmds on first screen, then only on error or request
 	bool show_inputs = true; // query and show state of all latches
 	bool stop_on_error = true ;

@@ -39,8 +39,6 @@
 #include <memory>
 #include <queue>
  
-using namespace std;
-
 #include "logger.hpp"
 #include "utils.hpp"
 
@@ -202,19 +200,19 @@ mscp_server::Poll(void)
         //
         // Read all commands from the ring into a queue; then execute them.
         //
-        std::queue<shared_ptr<Message>> messages;
+        std::queue<std::shared_ptr<Message>> messages;
 
         int msgCount = 0;
         while (!_abort_polling && _pollState != PollingState::InitRestart)
         {
             bool error = false;
-            shared_ptr<Message> message(_port->GetNextCommand(&error));
+            std::shared_ptr<Message> message(_port->GetNextCommand(&error));
             if (error)
             {
                 DEBUG("Error while reading messages, returning to idle state.");
                 // The lords of STL decreed that queue should have no "clear" method
                 // so we do this garbage instead:
-                messages = std::queue<shared_ptr<Message>>(); 
+                messages = std::queue<std::shared_ptr<Message>>(); 
                 break; 
             }
             if (nullptr == message)
@@ -232,7 +230,7 @@ mscp_server::Poll(void)
         //
         while(!messages.empty() && !_abort_polling && _pollState != PollingState::InitRestart)
         {
-            shared_ptr<Message> message(messages.front());  
+            std::shared_ptr<Message> message(messages.front());  
             messages.pop();
 
             //
@@ -357,7 +355,7 @@ mscp_server::Poll(void)
                 // thereafter it supplies one credit for every response
                 // packet sent.
                 // 
-                uint8_t grantedCredits = min(_credits, static_cast<uint8_t>(MAX_CREDITS));
+                uint8_t grantedCredits = std::min(_credits, static_cast<uint8_t>(MAX_CREDITS));
                 _credits -= grantedCredits;
                 message->Word1.Info.Credits = grantedCredits + 1;
                 DEBUG("granted credits %d", grantedCredits + 1);
@@ -457,7 +455,7 @@ mscp_server::Available(
 
 uint32_t
 mscp_server::Access(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber)
 {
     INFO("MSCP ACCESS");
@@ -471,7 +469,7 @@ mscp_server::Access(
 
 uint32_t
 mscp_server::CompareHostData(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber)
 {
     INFO("MSCP COMPARE HOST DATA");
@@ -506,7 +504,7 @@ mscp_server::DetermineAccessPaths(
 
 uint32_t
 mscp_server::Erase(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -519,7 +517,7 @@ mscp_server::Erase(
 
 uint32_t
 mscp_server::GetCommandStatus(
-    shared_ptr<Message> message)
+    std::shared_ptr<Message> message)
 {
     INFO("MSCP GET COMMAND STATUS");
 
@@ -549,7 +547,7 @@ mscp_server::GetCommandStatus(
 
 uint32_t
 mscp_server::GetUnitStatus(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -654,7 +652,7 @@ mscp_server::GetUnitStatus(
 
 uint32_t
 mscp_server::Online(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -686,7 +684,7 @@ mscp_server::Online(
 
 uint32_t
 mscp_server::Replace(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber)
 {
     INFO("MSCP REPLACE");
@@ -711,7 +709,7 @@ mscp_server::Replace(
 
 uint32_t
 mscp_server::SetControllerCharacteristics(
-    shared_ptr<Message> message)
+    std::shared_ptr<Message> message)
 {
     #pragma pack(push,1)
     struct SetControllerCharacteristicsParameters
@@ -774,7 +772,7 @@ mscp_server::SetControllerCharacteristics(
 
 uint32_t
 mscp_server::SetUnitCharacteristics(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -801,7 +799,7 @@ mscp_server::SetUnitCharacteristics(
 
 uint32_t
 mscp_server::Read(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -814,7 +812,7 @@ mscp_server::Read(
 
 uint32_t
 mscp_server::Write(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -831,7 +829,7 @@ mscp_server::Write(
 //
 uint32_t
 mscp_server::SetUnitCharacteristicsInternal(
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers,
     bool bringOnline)
@@ -902,7 +900,7 @@ mscp_server::SetUnitCharacteristicsInternal(
 uint32_t
 mscp_server::DoDiskTransfer(
     uint16_t operation,
-    shared_ptr<Message> message,
+    std::shared_ptr<Message> message,
     uint16_t unitNumber,
     uint16_t modifiers)
 {
@@ -986,7 +984,7 @@ mscp_server::DoDiskTransfer(
         case Opcodes::COMPARE_HOST_DATA:
         {
             // Read the data in from disk, read the data in from memory, and compare.
-            unique_ptr<uint8_t> diskBuffer;
+            std::unique_ptr<uint8_t> diskBuffer;
 
             if (rctAccess)
             {
@@ -997,7 +995,7 @@ mscp_server::DoDiskTransfer(
                 diskBuffer.reset(drive->Read(params->LBN, params->ByteCount));
             }
 
-            unique_ptr<uint8_t> memBuffer(_port->DMARead(
+            std::unique_ptr<uint8_t> memBuffer(_port->DMARead(
                 params->BufferPhysicalAddress & 0x00ffffff,
                 params->ByteCount,
                 params->ByteCount));
@@ -1015,7 +1013,7 @@ mscp_server::DoDiskTransfer(
  
         case Opcodes::ERASE:
         {
-            unique_ptr<uint8_t> memBuffer(new uint8_t[params->ByteCount]);
+            std::unique_ptr<uint8_t> memBuffer(new uint8_t[params->ByteCount]);
             memset(reinterpret_cast<void*>(memBuffer.get()), 0, params->ByteCount);
 
             if (rctAccess)
@@ -1034,7 +1032,7 @@ mscp_server::DoDiskTransfer(
 
         case Opcodes::READ:
         {
-            unique_ptr<uint8_t> diskBuffer;
+            std::unique_ptr<uint8_t> diskBuffer;
         
             if (rctAccess)
             {
@@ -1058,7 +1056,7 @@ mscp_server::DoDiskTransfer(
 
         case Opcodes::WRITE:
         {
-            unique_ptr<uint8_t> memBuffer(_port->DMARead(
+            std::unique_ptr<uint8_t> memBuffer(_port->DMARead(
                 params->BufferPhysicalAddress & 0x00ffffff,
                 params->ByteCount,
                 params->ByteCount));
@@ -1103,7 +1101,7 @@ mscp_server::DoDiskTransfer(
 //
 uint8_t*
 mscp_server::GetParameterPointer(
-    shared_ptr<Message> message)
+    std::shared_ptr<Message> message)
 {
     // We silence a strict aliasing warning here; this is safe (if perhaps not recommended
     // the general case.)

@@ -28,8 +28,6 @@
 
 #include <fstream>
 
-using namespace std;
-
 #include "utils.hpp"
 #include "qunibusdevice.hpp"
 
@@ -40,10 +38,10 @@ private:
 	qunibusdevice_register_t *display_reg;
 
 	// file handles for GPIO pins
-	fstream gpio_inputs[5]; // 4 switches, 1 button
-	fstream gpio_outputs[4]; // 4 LEDs
+	std::fstream gpio_inputs[5]; // 4 switches, 1 button
+	std::fstream gpio_outputs[4]; // 4 LEDs
 
-	void gpio_open(fstream& value_stream, bool is_input, unsigned gpio_number);
+	void gpio_open(std::fstream& value_stream, bool is_input, unsigned gpio_number);
 	unsigned gpio_get_input(unsigned input_index);
 	void gpio_set_output(unsigned output_index, unsigned value);
 

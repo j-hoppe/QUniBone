@@ -58,7 +58,7 @@ namespace sharedfilesystem {
 
 filesystem_host_event_c::filesystem_host_event_c() {}
 filesystem_host_event_c::filesystem_host_event_c(         enum operation_e _operation,
-        string _path, bool _is_dir, file_host_c *_file) : filesystem_event_c()
+        std::string _path, bool _is_dir, file_host_c *_file) : filesystem_event_c()
 {
     operation = _operation ;
     host_path = _path ;
@@ -67,7 +67,7 @@ filesystem_host_event_c::filesystem_host_event_c(         enum operation_e _oper
 }
 
 
-string filesystem_host_event_c::as_text()
+std::string filesystem_host_event_c::as_text()
 {
     assert(event_queue) ;
     filesystem_base_c *filesystem = event_queue->filesystem ;
@@ -76,7 +76,7 @@ string filesystem_host_event_c::as_text()
 }
 
 
-file_host_c::file_host_c(string _filename): file_base_c()
+file_host_c::file_host_c(std::string _filename): file_base_c()
 {
     filename = _filename ;
     inotify_create_pending = inotify_modify_pending = false ;
@@ -103,7 +103,7 @@ file_host_c::~file_host_c()
 void file_host_c::load_disk_attributes()
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath = fs->get_absolute_filepath(this->path) ;
+    std::string abspath = fs->get_absolute_filepath(this->path) ;
     struct stat stat_buff ;
     if (stat(abspath.c_str(), &stat_buff) < 0)
         ERROR("file_host_c::load_attributes(): can not stat %s, error = %d", abspath.c_str(), errno);
@@ -118,14 +118,14 @@ void file_host_c::load_disk_attributes()
 }
 
 // open data stream and return ptr
-fstream *file_host_c::data_open(bool open_for_write)
+std::fstream *file_host_c::data_open(bool open_for_write)
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath = fs->get_absolute_filepath(this->path) ;
-    ios_base::openmode mode ;
+    std::string abspath = fs->get_absolute_filepath(this->path) ;
+    std::ios_base::openmode mode ;
     if (open_for_write)
-        mode = ios::out ;
-    else mode = ios::in ;
+        mode = std::ios::out ;
+    else mode = std::ios::in ;
     data.open(abspath, mode) ;
     assert(data.is_open()) ;
     return &data ;
@@ -159,7 +159,7 @@ bool file_host_c::data_changed(file_base_c *_cmp)
 void file_host_c::render_to_disk(uint8_t *write_data, unsigned write_data_size)
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath = fs->get_absolute_filepath(this->path) ;
+    std::string abspath = fs->get_absolute_filepath(this->path) ;
 
     // copy data bytes
     data_open(/*write*/true) ;
@@ -188,7 +188,7 @@ void file_host_c::render_to_disk(uint8_t *write_data, unsigned write_data_size)
 void file_host_c::remove_from_disk()
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath = fs->get_absolute_filepath(this->path) ;
+    std::string abspath = fs->get_absolute_filepath(this->path) ;
 
     unlink(abspath.c_str()) ;
 }
@@ -199,7 +199,7 @@ void file_host_c::remove_from_disk()
 
 
 
-directory_host_c::directory_host_c(string _dirname): directory_base_c(), file_host_c(_dirname)
+directory_host_c::directory_host_c(std::string _dirname): directory_base_c(), file_host_c(_dirname)
 {
     inotify_wd = 0 ; // not set
 }
@@ -216,7 +216,7 @@ directory_host_c::~directory_host_c()
 void directory_host_c::inotify_add_watch()
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath =fs->get_absolute_filepath(this->path) ;
+    std::string abspath =fs->get_absolute_filepath(this->path) ;
 //    const char *hostdir_realpath = abspath.c_str() ;
 
     DEBUG(printf_to_cstr("inotify_add_watch(%s)\n", abspath.c_str()));
@@ -266,7 +266,7 @@ void directory_host_c::inotify_add_watch()
 void directory_host_c::inotify_remove_watch()
 {
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
-    string abspath = fs->get_absolute_filepath(this->path);
+    std::string abspath = fs->get_absolute_filepath(this->path);
 
     DEBUG(printf_to_cstr("inotify_rm_watch(%s)\n", abspath.c_str()));
     int res = ::inotify_rm_watch(fs->inotify_fd, inotify_wd) ;
@@ -307,7 +307,7 @@ void directory_host_c::parse_from_disk_dir()
     DIR *dp ;
 
     // recurse into all subdirs on disk
-    string abspath = fs->get_absolute_filepath(this->path) ;
+    std::string abspath = fs->get_absolute_filepath(this->path) ;
     dp = opendir(abspath.c_str()) ;
     assert(dp) ;
     while ((entry = readdir(dp)))
@@ -342,7 +342,7 @@ void directory_host_c::generate_events()
 }
 
 
-filesystem_host_c::filesystem_host_c(string _rootpath)
+filesystem_host_c::filesystem_host_c(std::string _rootpath)
     : filesystem_base_c()
 {
 
@@ -372,7 +372,7 @@ filesystem_host_c::~filesystem_host_c()
 // Like "Host dir /root/10.02_devices/3_test/sharedfilesystem/xxdp-rl02"
 // 			      /root/10.03_app_demo/5_applications/rt11.rl02/shared_rl1
 
-string filesystem_host_c::get_label() 
+std::string filesystem_host_c::get_label() 
 {
 	return "Host dir " + rootpath ;
 }
@@ -384,16 +384,16 @@ string filesystem_host_c::get_label()
 // f can be file or directory
 // used by filesystem.add() to calc file->path
 // Path begins with "/" in any case
-string filesystem_host_c::get_filepath(file_base_c *f) {
+std::string filesystem_host_c::get_filepath(file_base_c *f) {
     return get_host_path(f) ;
 }
 
 // static version of get_file_path, needed for event_dec generation
-string filesystem_host_c::get_host_path(file_base_c *f)
+std::string filesystem_host_c::get_host_path(file_base_c *f)
 {
     if (!f->parentdir)
         return "/" ; // root
-    string result = "";
+    std::string result = "";
     while(f->parentdir) { // all upwards, but stop before root
         result = "/" + f->get_filename() + result ;
         f = f->parentdir ; // step up
@@ -402,9 +402,9 @@ string filesystem_host_c::get_host_path(file_base_c *f)
 }
 
 // empty path allowed
-string filesystem_host_c::get_absolute_filepath(string path)
+std::string filesystem_host_c::get_absolute_filepath(std::string path)
 {
-    string result = rootpath ;
+    std::string result = rootpath ;
 	if (path.empty()) 
 		return result ;
 
@@ -418,7 +418,7 @@ string filesystem_host_c::get_absolute_filepath(string path)
     char *buffer = realpath(result.c_str(), NULL) ;
     if (!buffer)
         FATAL("%s: Invalid absolute host path: %s", get_label().c_str(), result.c_str()) ;
-    result = string(buffer) ;
+    result = std::string(buffer) ;
     free(buffer) ;
     */
     return result ;
@@ -544,7 +544,7 @@ void filesystem_host_c::clear_events()
 // Further events will reflect this, but the event nevertheless must be corrected.
 void filesystem_host_c::update_event(filesystem_host_event_c *event)
 {
-    string abspath = get_absolute_filepath(event->host_path) ;
+    std::string abspath = get_absolute_filepath(event->host_path) ;
     switch (event->operation) {
     case filesystem_event_c::op_create:
         if (! file_exists(&abspath)) // created file deleted again?
@@ -679,16 +679,16 @@ void filesystem_host_c::inotify_event_eval(struct inotify_event *ino_event)
     assert (it != inotify_watch_map.end()) ; // must be found
     auto parentdir = it->second;
 
-    string path ;
+    std::string path ;
     if (ino_event->len == 0) // no name, the watched directory itself changed
         path = parentdir->path ;
     else { // it's path/dir or path/subpath
         // !! identical to later ->get_filepath() result, else mismatch with base->file_by_pathmap entries!
         // path always begins iwth "/"
         if (!parentdir->parentdir) // file direct under root
-            path = "/" + string(ino_event->name) ;
+            path = "/" + std::string(ino_event->name) ;
         else // file on subdir
-            path = parentdir->path + "/" + string(ino_event->name) ;
+            path = parentdir->path + "/" + std::string(ino_event->name) ;
     }
 
     file_base_c *fbase = file_by_path.get(path) ;
@@ -697,11 +697,11 @@ void filesystem_host_c::inotify_event_eval(struct inotify_event *ino_event)
         // file create event, usable after IN_CLOSE_...
         // fbase may exist, if the file is created by a render() operation
         if (is_dir) {
-            fbase = dir = new directory_host_c(string(ino_event->name));
+            fbase = dir = new directory_host_c(std::string(ino_event->name));
             add_directory(parentdir, dir) ;
             dir->inotify_create_pending = true ;
         } else {
-            fbase = file = new file_host_c(string(ino_event->name)) ;
+            fbase = file = new file_host_c(std::string(ino_event->name)) ;
             parentdir->add_file(file) ;
             file->inotify_create_pending=true ;
         }
@@ -931,9 +931,9 @@ void filesystem_host_c::inotify_test()
     int fd;
     int wd1,wd2;
     char buffer[EVENT_BUF_LEN];
-//string hostdir = "/tmp" ;
-    string hostdir1 = "/root/10.02_devices/3_test/sharedfilesystem/synthetic";
-    string hostdir2 = "/root/10.02_devices/3_test/sharedfilesystem/synthetic/dir1";
+//std::string hostdir = "/tmp" ;
+    std::string hostdir1 = "/root/10.02_devices/3_test/sharedfilesystem/synthetic";
+    std::string hostdir2 = "/root/10.02_devices/3_test/sharedfilesystem/synthetic/dir1";
 
     /*creating the INOTIFY instance*/
     fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
@@ -1023,7 +1023,7 @@ void filesystem_host_c::inotify_test()
 
 void filesystem_host_c::import_dec_stream(file_dec_stream_c *dec_stream)
 {
-    string dir_path, file_name ;
+    std::string dir_path, file_name ;
     assert(dynamic_cast<file_dec_stream_c *>(dec_stream)) ;
     split_path(dec_stream->host_path, &dir_path, &file_name, nullptr, nullptr);
     if (!file_exists(&dir_path)) {

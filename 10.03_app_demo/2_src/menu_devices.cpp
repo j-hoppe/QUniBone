@@ -67,7 +67,8 @@ static char memory_filename[PATH_MAX + 1];
 
 // entry_label is program start, typically "start"
 // format: 0 = macrop11, 1 = papertape
-static void load_memory(memory_fileformat_t format, char *fname, const char *entry_label) {
+static void load_memory(memory_fileformat_t format, char *fname, const char *entry_label) 
+{
 	codelabel_map_c codelabels ;
 	uint32_t firstaddr, lastaddr;
 	uint32_t entry_address = MEMORY_ADDRESS_INVALID ;
@@ -112,7 +113,8 @@ static void load_memory(memory_fileformat_t format, char *fname, const char *ent
 	}
 }
 
-static void print_device(device_c *device) {
+static void print_device(device_c *device) 
+{
 	qunibusdevice_c *ubdevice = dynamic_cast<qunibusdevice_c *>(device);
 	if (ubdevice)
 		printf("- %-12s  Type %s, %s.\n", ubdevice->name.value.c_str(),
@@ -122,7 +124,8 @@ static void print_device(device_c *device) {
 				device->type_name.value.c_str());
 }
 
-void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) {
+void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
+{
 	/** list of usable devices ***/
 	bool with_storage_file_test = false;
 
@@ -401,39 +404,39 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				load_memory(fileformat_addr_value_text, memory_filename, NULL);
 			} else if (!strcasecmp(s_opcode, "ld") && n_fields == 1) {
 				unsigned n;
-				list<device_c *>::iterator it;
+				std::list<device_c *>::iterator it;
 				for (n = 0, it = device_c::mydevices.begin(); it != device_c::mydevices.end();
 						++it)
 					if ((*it)->enabled.value) {
 						if (n == 0)
-							cout << "Enabled devices:\n";
+							std::cout << "Enabled devices:\n";
 						n++;
 						print_device(*it);
 					}
 				if (n == 0)
-					cout << "No enabled devices.\n";
+					std::cout << "No enabled devices.\n";
 
 				for (n = 0, it = device_c::mydevices.begin(); it != device_c::mydevices.end();
 						++it)
 					if (!(*it)->enabled.value) {
 						if (n == 0)
-							cout << "Disabled devices:\n";
+							std::cout << "Disabled devices:\n";
 						n++;
 						print_device(*it);
 					}
 				if (n == 0)
-					cout << "No disabled devices.\n";
+					std::cout << "No disabled devices.\n";
 			} else if (!strcasecmp(s_opcode, "en") && n_fields == 2) {
 				device_c *dev = device_c::find_by_name(s_param[0]);
 				if (!dev) {
-					cout << "Device \"" << s_param[0] << "\" not found.\n";
+					std::cout << "Device \"" << s_param[0] << "\" not found.\n";
 					show_help = true;
 				} else
 					dev->enabled.set(true);
 			} else if (!strcasecmp(s_opcode, "dis") && n_fields == 2) {
 				device_c *dev = device_c::find_by_name(s_param[0]);
 				if (!dev) {
-					cout << "Device \"" << s_param[0] << "\" not found.\n";
+					std::cout << "Device \"" << s_param[0] << "\" not found.\n";
 					show_help = true;
 				} else
 					dev->enabled.set(false);
@@ -441,7 +444,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				cur_device = device_c::find_by_name(s_param[0]);
 
 				if (!cur_device) {
-					cout << "Device \"" << s_param[0] << "\" not found.\n";
+					std::cout << "Device \"" << s_param[0] << "\" not found.\n";
 					show_help = true;
 				} else {
 					printf("Current device is \"%s\"\n", cur_device->name.value.c_str());
@@ -458,7 +461,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 					show_help = true;
 				}
 			} else if (cur_device && !strcasecmp(s_opcode, "p") && n_fields == 1) {
-				cout << "Parameters of device " << cur_device->name.value << ":\n";
+				std::cout << "Parameters of device " << cur_device->name.value << ":\n";
 				print_params(cur_device, NULL);
 			} else if (cur_device && !strcasecmp(s_opcode, "p") && n_fields == 2
 					&& !strcasecmp(s_param[0], "panel")) {
@@ -466,10 +469,10 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				// RL11.refresh_params_from_panel(); // all 4 drives
 			} else if (cur_device && !strcasecmp(s_opcode, "p") && n_fields == 2) {
 				// show selected
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_device->param_by_name(pn);
 				if (p == NULL)
-					cout << "Device \"" << cur_device->name.value << "\" has no parameter \""
+					std::cout << "Device \"" << cur_device->name.value << "\" has no parameter \""
 							<< pn << "\".\n";
 				else {
 					// string parameter set to "" ?
@@ -478,13 +481,13 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 					print_params(cur_device, p);
 				}
 			} else if (cur_device && !strcasecmp(s_opcode, "p") && n_fields == 3) {
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_device->param_by_name(pn);
 				if (p == NULL)
-					cout << "Device \"" << cur_device->name.value << "\" has no parameter \""
+					std::cout << "Device \"" << cur_device->name.value << "\" has no parameter \""
 							<< pn << "\".\n";
 				else {
-					string sval(s_param[1]);
+					std::string sval(s_param[1]);
 					p->parse(sval);
 					print_params(cur_device, p);
 				}
@@ -593,7 +596,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 						continue;
 					}
 					// while waiting echo to stdout, for diag
-					DL11->rs232adapter.stream_xmt = &cout;
+					DL11->rs232adapter.stream_xmt = &std::cout;
 					DL11->rs232adapter.set_pattern(buff);
 					timeout.start_ms(ms);
 					while (!timeout.reached() && !DL11->rs232adapter.pattern_found)
@@ -615,7 +618,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 				show_help = true;
 			}
 		} catch (bad_parameter& e) {
-			cout << "Error : " << e.what() << "\n";
+			std::cout << "Error : " << e.what() << "\n";
 		}
 	} // ready
 

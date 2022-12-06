@@ -43,7 +43,8 @@
 #include "qunibusadapter.hpp"
 #include "testcontroller.hpp"
 
-void application_c::menu_interrupts(const char *menu_code) {
+void application_c::menu_interrupts(const char *menu_code) 
+{
     bool show_help = true; // show cmds on first screen, then only on error or request
     bool active = false; // 1 if PRU executes slave&master logic
     bool ready;

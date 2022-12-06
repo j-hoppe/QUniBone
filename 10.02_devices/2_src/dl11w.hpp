@@ -29,8 +29,6 @@
 
 #include <fstream>
 
-using namespace std;
-
 #include "utils.hpp"
 #include "qunibusdevice.hpp"
 #include "parameter.hpp"

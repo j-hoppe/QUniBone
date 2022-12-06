@@ -68,7 +68,6 @@ rolling_text_buffers_c rolling_text_buffers ;
  * strcpy without buffer overlfow
  */
 void strcpy_s(char *dest, int len, const char *src)
-
 {
     strncpy(dest, src, len - 1);
     dest[len - 1] = 0; // termiante if truncated
@@ -93,7 +92,8 @@ void SIGINTcatchnext()
     SIGINTreceived = 0;
 }
 
-void break_here(void) {
+void break_here(void) 
+{
 }
 
 

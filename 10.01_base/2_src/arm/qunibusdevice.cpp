@@ -33,7 +33,6 @@
  reacts on register read/write over QBUS/UNIBUS by evaluation of PRU events.
  */
 //#include <string>
-//using namespace std;
 #include <vector>
 #include <assert.h>
 #include "logger.hpp"
@@ -41,8 +40,8 @@
 #include "qunibusadapter.hpp"
 #include "qunibusdevice.hpp"
 
-qunibusdevice_c::qunibusdevice_c() :
-		device_c() {
+qunibusdevice_c::qunibusdevice_c() :		device_c() 
+{
 	handle = 0;
 	register_count = 0;
 	// device is not yet enabled, QBUS/UNIBUS properties can be set
@@ -60,11 +59,13 @@ qunibusdevice_c::qunibusdevice_c() :
 	log_channelmask = 0; // no logging until set
 }
 
-qunibusdevice_c::~qunibusdevice_c() {
+qunibusdevice_c::~qunibusdevice_c() 
+{
 }
 
 // implements params, so must handle "change"
-bool qunibusdevice_c::on_param_changed(parameter_c *param) {
+bool qunibusdevice_c::on_param_changed(parameter_c *param) 
+{
 	if (param == &enabled) {
 		// plug/unplug device into QUNIBUS:
 		if (enabled.new_value) {
@@ -94,7 +95,8 @@ bool qunibusdevice_c::on_param_changed(parameter_c *param) {
 // define default values for device BASE address and INTR
 void qunibusdevice_c::set_default_bus_params(uint32_t _default_base_addr,
 		unsigned _default_priority_slot, unsigned _default_intr_vector,
-		unsigned _default_intr_level) {
+		unsigned _default_intr_level) 
+{
 	assert(_default_priority_slot <= PRIORITY_SLOT_COUNT); // bitmask!
 
 	// make proper 16/18/22 bit IOpage address: start + addr<12:0>
@@ -112,7 +114,8 @@ void qunibusdevice_c::set_default_bus_params(uint32_t _default_base_addr,
 	intr_level.set(default_intr_level);
 }
 
-void qunibusdevice_c::install(void) {
+void qunibusdevice_c::install(void) 
+{
 	qunibusadapter->register_device(*this); // -> device_c ?
 	// now has handle
 
@@ -127,7 +130,8 @@ void qunibusdevice_c::uninstall(void) {
 	qunibusadapter->unregister_device(*this);
 }
 
-qunibusdevice_register_t *qunibusdevice_c::register_by_name(string _name) {
+qunibusdevice_register_t *qunibusdevice_c::register_by_name(std::string _name) 
+{
 	unsigned i;
 	for (i = 0; i < register_count; i++) {
 		qunibusdevice_register_t *reg = &(registers[i]);
@@ -137,7 +141,8 @@ qunibusdevice_register_t *qunibusdevice_c::register_by_name(string _name) {
 	return NULL;
 }
 
-qunibusdevice_register_t *qunibusdevice_c::register_by_unibus_address(uint32_t addr) {
+qunibusdevice_register_t *qunibusdevice_c::register_by_unibus_address(uint32_t addr) 
+{
 	unsigned i;
 	for (i = 0; i < register_count; i++) {
 		qunibusdevice_register_t *reg = &(registers[i]);
@@ -151,7 +156,8 @@ qunibusdevice_register_t *qunibusdevice_c::register_by_unibus_address(uint32_t a
 // passive register: simply set value in shared PRU RAM
 // active: set additionally "read" flipflops
 void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_reg,
-		uint16_t value, const char *debug_info) {
+		uint16_t value, const char *debug_info) 
+{
 //	if (device_reg->active_on_dati)
 	// always set dati_flipflops, needed to restore value written with DATO
 	device_reg->active_dati_flipflops = value;
@@ -172,7 +178,8 @@ void qunibusdevice_c::set_register_dati_value(qunibusdevice_register_t *device_r
  }
  */
 // get value of QBUS/UNIBUS register which has been written by DATO
-uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *device_reg) {
+uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *device_reg) 
+{
 	if (device_reg->active_on_dato)
 		return device_reg->active_dato_flipflops;
 	else
@@ -185,8 +192,8 @@ uint16_t qunibusdevice_c::get_register_dato_value(qunibusdevice_register_t *devi
 // 1st time done by PRU: iopageregisters_reset_values() 
 // as DATI/DATO accesses to registers which are not active(no callback events)
 // are not delayed until INIT finishes.
-void qunibusdevice_c::reset_unibus_registers() {
-
+void qunibusdevice_c::reset_unibus_registers() 
+{
 	unsigned i;
 	for (i = 0; i < register_count; i++) {
 		qunibusdevice_register_t *reg = &(registers[i]);
@@ -201,7 +208,8 @@ void qunibusdevice_c::reset_unibus_registers() {
 // "active" registers are printed as <datiflipflop></datoflipflop>
 
 void qunibusdevice_c::log_register_event(const char *change_info,
-		qunibusdevice_register_t *changed_reg) {
+		qunibusdevice_register_t *changed_reg) 
+{
 	// do not use std:: string .. hand coded because of performance
 	char buffer[1024];
 	unsigned i;
@@ -242,17 +250,18 @@ void qunibusdevice_c::log_register_event(const char *change_info,
 }
 
 // search device in global list mydevices[]				
-qunibusdevice_c *qunibusdevice_c::find_by_request_slot(uint8_t priority_slot) {
-	list<device_c *>::iterator devit;
+qunibusdevice_c *qunibusdevice_c::find_by_request_slot(uint8_t priority_slot) 
+{
+	std::list<device_c *>::iterator devit;
 	for (devit = device_c::mydevices.begin(); devit != device_c::mydevices.end(); ++devit) {
 		qunibusdevice_c *ubdevice = dynamic_cast<qunibusdevice_c *>(*devit);
 		if (ubdevice) {
 			// all dma and intr requests
-			for (vector<dma_request_c *>::iterator reqit = ubdevice->dma_requests.begin();
+			for (std::vector<dma_request_c *>::iterator reqit = ubdevice->dma_requests.begin();
 					reqit < ubdevice->dma_requests.end(); reqit++)
 				if ((*reqit)->get_priority_slot() == priority_slot)
 					return ubdevice;
-			for (vector<intr_request_c *>::iterator reqit = ubdevice->intr_requests.begin();
+			for (std::vector<intr_request_c *>::iterator reqit = ubdevice->intr_requests.begin();
 					reqit < ubdevice->intr_requests.end(); reqit++)
 				if ((*reqit)->get_priority_slot() == priority_slot)
 					return ubdevice;
@@ -263,7 +272,8 @@ qunibusdevice_c *qunibusdevice_c::find_by_request_slot(uint8_t priority_slot) {
 
 // returns a string of form
 // reg_first-reg_last, slots from-to, DMA, INTR level1/vec1,level2/vec2,...
-char *qunibusdevice_c::get_qunibus_resource_info(void) {
+char *qunibusdevice_c::get_qunibus_resource_info(void) 
+{
 	static char buffer[1024];
 	char tmpbuff[256];
 	buffer[0] = 0;
@@ -281,12 +291,12 @@ char *qunibusdevice_c::get_qunibus_resource_info(void) {
 
 	// get priority slot range from DMA request and intr_requests
 	uint8_t slot_from = 0xff, slot_to = 0;
-	for (vector<dma_request_c *>::iterator it = dma_requests.begin(); it < dma_requests.end();
+	for (std::vector<dma_request_c *>::iterator it = dma_requests.begin(); it < dma_requests.end();
 			it++) {
 		slot_from = std::min(slot_from, (*it)->get_priority_slot());
 		slot_to = std::max(slot_to, (*it)->get_priority_slot());
 	}
-	for (vector<intr_request_c *>::iterator it = intr_requests.begin();
+	for (std::vector<intr_request_c *>::iterator it = intr_requests.begin();
 			it < intr_requests.end(); it++) {
 		slot_from = std::min(slot_from, (*it)->get_priority_slot());
 		slot_to = std::max(slot_to, (*it)->get_priority_slot());
@@ -316,7 +326,7 @@ char *qunibusdevice_c::get_qunibus_resource_info(void) {
 	} else if (intr_requests.size() > 0) {
 		const char *sep = ":";
 		strcat(buffer, ", INTRs");
-		for (vector<intr_request_c *>::iterator it = intr_requests.begin();
+		for (std::vector<intr_request_c *>::iterator it = intr_requests.begin();
 				it < intr_requests.end(); it++) {
 			sprintf(tmpbuff, "%s%d/%03o", sep, (*it)->get_level(), (*it)->get_vector());
 			strcat(buffer, tmpbuff);

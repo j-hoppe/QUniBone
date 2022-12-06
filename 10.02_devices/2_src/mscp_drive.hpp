@@ -110,5 +110,5 @@ private:
     // there is no other purpose.
     // This data is not persisted to disk as it is unnecessary.
     //
-    unique_ptr<uint8_t> _rctData;
+    std::unique_ptr<uint8_t> _rctData;
 };

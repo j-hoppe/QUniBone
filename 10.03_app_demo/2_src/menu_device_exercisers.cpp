@@ -49,7 +49,8 @@
 
 #include "devexer_rl.hpp"
 
-void application_c::menu_device_exercisers(const char *menu_code) {
+void application_c::menu_device_exercisers(const char *menu_code) 
+{
 	bool ready = false;
 	bool show_help = true ;
 	bool memory_installed = false;
@@ -200,13 +201,13 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 					membuffer->save_binary(filename, end_addr + 2);
 				}
 			} else if (!strcasecmp(s_opcode, "le") && n_fields == 1) {
-				list<devexer::devexer_c *>::iterator it;
-				cout << "Registered exercisers:\n";
+				std::list<devexer::devexer_c *>::iterator it;
+				std::cout << "Registered exercisers:\n";
 				for (it = devexer::devexer_c::myexercisers.begin();
 						it != devexer::devexer_c::myexercisers.end(); ++it)
-					cout << "- " << (*it)->name.value << "\n";
+					std::cout << "- " << (*it)->name.value << "\n";
 			} else if (!strcasecmp(s_opcode, "se") && n_fields == 2) {
-				list<devexer::devexer_c *>::iterator it;
+				std::list<devexer::devexer_c *>::iterator it;
 				bool found = false;
 				for (it = devexer::devexer_c::myexercisers.begin();
 						it != devexer::devexer_c::myexercisers.end(); ++it)
@@ -215,7 +216,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 						cur_exerciser = *it;
 					}
 				if (!found)
-					cout << "Exerciser \"" << s_param[0] << "\" not found.\n";
+					std::cout << "Exerciser \"" << s_param[0] << "\" not found.\n";
 				else {
 					printf("Current exerciser is \"%s\" @ %s\n",
 							cur_exerciser->name.value.c_str(), qunibus->addr2text(cur_exerciser->base_addr.value));
@@ -223,25 +224,25 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 					show_help = true;
 				}
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 1) {
-				cout << "Parameters of device " << cur_exerciser->name.value << ":\n";
+				std::cout << "Parameters of device " << cur_exerciser->name.value << ":\n";
 				print_params(cur_exerciser, NULL);
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 2) {
 				// show selected
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_exerciser->param_by_name(pn);
 				if (p == NULL)
-					cout << "Exerciser \"" << cur_exerciser->name.value
+					std::cout << "Exerciser \"" << cur_exerciser->name.value
 							<< "\" has no parameter \"" << pn << "\".\n";
 				else
 					print_params(cur_exerciser, p);
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 3) {
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_exerciser->param_by_name(pn);
 				if (p == NULL)
-					cout << "Exerciser \"" << cur_exerciser->name.value
+					std::cout << "Exerciser \"" << cur_exerciser->name.value
 							<< "\" has no parameter \"" << pn << "\".\n";
 				else {
-					string sval(s_param[1]);
+					std::string sval(s_param[1]);
 					p->parse(sval);
 					print_params(cur_exerciser, p);
 				}
@@ -280,7 +281,7 @@ if (addr < 020)
 				show_help = true;
 			}
 		} catch (bad_parameter& e) {
-			cout << "Error : " << e.what() << "\n";
+			std::cout << "Error : " << e.what() << "\n";
 		}
 	} // ready
 

@@ -38,14 +38,13 @@
 
 #include "application.hpp" // own
 
-using namespace std;
-
 /**********************************************
  * User Interface
  *********************************************/
 
 
-void application_c::print_arbitration_info(const char *indent) {
+void application_c::print_arbitration_info(const char *indent) 
+{
 #if defined(UNIBUS)
     if (qunibus->get_arbitrator_active()) {
         printf("%s UNIBUS devices are clients to PDP-11 CPU acting as NPR/INTR Arbitrator\n",
@@ -84,7 +83,8 @@ void application_c::print_arbitration_info(const char *indent) {
 /*
  * read character string from stdin
  */
-char *application_c::getchoice(const char *menu_code) {
+char *application_c::getchoice(const char *menu_code) 
+{
     char	prompt[256] ;
     static char s_choice[255];
 
@@ -108,7 +108,8 @@ char *application_c::getchoice(const char *menu_code) {
 // scan QBUS/UNIBUS address range and emulate missing memory
 // if endaddr > 0: emulate only until endaddr
 // result: false, if nothing emulated
-bool application_c::emulate_memory(uint32_t endaddr) {
+bool application_c::emulate_memory(uint32_t endaddr) 
+{
     bool result = false;
     unsigned first_invalid_addr;
     printf("Disable memory emulation, size physical memory ...\n");
@@ -162,7 +163,8 @@ bool application_c::emulate_memory(uint32_t endaddr) {
 /**********************************************
  * Print info()
  * */
-void application_c::menu_info(const char *menu_code) {
+void application_c::menu_info(const char *menu_code) 
+{
     UNUSED(menu_code) ;
     printf("Build timestamp: " __DATE__ " " __TIME__ "\n\n");
     printf("Test setup:\n");
@@ -203,7 +205,8 @@ void application_c::menu_info(const char *menu_code) {
 
 // print all parameters of a device or device exerciser
 // p == NULL: alle
-void application_c::print_params(parameterized_c *parameterized, parameter_c *p) {
+void application_c::print_params(parameterized_c *parameterized, parameter_c *p) 
+{
     stringgrid_c grid;
     unsigned r;
     grid.set(0, 0, "Name");
@@ -213,7 +216,7 @@ void application_c::print_params(parameterized_c *parameterized, parameter_c *p)
     grid.set(4, 0, "Access");
     grid.set(5, 0, "Info");
 
-    vector<parameter_c *>::iterator it;
+    std::vector<parameter_c *>::iterator it;
     r = 1;
     for (it = parameterized->parameter.begin(); it != parameterized->parameter.end(); ++it)
         if (p == NULL || *it == p) {
@@ -231,7 +234,8 @@ void application_c::print_params(parameterized_c *parameterized, parameter_c *p)
 /**********************************************
  *	Main menu
  */
-void application_c::menu_main(void) {
+void application_c::menu_main(void) 
+{
     bool ready;
     char *s_choice;
     char opcode[80];

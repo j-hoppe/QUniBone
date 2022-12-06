@@ -41,7 +41,8 @@
  * DDRMEM
  * function to read, write, test shared DDR memory
  * */
-void application_c::menu_ddrmem_slave_only(const char *menu_code) {
+void application_c::menu_ddrmem_slave_only(const char *menu_code) 
+{
 	bool show_help = true ; // show cmds on first screen, then only on error or request
 	char *s_choice;
 	char s_opcode[256], s_param[2][256];

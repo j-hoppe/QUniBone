@@ -147,7 +147,7 @@ void storageimage_partition_c::init(unsigned _block_size)
         // FSX sources: d:\RetroCmp\dec\QUniBone\10.02_devices\1_doc\filesystems\FSX-master\RT11.cs, line #370 ff
 
         // phy_sector_nr == pattern[log_sector_nr]
-        vector<unsigned> track_interleave_pattern = {
+        std::vector<unsigned> track_interleave_pattern = {
             0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24,
             1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25
         };
@@ -158,7 +158,7 @@ void storageimage_partition_c::init(unsigned _block_size)
         // TEST: no interleave
         phy_sector_nr_to_log.resize(sector_count) ;
         log_sector_nr_to_phy.resize(sector_count) ;
-        vector<unsigned> track_interleave_pattern = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+        std::vector<unsigned> track_interleave_pattern = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
                          10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
                          20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
                          30, 31, 32, 33, 34, 35, 36, 37, 38, 39
@@ -208,9 +208,9 @@ unsigned storageimage_partition_c::get_physical_sector_nr_from_image_position(ui
 
 // for logical partition blocks, return the non-linear interleaved sectors
 // candidate for optimizing, often called.
-vector<unsigned> storageimage_partition_c::get_physical_sector_nrs_from_blocks(uint32_t _start_block_nr, uint32_t _block_count) const
+std::vector<unsigned> storageimage_partition_c::get_physical_sector_nrs_from_blocks(uint32_t _start_block_nr, uint32_t _block_count) const
 {
-    vector<unsigned> result ;
+    std::vector<unsigned> result ;
     // iterate over all partition sectors of block range, for each get nr on image
     unsigned log_sector_nr_start = _start_block_nr * sectors_per_block ;
     unsigned log_sector_nr_end = log_sector_nr_start + _block_count * sectors_per_block ;
@@ -240,7 +240,7 @@ void storageimage_partition_c::get_blocks(byte_buffer_c *byte_buffer, uint32_t _
     }
 
     // list of physical image sectors to receive data buffer
-    vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
+    std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     // list of contiguous blocks -> list of non-contiguous sectors
 
     assert(phy_sector_nrs.size() * sector_size == _block_count * block_size) ;
@@ -274,7 +274,7 @@ void storageimage_partition_c::set_blocks(byte_buffer_c *byte_buffer, uint32_t _
     assert( byte_buffer->size() % block_size == 0) ;
 
     // list of physical image sectors to receive data buffer
-    vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
+    std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     // list of contiguous blocks -> list of non-contiguous sectors
 
     assert(phy_sector_nrs.size() * drive_info.sector_size == _block_count * block_size) ;
@@ -340,7 +340,7 @@ char *storageimage_partition_c::block_nr_info(unsigned block_nr)
 
     unsigned image_position_sector_nr = image_position / drive_info.sector_size ;
     // list of physical sectors, relative to image. not to partition!
-    vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(block_nr, 1) ;
+    std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(block_nr, 1) ;
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++)
         phy_sector_nrs[i] += image_position_sector_nr ; // now sectors in whole image
 
@@ -372,7 +372,7 @@ char *storageimage_partition_c::block_nr_list_info(unsigned _start_block_nr, uns
     unsigned image_position_sector_nr = image_position / drive_info.sector_size ;
 
     // list of physical sectors, relative to image. not to partition!
-    vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
+    std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++)
         phy_sector_nrs[i] += image_position_sector_nr ; // now sectors in whole image
 
@@ -427,7 +427,7 @@ char *storageimage_partition_c::block_nr_list_info(unsigned _start_block_nr, uns
 // head_skew: extra sectors after head switch on same cylinder
 // result: phy_sector_nr_to_log[]
 void  storageimage_partition_c::build_interleave_table(
-    const vector<unsigned> &track_log_to_phy_pattern,
+    const std::vector<unsigned> &track_log_to_phy_pattern,
     unsigned cylinder_skew, unsigned head_skew)
 {
 
@@ -515,11 +515,11 @@ void  storageimage_partition_c::build_interleave_table(
 
 // save logical blockstream to file
 // this is what the filesystem sees
-void  storageimage_partition_c::save_to_file(string _host_filename)
+void  storageimage_partition_c::save_to_file(std::string _host_filename)
 {
 
-    string host_filename = absolute_path(&_host_filename) ;
-    ofstream fout(host_filename, ios::binary) ;
+    std::string host_filename = absolute_path(&_host_filename) ;
+    std::ofstream fout(host_filename, std::ios::binary) ;
     for (unsigned block_nr = 0 ; block_nr < block_count ; block_nr++) {
         byte_buffer_c buffer ;
         get_blocks(&buffer, block_nr, 1) ;

@@ -53,30 +53,30 @@ public:
 
     filesystem_host_event_c() ;
     filesystem_host_event_c(enum operation_e operation,
-                            string path, bool is_dir, file_host_c *file) ;
+                            std::string path, bool is_dir, file_host_c *file) ;
 
     ~filesystem_host_event_c() override {}
-    string as_text() override ;
+    std::string as_text() override ;
 } ;
 
 class file_host_c: virtual public file_base_c {
     // directory inherits from directory_base -> file_base and file_host->file_base
     friend class directory_host_c;
 private:
-    string filename ;
+    std::string filename ;
 public:
-    file_host_c(string dirname) ;
+    file_host_c(std::string dirname) ;
     file_host_c(file_host_c *_f) ;
 
     ~file_host_c() override ;
 
     // access file content on disk
-    fstream data ; //
-    fstream *data_open(bool open_for_write) ; // open data stream and return ptr
+    std::fstream data ; //
+    std::fstream *data_open(bool open_for_write) ; // open data stream and return ptr
     void data_close() ;
 
 
-    virtual string get_filename() override {
+    virtual std::string get_filename() override {
         return filename ;
     }
     void load_disk_attributes() ;
@@ -104,7 +104,7 @@ private:
     int inotify_wd ; // watch descriptor
 
 public:
-    directory_host_c(string dirname) ;
+    directory_host_c(std::string dirname) ;
     ~directory_host_c() override;
 
     // watches on a "per parentdir" base
@@ -126,23 +126,23 @@ class filesystem_host_c: public filesystem_base_c {
     friend class file_host_c ;
     friend class directory_host_c ;
 private:
-    string rootpath ; // location of "rootdir" in filesystem
+    std::string rootpath ; // location of "rootdir" in filesystem
 
     int	inotify_fd ; // file descriptor for the inotify instance
 
 public:
-    filesystem_host_c(string rootpath) ;
+    filesystem_host_c(std::string rootpath) ;
     ~filesystem_host_c() override ;
 
-    virtual string get_label() override ;
+    virtual std::string get_label() override ;
 
     // get the path of a file in the tree rleative to rootpath
     // "rootpath" is not part of path
-    string get_filepath(file_base_c *f) override ;
-    static string get_host_path(file_base_c *f) ; // static version of get_file_path
+    std::string get_filepath(file_base_c *f) override ;
+    static std::string get_host_path(file_base_c *f) ; // static version of get_file_path
 
     // get the path of a file on the disk including rootpath
-    string get_absolute_filepath(string path) ;
+    std::string get_absolute_filepath(std::string path) ;
 
     virtual void add_directory(directory_base_c *parentdir, directory_base_c *dir) override ;
     virtual void remove_directory(directory_base_c *olddir) override ;
@@ -163,7 +163,7 @@ public:
 
 private:
     // link inotify event  to dir vie dir->inotify_wd
-    map<int,directory_host_c*> inotify_watch_map ;
+    std::map<int,directory_host_c*> inotify_watch_map ;
 
     void inotify_event_eval(struct inotify_event *ino_event) ;
     void inotify_events_eval(bool discard) ;

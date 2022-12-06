@@ -56,7 +56,7 @@ class storageimage_shared_c: public storageimage_base_c {
 
 public:
     storageimage_shared_c(
-        string _image_path,
+        std::string _image_path,
         bool use_syncer_thread,
         enum filesystem_type_e filesystem_type,
         enum dec_drive_type_e drive_type_text,
@@ -87,14 +87,14 @@ public:
     virtual void close(void) override ;
     virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override; // mandatory
     virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ; // mandatory
-    virtual void save_to_file(string host_filename) override ; // mandatory
+    virtual void save_to_file(std::string host_filename) override ; // mandatory
 
 protected:
     enum filesystem_type_e type ;
 
-    string image_path ; // DEC image on SDcard
+    std::string image_path ; // DEC image on SDcard
     // derived file system implementation classes use this
-    string		host_shared_rootdir ; // root of file tree on host, absolute path
+    std::string		host_shared_rootdir ; // root of file tree on host, absolute path
     drive_info_c drive_info ; // block_count, block_size
     unsigned	drive_unit ; // unit number of drive
 

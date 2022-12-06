@@ -94,7 +94,8 @@ demo_io_c::demo_io_c() :
 	gpio_open(gpio_inputs[4], true, 44); // BUTTON
 }
 
-demo_io_c::~demo_io_c() {
+demo_io_c::~demo_io_c() 
+{
 	// close all gpio value files
 	unsigned i;
 	for (i = 0; i < 5; i++)
@@ -103,7 +104,8 @@ demo_io_c::~demo_io_c() {
 		gpio_outputs[i].close();
 }
 
-bool demo_io_c::on_param_changed(parameter_c *param) {
+bool demo_io_c::on_param_changed(parameter_c *param) 
+{
 	// no own parameter or "enable" logic
 	return qunibusdevice_c::on_param_changed(param); // more actions (for enable)
 }
@@ -111,14 +113,15 @@ bool demo_io_c::on_param_changed(parameter_c *param) {
 /* helper: opens the control file for a gpio
  * exports, programs directions, assigns stream
  */
-void demo_io_c::gpio_open(fstream& value_stream, bool is_input, unsigned gpio_number) {
+void demo_io_c::gpio_open(std::fstream& value_stream, bool is_input, unsigned gpio_number) 
+{
 	const char *gpio_class_path = "/sys/class/gpio";
 
 	value_stream.close(); // if open
 
 	// 1. export pin, so it appears as .../gpio<nr>
 	char export_filename[80];
-	ofstream export_file;
+	std::ofstream export_file;
 	sprintf(export_filename, "%s/export", gpio_class_path);
 	export_file.open(export_filename);
 
@@ -132,7 +135,7 @@ void demo_io_c::gpio_open(fstream& value_stream, bool is_input, unsigned gpio_nu
 	// 2. Now we have directory /sys/class/gpio<number>
 	//	Set to input or output
 	char direction_filename[80];
-	ofstream direction_file;
+	std::ofstream direction_file;
 	sprintf(direction_filename, "%s/gpio%d/direction", gpio_class_path, gpio_number);
 	direction_file.open(direction_filename);
 	if (!direction_file.is_open()) {
@@ -146,19 +149,20 @@ void demo_io_c::gpio_open(fstream& value_stream, bool is_input, unsigned gpio_nu
 	char value_filename[80];
 	sprintf(value_filename, "%s/gpio%d/value", gpio_class_path, gpio_number);
 	if (is_input)
-		value_stream.open(value_filename, fstream::in);
+		value_stream.open(value_filename, std::fstream::in);
 	else
-		value_stream.open(value_filename, fstream::out);
+		value_stream.open(value_filename, std::fstream::out);
 	if (!value_stream.is_open())
 		printf("Failed to open %s.\n", value_filename);
 }
 
 // read a gpio input value from its stream
-unsigned demo_io_c::gpio_get_input(unsigned input_index) {
-	fstream *value_stream = &(gpio_inputs[input_index]);
+unsigned demo_io_c::gpio_get_input(unsigned input_index) 
+{
+	std::fstream *value_stream = &(gpio_inputs[input_index]);
 	if (!value_stream->is_open())
 		return 0; // ignore gpio file access errors
-	string val_str;
+	std::string val_str;
 	value_stream->seekg(0); // restart reading from begin
 	*value_stream >> val_str; // read "0" or "1"
 	if (val_str.length() > 0 && val_str[0] == '1')
@@ -168,8 +172,9 @@ unsigned demo_io_c::gpio_get_input(unsigned input_index) {
 }
 
 // write a gpio output value into its stream
-void demo_io_c::gpio_set_output(unsigned output_index, unsigned value) {
-	fstream *value_stream = &(gpio_outputs[output_index]);
+void demo_io_c::gpio_set_output(unsigned output_index, unsigned value) 
+{
+	std::fstream *value_stream = &(gpio_outputs[output_index]);
 	if (!value_stream->is_open())
 		// ignore file access errors
 		return;
@@ -184,7 +189,8 @@ void demo_io_c::gpio_set_output(unsigned output_index, unsigned value) {
 
 // background worker.
 // udpate LEDS, poll switches direct to register flipflops
-void demo_io_c::worker(unsigned instance) {
+void demo_io_c::worker(unsigned instance) 
+{
 	UNUSED(instance); // only one
 	timeout_c timeout;
 	while (!workers_terminate) {
@@ -224,20 +230,23 @@ void demo_io_c::worker(unsigned instance) {
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void demo_io_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) {
+		uint8_t unibus_control) 
+{
 	// nothing todo
 	UNUSED(device_reg);
 	UNUSED(unibus_control);
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO cycle
- void demo_io_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+ void demo_io_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+ {
 	UNUSED(aclo_edge) ;
 	UNUSED(dclo_edge) ;
 }
 
 // QBUS/UNIBUS INIT: clear all registers
-void demo_io_c::on_init_changed(void) {
+void demo_io_c::on_init_changed(void) 
+{
 	// write all registers to "reset-values"
 	if (init_asserted) {
 		reset_unibus_registers();

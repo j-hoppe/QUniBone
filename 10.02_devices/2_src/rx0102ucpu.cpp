@@ -30,8 +30,6 @@
 
 #include <array>
 
-using namespace std;
-
 //#include "gpios.hpp" // ARM_DEBUG_PIN
 #include "logger.hpp"
 #include "timeout.hpp"
@@ -42,7 +40,8 @@ using namespace std;
 
 // link uCPU to its RX controller
 // RX01/02 type defined later by caller
-RX0102uCPU_c::RX0102uCPU_c(RX11211_c *_controller): device_c(), controller(_controller) {
+RX0102uCPU_c::RX0102uCPU_c(RX11211_c *_controller): device_c(), controller(_controller) 
+{
 
     signal_function_density	= false ; // const for RX01
 
@@ -51,17 +50,21 @@ RX0102uCPU_c::RX0102uCPU_c(RX11211_c *_controller): device_c(), controller(_cont
     set_powerless() ;
 }
 
-RX0102uCPU_c::~RX0102uCPU_c() {}
+RX0102uCPU_c::~RX0102uCPU_c() 
+{
+}
 
 // set signals to RX11 in "powerless" state
-void RX0102uCPU_c::set_powerless(void) {
+void RX0102uCPU_c::set_powerless(void) 
+{
     // signal controller an ERROR., ERROR_L signal pulled low by powerlessRX drive logic.
     signal_done = true ;
     signal_error = true ;
     signal_transfer_request = false ;
 }
 
-const char * RX0102uCPU_c::function_code_text(unsigned function_code) {
+const char * RX0102uCPU_c::function_code_text(unsigned function_code) 
+{
     switch(function_code) {
     case RX11_CMD_FILL_BUFFER:
         return "FILL_BUFFER" ;
@@ -86,7 +89,8 @@ const char * RX0102uCPU_c::function_code_text(unsigned function_code) {
 
 
 /*** Program flow and steps for the RX01/02 internal uP ***/
-const char * RX0102uCPU_c::step_text(enum step_e step) {
+const char * RX0102uCPU_c::step_text(enum step_e step) 
+{
     // still no enum->string in C++ ??
     switch (step) {
     case step_none:
@@ -129,12 +133,14 @@ enum RX0102uCPU_c::step_e RX0102uCPU_c::step_current() {
 }
 
 // advance one step, if end not reached
-void RX0102uCPU_c::step_next(void) {
+void RX0102uCPU_c::step_next(void) 
+{
     if (step_current() != step_none)
         program_counter++ ;
 }
 
-void RX0102uCPU_c::program_clear(void) {
+void RX0102uCPU_c::program_clear(void) 
+{
     program_steps.clear() ;
     program_counter = 0 ;
 }
@@ -147,7 +153,8 @@ bool RX0102uCPU_c::program_complete(void) {
 
 // execute program from current program_counter
 //  signal worker() to start
-void RX0102uCPU_c::program_start(void) {
+void RX0102uCPU_c::program_start(void) 
+{
     DEBUG("program_start()") ;
     pthread_mutex_lock(&on_worker_mutex);
     pthread_cond_signal(&on_worker_cond);
@@ -155,7 +162,8 @@ void RX0102uCPU_c::program_start(void) {
 }
 
 // execute a program step.
-void RX0102uCPU_c::step_execute(enum step_e step) {
+void RX0102uCPU_c::step_execute(enum step_e step) 
+{
     timeout_c timeout ;
 
     if (step == step_none)
@@ -323,7 +331,8 @@ void RX0102uCPU_c::step_execute(enum step_e step) {
 
 // OR standard flags into RXES register
 // "init done" and "drive ready" not set here, depends on function
-uint16_t  RX0102uCPU_c::complete_rxes(void) {
+uint16_t  RX0102uCPU_c::complete_rxes(void) 
+{
 
     if (deleted_data_mark)
         rxes |= BIT(6) ;
@@ -350,11 +359,13 @@ uint16_t  RX0102uCPU_c::complete_rxes(void) {
 // None of the media and format related errors can occure here
 // rxer for RX01, 4-word status for RX02.
 // extended error status is localed in uCPU, but accessed by RX211 too.
-void RX0102uCPU_c::clear_error_codes(void) {
+void RX0102uCPU_c::clear_error_codes(void) 
+{
     memset(extended_status, 0, sizeof(extended_status)) ;
 }
 
-void  RX0102uCPU_c::complete_error_codes(void) {
+void  RX0102uCPU_c::complete_error_codes(void) 
+{
     // static information only, dynamical data inserted in program steps
     if (is_RX02) {
         extended_status[2] = drives[0]->get_cylinder() ;
@@ -388,7 +399,8 @@ void  RX0102uCPU_c::complete_error_codes(void) {
 
 
 // seek track, part of read/write sector.
-void RX0102uCPU_c::pgmstep_seek(void) {
+void RX0102uCPU_c::pgmstep_seek(void) 
+{
     timeout_c timeout ;
     RX0102drive_c *drive = selected_drive() ;
     DEBUG("pgmstep_seek(drive=%d, cur track = %d, rxta = %d)", signal_selected_drive_unitno, drive->get_cylinder(), rxta) ;
@@ -433,7 +445,8 @@ void RX0102uCPU_c::pgmstep_seek(void) {
 // Notify read access to RXDB by controller
 // puts next buffer cell into RXDB.
 // only for block read when state == state_transfer_read_result;
-void RX0102uCPU_c::rxdb_after_read(void) {
+void RX0102uCPU_c::rxdb_after_read(void) 
+{
     if (program_complete())
         return ;
 
@@ -467,7 +480,8 @@ void RX0102uCPU_c::rxdb_after_read(void) {
 
 // Write access to RXDB by controller
 
-void  RX0102uCPU_c::rxdb_after_write(uint16_t w) {
+void  RX0102uCPU_c::rxdb_after_write(uint16_t w) 
+{
     bool complete = false ; // true when all requested words transfered.
 
     if (program_complete()) {
@@ -548,7 +562,8 @@ void  RX0102uCPU_c::rxdb_after_write(uint16_t w) {
 
 // return false, if illegal parameter value.
 // verify "new_value", must output error messages
-bool RX0102uCPU_c::on_param_changed(parameter_c *param) {
+bool RX0102uCPU_c::on_param_changed(parameter_c *param) 
+{
     DEBUG("on_param_changed()") ;
     if (param == &enabled) {
         if (!enabled.new_value) {
@@ -583,7 +598,8 @@ bool RX0102uCPU_c::on_param_changed(parameter_c *param) {
 
 // set logic type and type of attached drives
 // last step of construction after drives have been assigned
-void RX0102uCPU_c::set_RX02(bool _is_RX02) {
+void RX0102uCPU_c::set_RX02(bool _is_RX02) 
+{
     is_RX02 = _is_RX02 ;
     for (unsigned i=0 ; i < drives.size() ; i++) {
         RX0102drive_c *drive = drives[i] ;
@@ -675,7 +691,8 @@ unsigned	RX0102uCPU_c::get_transfer_byte_count(uint8_t function_code, bool doubl
 
 // Check wether rx2wc is too large for current transfer len
 // if true: abort function and update RXCS status
-bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t _function_code, bool _double_density, uint16_t _rx2wc) {
+bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t _function_code, bool _double_density, uint16_t _rx2wc) 
+{
     assert(is_RX02) ;
     unsigned _transfer_byte_count = get_transfer_byte_count(_function_code, _double_density) ;
 
@@ -688,7 +705,8 @@ bool RX0102uCPU_c::rx2wc_overflow_error(uint8_t _function_code, bool _double_den
         return false ;
 }
 
-uint16_t  RX0102uCPU_c::rx2wc() {
+uint16_t  RX0102uCPU_c::rx2wc() 
+{
     RX211_c *rx211 = dynamic_cast<RX211_c*>(controller) ;
     assert(rx211) ;
     extended_status[1] = rx211->rx2wc ; // update often
@@ -696,7 +714,8 @@ uint16_t  RX0102uCPU_c::rx2wc() {
 }
 
 
-void RX0102uCPU_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RX0102uCPU_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     // RX drive box has own power supply, no action here
     UNUSED(aclo_edge) ;
     UNUSED(dclo_edge) ;
@@ -709,7 +728,8 @@ void RX0102uCPU_c::on_init_changed(void) {
 // called asynchronically by disk drive on image load: "door close", "floppy insert"
 // if it interrupts a program, it like a wild floppy change:
 // do an "illegal sector header error" or the like.
-void RX0102uCPU_c::on_drive_state_changed(RX0102drive_c *drive) {
+void RX0102uCPU_c::on_drive_state_changed(RX0102drive_c *drive) 
+{
     // forward "drive ready" to RXES
     if (drive == selected_drive()) {
         controller->update_status("on_drive_state_changed() -> update_status") ;
@@ -722,8 +742,8 @@ void RX0102uCPU_c::on_drive_state_changed(RX0102drive_c *drive) {
 // called by on_register_access
 // init state, seek track 0 of drive 1
 // read sector 1 of track 1 of drive 0(?)
-void RX0102uCPU_c::init() {
-
+void RX0102uCPU_c::init() 
+{
     DEBUG("init()") ;
 
     if (!power_switch.new_value) // else no init() in on_param_change
@@ -767,8 +787,9 @@ void RX0102uCPU_c::init() {
 
 }
 
-
-void RX0102uCPU_c::go() { // execute function_code
+// execute function_code
+void RX0102uCPU_c::go() 
+{
     // program starts when transfer buffer filled
     DEBUG("go(), function=%d=%s", signal_function_code, function_code_text(signal_function_code)) ;
     program_function_code = signal_function_code ; // stabilze against CSR changes
@@ -882,7 +903,8 @@ void RX0102uCPU_c::go() { // execute function_code
 }
 
 // thread
-void RX0102uCPU_c::worker(unsigned instance) {
+void RX0102uCPU_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
 
     assert(!pthread_mutex_lock(&on_worker_mutex));

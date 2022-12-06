@@ -30,7 +30,6 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
-using namespace std;
 
 #define GETOPT_MAX_OPTION_DESCR	100
 #define GETOPT_MAX_OPTION_ARGS	100
@@ -53,14 +52,14 @@ using namespace std;
 // functions for formatted print
 class getopt_printer_c {
 private:
-	ostream *stream;
+	std::ostream *stream;
 	unsigned linelen; // point at wich to break ;
-	string curline;
+	std::string curline;
 public:
 	unsigned indent;
-	getopt_printer_c(ostream& stream, unsigned linelen, unsigned indent); // why no default constructor here?
-	void append(string s, bool linebreak);
-	void append_multilinestring(string text);
+	getopt_printer_c(std::ostream& stream, unsigned linelen, unsigned indent); // why no default constructor here?
+	void append(std::string s, bool linebreak);
+	void append_multilinestring(std::string text);
 	void flush();
 };
 
@@ -68,25 +67,25 @@ public:
 class getopt_option_descr_c {
 public:
 	bool valid; // the single nonoption_descr my not be set
-	string short_name; // code of option on command line
-	string long_name;
+	std::string short_name; // code of option on command line
+	std::string long_name;
 
-	vector<string> fix_args;  // name list of required arguments
-	vector<string> var_args;  // name list of variable arguments
+	std::vector<std::string> fix_args;  // name list of required arguments
+	std::vector<std::string> var_args;  // name list of variable arguments
 	//	string	fix_args_name_buff;
 	//	string	var_args_name_buff;
 	unsigned fix_arg_count; //
 	unsigned max_arg_count;
 
-	string default_args; // string representation of default arguments
+	std::string default_args; // string representation of default arguments
 
-	string info;
-	string example_simple_cline_args;
-	string example_simple_info;
-	string example_complex_cline_args;
-	string example_complex_info;
+	std::string info;
+	std::string example_simple_cline_args;
+	std::string example_simple_info;
+	std::string example_complex_cline_args;
+	std::string example_complex_info;
 
-	string syntaxhelp; // calculated like "-option arg1 args [optarg]
+	std::string syntaxhelp; // calculated like "-option arg1 args [optarg]
 };
 
 // global record for parser
@@ -94,55 +93,55 @@ class getopt_c {
 private:
 	getopt_option_descr_c nonoption_descr; // cline argument without "-option"
 
-	vector<getopt_option_descr_c> option_descrs;
+	std::vector<getopt_option_descr_c> option_descrs;
 	getopt_option_descr_c *cur_option; // ref to current parsed option
-	vector<string> cur_option_argval; // ptr to parsed args
+	std::vector<std::string> cur_option_argval; // ptr to parsed args
 
-	string curtoken; // ptr to current cline arg, error context
+	std::string curtoken; // ptr to current cline arg, error context
 
 	int curerror;
 
-	string default_cmdline_buff;
+	std::string default_cmdline_buff;
 	int cline_argcount;  // default cmdline + copy of user commandline
-	vector<string> cline_args;
+	std::vector<std::string> cline_args;
 	int cur_cline_arg_idx; // index of next unprocessed argv[]
 
 private:
 	int parse_error(int error);
-	int arg_error(getopt_option_descr_c& odesc, int error, string& argname, string argval);
-	int optionargidx(getopt_option_descr_c& odesc, string& argname);
-	string getoptionsyntax(getopt_option_descr_c& odesc, int style);
-	void help_option_intern(getopt_option_descr_c& odesc, ostream& stream, unsigned linelen,
+	int arg_error(getopt_option_descr_c& odesc, int error, std::string& argname, std::string argval);
+	int optionargidx(getopt_option_descr_c& odesc, std::string& argname);
+	std::string getoptionsyntax(getopt_option_descr_c& odesc, int style);
+	void help_option_intern(getopt_option_descr_c& odesc, std::ostream& stream, unsigned linelen,
 			unsigned indent);
 
 public:
 	bool ignore_case; // case sensitivity
-	string curerrortext;
+	std::string curerrortext;
 
 	getopt_c();
 	~getopt_c();
 
 	void init(bool _ignore_case);
 
-	int stringcmp(string s1, string s2);
+	int stringcmp(std::string s1, std::string s2);
 
-	getopt_option_descr_c *define(string short_option_name, string long_option_name,
-			string fix_args_csv, string opt_args_csv, string default_args, string info,
-			string example_simple_cline, string example_simple_info,
-			string example_complex_cline, string example_complex_info);
+	getopt_option_descr_c *define(std::string short_option_name, std::string long_option_name,
+			std::string fix_args_csv, std::string opt_args_csv, std::string default_args, std::string info,
+			std::string example_simple_cline, std::string example_simple_info,
+			std::string example_complex_cline, std::string example_complex_info);
 
-	bool isoption(string name);
+	bool isoption(std::string name);
 	int first(int argc, char **argv);
 	int next(void);
-	int arg_s(string argname, string& res);
-	int arg_i(string argname, int *res);
-	int arg_u(string argname, unsigned *val);
-	int arg_o(string argname, int *val);
-	int arg_h(string argname, int *val);
+	int arg_s(std::string argname, std::string& res);
+	int arg_i(std::string argname, int *res);
+	int arg_u(std::string argname, unsigned *val);
+	int arg_o(std::string argname, int *val);
+	int arg_h(std::string argname, int *val);
 
-	void help_commandline(ostream& stream, unsigned linelen, unsigned indent);
-	void help_option(ostream& stream, unsigned llen, unsigned indent);
-	void help(ostream& stream, unsigned linelen, unsigned indent, string commandname);
+	void help_commandline(std::ostream& stream, unsigned linelen, unsigned indent);
+	void help_option(std::ostream& stream, unsigned llen, unsigned indent);
+	void help(std::ostream& stream, unsigned linelen, unsigned indent, std::string commandname);
 
 };
 

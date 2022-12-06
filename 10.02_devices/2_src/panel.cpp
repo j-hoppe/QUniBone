@@ -55,8 +55,9 @@
 #include "gpios.hpp"
 #include "panel.hpp"
 
-panelcontrol_c::panelcontrol_c(string _device_name, string _control_name,
-bool _is_input, uint8_t _chip_addr, uint8_t _reg_addr, uint8_t _reg_bitmask) {
+panelcontrol_c::panelcontrol_c(std::string _device_name, std::string _control_name,
+bool _is_input, uint8_t _chip_addr, uint8_t _reg_addr, uint8_t _reg_bitmask) 
+{
 	device_name = _device_name;
 	control_name = _control_name;
 	is_input = _is_input;
@@ -71,7 +72,8 @@ bool _is_input, uint8_t _chip_addr, uint8_t _reg_addr, uint8_t _reg_bitmask) {
 	associate = NULL;
 }
 
-string panelcontrol_c::full_name() {
+std::string panelcontrol_c::full_name() 
+{
 	return device_name + "." + control_name;
 }
 
@@ -80,7 +82,8 @@ string panelcontrol_c::full_name() {
 // So user button operation can be used in parallel with
 // other parmeter changing mechanisms.
 void panelcontrol_c::set_param_from_register_value(i2c_chip_register_c *chip_register,
-		uint8_t reg_value) {
+		uint8_t reg_value) 
+{
 	uint8_t new_value;
 	// binary only is easy
 
@@ -96,7 +99,7 @@ void panelcontrol_c::set_param_from_register_value(i2c_chip_register_c *chip_reg
 	if ((value_invalid || new_value != value) && parameter != NULL) {
 		// changed: update param.
 		// type independent, because over text representation
-		string s = to_string(new_value);
+		std::string s = std::to_string(new_value);
 		parameter->parse(s);
 	}
 	value = new_value;
@@ -104,13 +107,14 @@ void panelcontrol_c::set_param_from_register_value(i2c_chip_register_c *chip_reg
 }
 
 // return value as bitmask for chip registers
-uint8_t panelcontrol_c::get_param_as_register_value(i2c_chip_register_c *chip_register) {
+uint8_t panelcontrol_c::get_param_as_register_value(i2c_chip_register_c *chip_register) 
+{
 	uint8_t reg_value;
 	// 1. device parameter value -> panel control value
 	// if no param connected: work on previous value
 	if (parameter != NULL) {
 		// type independent, because over text representation
-		string *s = parameter->render();
+		std::string *s = parameter->render();
 		value = stoi(*s) & 0xff;
 	}
 
@@ -156,11 +160,13 @@ paneldriver_c::paneldriver_c() :
 	register_controls();
 }
 
-paneldriver_c::~paneldriver_c() {
+paneldriver_c::~paneldriver_c() 
+{
 	unregister_controls();
 }
 
-bool paneldriver_c::on_param_changed(parameter_c *param) {
+bool paneldriver_c::on_param_changed(parameter_c *param) 
+{
 	// no own parameter logic
 	return device_c::on_param_changed(param);
 }
@@ -168,7 +174,8 @@ bool paneldriver_c::on_param_changed(parameter_c *param) {
 /* low level access to I2C bus slaves */
 // https://elinux.org/Interfacing_with_I2C_Devices#Opening_the_Bus
 // result: true = success
-bool paneldriver_c::i2c_read_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t *result) {
+bool paneldriver_c::i2c_read_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t *result) 
+{
 	struct i2c_rdwr_ioctl_data msgset;
 	struct i2c_msg iomsgs[2];
 	uint8_t buf[1], rbuf[1];
@@ -193,7 +200,8 @@ bool paneldriver_c::i2c_read_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t 
 }
 
 // result: true = success
-bool paneldriver_c::i2c_write_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t b) {
+bool paneldriver_c::i2c_write_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t b) 
+{
 	// https://github.com/ve3wwg/raspberry_pi/tree/master/mcp23017
 	struct i2c_rdwr_ioctl_data msgset;
 	struct i2c_msg iomsgs[1];
@@ -212,7 +220,8 @@ bool paneldriver_c::i2c_write_byte(uint8_t slave_addr, uint8_t reg_addr, uint8_t
 }
 
 // reprogram the I2C chips and restart the worker
-void paneldriver_c::reset(void) {
+void paneldriver_c::reset(void) 
+{
 	timeout_c timeout;
 	enabled.set(false); // worker_stop();
 
@@ -255,25 +264,29 @@ void paneldriver_c::reset(void) {
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void paneldriver_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void paneldriver_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
 	UNUSED(aclo_edge) ;
 	UNUSED(dclo_edge) ;
 }
 
-void paneldriver_c::on_init_changed(void) {
+void paneldriver_c::on_init_changed(void) 
+{
 }
 
 /* clear static list of all controls on connected panels */
-void paneldriver_c::unregister_controls() {
+void paneldriver_c::unregister_controls() 
+{
 	// remove allocated list members, then trunc list
-	vector<panelcontrol_c *>::iterator it = controls.begin();
+	std::vector<panelcontrol_c *>::iterator it = controls.begin();
 	while (it != controls.end())
 		delete (*it);
 	controls.clear();
 }
 
 /* build static list of all controls on connected panels */
-void paneldriver_c::register_controls() {
+void paneldriver_c::register_controls() 
+{
 	bool input = true; // helper constants
 	bool output = false;
 
@@ -358,8 +371,9 @@ void paneldriver_c::register_controls() {
 
 // search for a control with given identifiers.
 // NULL if none
-panelcontrol_c *paneldriver_c::control_by_name(string device_name, string control_name) {
-	for (vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
+panelcontrol_c *paneldriver_c::control_by_name(std::string device_name, std::string control_name) 
+{
+	for (std::vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
 		if (strcasecmp((*it)->device_name.c_str(), device_name.c_str()) == 0
 				&& strcasecmp((*it)->control_name.c_str(), control_name.c_str()) == 0)
 			return (*it);
@@ -367,15 +381,17 @@ panelcontrol_c *paneldriver_c::control_by_name(string device_name, string contro
 	return NULL;
 }
 
-void paneldriver_c::clear_all_outputs() {
+void paneldriver_c::clear_all_outputs() 
+{
 	// clear parameter link for selected controls
-	for (vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it)
+	for (std::vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it)
 		if (!(*it)->is_input)
 			(*it)->value = 0;
 }
 
 void paneldriver_c::link_control_to_parameter(parameter_c *deviceparameter,
-		panelcontrol_c *panelcontrol) {
+		panelcontrol_c *panelcontrol) 
+{
 	// only booleans allwoed at the moment
 	parameter_bool_c *bp = dynamic_cast<parameter_bool_c *>(deviceparameter);
 	if (bp == NULL)
@@ -387,9 +403,10 @@ void paneldriver_c::link_control_to_parameter(parameter_c *deviceparameter,
 	panelcontrol->parameter = deviceparameter;
 }
 
-void paneldriver_c::unlink_controls_from_device(device_c *device) {
+void paneldriver_c::unlink_controls_from_device(device_c *device) 
+{
 	// clear parameter link for selected controls
-	for (vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
+	for (std::vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
 		if ((*it)->parameter != NULL && (*it)->parameter->parameterized == device) {
 			(*it)->parameter = NULL;
 			(*it)->value = 0; // show as "OFF"
@@ -399,8 +416,9 @@ void paneldriver_c::unlink_controls_from_device(device_c *device) {
 
 // invalidate input control values of all controls connected
 // to a device parameter. Forces full update of parameters by worker()
-void paneldriver_c::refresh_params(device_c *device) {
-	for (vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
+void paneldriver_c::refresh_params(device_c *device) 
+{
+	for (std::vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it) {
 		if ((*it)->parameter != NULL && (*it)->parameter->parameterized == device)
 			(*it)->value_invalid = true;
 	}
@@ -409,14 +427,15 @@ void paneldriver_c::refresh_params(device_c *device) {
 /* query input registers and set parameters
  * read parameters and update output registers
  */
-void paneldriver_c::i2c_sync_all_params() {
-	vector<i2c_chip_register_c>::iterator it_cr;
+void paneldriver_c::i2c_sync_all_params() 
+{
+	std::vector<i2c_chip_register_c>::iterator it_cr;
 	for (it_cr = i2c_chip_registers.begin(); it_cr != i2c_chip_registers.end(); it_cr++) {
 		if (it_cr->is_input) {
 			// read registers, update controls
 			uint8_t value;
 			if (i2c_read_byte(it_cr->chip_addr, it_cr->reg_addr, &value)) {
-				vector<panelcontrol_c *>::iterator it_pc;
+				std::vector<panelcontrol_c *>::iterator it_pc;
 				for (it_pc = controls.begin(); it_pc != controls.end(); ++it_pc)
 					if ((*it_pc)->chip_addr == it_cr->chip_addr
 							&& (*it_pc)->reg_addr == it_cr->reg_addr)
@@ -426,7 +445,7 @@ void paneldriver_c::i2c_sync_all_params() {
 		} else {
 			// output register
 			uint8_t value = 0;
-			vector<panelcontrol_c *>::iterator it_pc;
+			std::vector<panelcontrol_c *>::iterator it_pc;
 			for (it_pc = controls.begin(); it_pc != controls.end(); ++it_pc)
 				if ((*it_pc)->chip_addr == it_cr->chip_addr
 						&& (*it_pc)->reg_addr == it_cr->reg_addr)
@@ -442,7 +461,8 @@ void paneldriver_c::i2c_sync_all_params() {
  Query all used I2C chip register,
  Update controls and parameters
  */
-void paneldriver_c::worker(unsigned instance) {
+void paneldriver_c::worker(unsigned instance) 
+{
 	UNUSED(instance); // only one
 	timeout_c timeout;
 
@@ -454,7 +474,8 @@ void paneldriver_c::worker(unsigned instance) {
 }
 
 // test, requires running worker()
-void paneldriver_c::test_moving_ones(void) {
+void paneldriver_c::test_moving_ones(void) 
+{
 	timeout_c timeout;
 	unsigned delay_ms = 500; // longer than worker period!
 
@@ -464,7 +485,7 @@ void paneldriver_c::test_moving_ones(void) {
 	timeout.wait_ms(delay_ms);
 
 	// iterate outputs, light one after another
-	for (vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it)
+	for (std::vector<panelcontrol_c *>::iterator it = controls.begin(); it != controls.end(); ++it)
 		if (!(*it)->is_input) {
 			clear_all_outputs(); // delete prev lamp
 			(*it)->value = 1;
@@ -477,9 +498,10 @@ void paneldriver_c::test_moving_ones(void) {
 }
 
 // test, requires running worker()
-void paneldriver_c::test_manual_loopback(void) {
+void paneldriver_c::test_manual_loopback(void) 
+{
 	timeout_c timeout;
-	vector<panelcontrol_c *>::iterator it;
+	std::vector<panelcontrol_c *>::iterator it;
 
 	INFO("Manual loopback test, stop with ^C");
 	INFO("Copy state of all inputs to associated output.");

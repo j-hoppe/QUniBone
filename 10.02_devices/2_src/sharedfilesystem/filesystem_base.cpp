@@ -49,7 +49,7 @@
 namespace sharedfilesystem {
 
 
-enum filesystem_type_e filesystem_type2text(string filesystem_type_text)
+enum filesystem_type_e filesystem_type2text(std::string filesystem_type_text)
 {
     if (! strcasecmp(filesystem_type_text.c_str(), "XXDP"))
         return fst_xxdp ;
@@ -62,18 +62,18 @@ enum filesystem_type_e filesystem_type2text(string filesystem_type_text)
 
 // exception constructor with printf() arguments
 // exception constructor with printf() arguments
-filesystem_exception::filesystem_exception(const string msgfmt, ...)
+filesystem_exception::filesystem_exception(const std::string msgfmt, ...)
 {
     char buffer[1024];
     va_list args;
     va_start(args, msgfmt);
     vsprintf(buffer, msgfmt.c_str(), args);
-    message = string(buffer) ;
+    message = std::string(buffer) ;
     va_end(args);
 }
 
 
-string filesystem_event_c::operation_text()
+std::string filesystem_event_c::operation_text()
 {
     switch(operation) {
     case op_create:
@@ -117,7 +117,7 @@ filesystem_event_c *filesystem_event_queue_c::pop()
     return result ;
 }
 
-void filesystem_event_queue_c::debug_print(string info)
+void filesystem_event_queue_c::debug_print(std::string info)
 {
     if (logger->ignored(this, LL_DEBUG))
         return ;
@@ -156,7 +156,7 @@ void file_by_path_map_c::forget(file_base_c *f)
 }
 
 // get a file by its path
-file_base_c *file_by_path_map_c::get(string path)
+file_base_c *file_by_path_map_c::get(std::string path)
 {
     auto item = std::map<std::string,file_base_c*>::find(path) ;
     if (item != end())
@@ -166,7 +166,7 @@ file_base_c *file_by_path_map_c::get(string path)
 }
 
 
-void file_by_path_map_c::debug_print(string info)
+void file_by_path_map_c::debug_print(std::string info)
 {
     printf("%s. Dump of file_by_path_map:\n", info.c_str()) ;
     for (auto it = begin(); it != end(); it++) {
@@ -189,7 +189,7 @@ bool sort_file_comp(file_base_c *f1, file_base_c *f2)
 }
 
 // create as 1 when not existing
-void filesystem_event_filter_c::add(string path)
+void filesystem_event_filter_c::add(std::string path)
 {
     auto it = find(path) ;
     if (it == end())
@@ -199,7 +199,7 @@ void filesystem_event_filter_c::add(string path)
 
 /*
 // delete entry when reached 0
-void filesystem_event_filter_c::remove(string path)
+void filesystem_event_filter_c::remove(std::string path)
 {
     auto it = find(path) ;
     if (it != end()) {
@@ -211,7 +211,7 @@ void filesystem_event_filter_c::remove(string path)
 }
 */
 
-bool filesystem_event_filter_c::is_filtered(string path)
+bool filesystem_event_filter_c::is_filtered(std::string path)
 {
     auto it = find(path) ;
     return (it != end()) ;
@@ -428,23 +428,23 @@ void filesystem_base_c::remove_directory(directory_base_c *olddir)
 // add a regex string, defining a new "group".
 // the sort order of this group is higher than previous added ones.
 // called only in constructor of derived filesystem before 1st sort()
-void filesystem_base_c::sort_add_group_pattern(string pattern)
+void filesystem_base_c::sort_add_group_pattern(std::string pattern)
 {
     sort_group_regex_c tmp ;
 
     try {
         tmp.pattern_const = pattern ;
-        tmp.pattern_regex = std::regex(pattern, regex_constants::icase) ;
+        tmp.pattern_regex = std::regex(pattern, std::regex_constants::icase) ;
         tmp.group = sort_group_regexes.size() ; // enumerate
         sort_group_regexes.push_back(tmp);
     }
-    catch (regex_error e) {
+    catch (std::regex_error e) {
         ERROR("Error compiling tmp: %s", e.what());
     }
 }
 
 // *count maybe -1, then lists are NULL terminated
-void filesystem_base_c::sort(vector<file_base_c *> files)
+void filesystem_base_c::sort(std::vector<file_base_c *> files)
 {
     unsigned i, j;
     bool match;
@@ -477,7 +477,7 @@ void filesystem_base_c::sort(vector<file_base_c *> files)
 }
 
 
-void filesystem_base_c::debug_print(string info)
+void filesystem_base_c::debug_print(std::string info)
 {
     if (logger->ignored(this, LL_DEBUG))
         return ;
@@ -490,7 +490,7 @@ void filesystem_base_c::timer_start()
     timer_start_ms = now_ms() ;
 }
 
-void filesystem_base_c::timer_debug_print(string info)
+void filesystem_base_c::timer_debug_print(std::string info)
 {
     if (logger->ignored(this, LL_DEBUG))
         return ;

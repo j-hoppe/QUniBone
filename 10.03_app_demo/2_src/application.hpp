@@ -48,8 +48,8 @@
 
 class application_c: public logsource_c {
 public:
-	const string copyright = string("(C) 2018-2020 Joerg Hoppe <j_hoppe@t-online.de>\n");
-	const string version = string(PROGNAME "  - QUniBone " QUNIBUS_NAME " test application.\n"
+	const std::string copyright = std::string("(C) 2018-2020 Joerg Hoppe <j_hoppe@t-online.de>\n");
+	const std::string version = std::string(PROGNAME "  - QUniBone " QUNIBUS_NAME " test application.\n"
 	"    Version "
 #ifdef DBG
 			"DBG "
@@ -61,7 +61,7 @@ public:
 
 	// command line args
 	unsigned opt_linewidth = 80;
-	string opt_cmdfilename;
+	std::string opt_cmdfilename;
 	getopt_c getopt_parser;
 	void help(void);
 	void commandline_error(void);

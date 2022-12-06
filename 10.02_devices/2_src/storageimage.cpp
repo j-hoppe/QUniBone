@@ -41,9 +41,6 @@
 #define O_BINARY 0		// for linux compatibility
 #endif
 
-
-using namespace std;
-
 #include "logger.hpp"
 #include "utils.hpp"
 #include "storageimage.hpp"
@@ -77,7 +74,8 @@ bool storageimage_base_c::is_zero(uint64_t position, unsigned len)
 // set the file_readonly flag
 // creates file, if not existing
 // result: OK= true, else false
-bool storageimage_binfile_c::open(bool create) {
+bool storageimage_binfile_c::open(bool create) 
+{
     // 1st: if file not exists, try to unzip it from <image_fname>.gz
     int retries = 2 ;
     while (retries > 0) {
@@ -86,14 +84,14 @@ bool storageimage_binfile_c::open(bool create) {
             close(); // after RL11 INIT
         if (image_fname.empty())
             return true ; // ! is_open
-        f.open(image_fname, ios::in | ios::out | ios::binary | ios::ate);
+        f.open(image_fname, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
         if (f.is_open())
             return true;
 
         // is readonly? try open for read only
 
         // try again readonly
-        f.open(image_fname, ios::in | ios::binary | ios::ate);
+        f.open(image_fname, std::ios::in | std::ios::binary | std::ios::ate);
         if (f.is_open()) {
             readonly = true;
             return true;
@@ -103,10 +101,10 @@ bool storageimage_binfile_c::open(bool create) {
         if (retries > 0) {
             // file could not be opened, neither rw nor read only
             // try to unzip, then retry opening
-            string compressed_image_fname = image_fname + ".gz" ;
+            std::string compressed_image_fname = image_fname + ".gz" ;
             if (FILE *fz = fopen(compressed_image_fname.c_str(), "r")) {
                 fclose(fz);
-                string uncompress_cmd = "zcat " + compressed_image_fname + " >" + image_fname ;
+                std::string uncompress_cmd = "zcat " + compressed_image_fname + " >" + image_fname ;
                 printf("Only compressed image file %s found, expanding \"%s\" ...\n", image_fname.c_str(), uncompress_cmd.c_str()) ;
                 int ret = system(uncompress_cmd.c_str()) ;
                 if (ret != 0) {
@@ -127,9 +125,9 @@ bool storageimage_binfile_c::open(bool create) {
 
     // try to create
     // https://stackoverflow.com/questions/17260394/fstream-not-creating-new-file/18160837
-    f.open(image_fname, ios::out);
+    f.open(image_fname, std::ios::out);
     f.close();
-    f.open(image_fname, ios::in | ios::out | ios::binary | ios::ate);
+    f.open(image_fname, std::ios::in | std::ios::out | std::ios::binary | std::ios::ate);
     if (f.is_open()) {
         INFO("Created empty image file %s.", image_fname.c_str()) ;
         return true ;
@@ -139,18 +137,20 @@ bool storageimage_binfile_c::open(bool create) {
     }
 }
 
-bool storageimage_binfile_c::is_open() {
+bool storageimage_binfile_c::is_open() 
+{
     return f.is_open();
 }
 
 // set file size to 0
-bool storageimage_binfile_c::truncate() {
+bool storageimage_binfile_c::truncate() 
+{
     assert(is_open());
     assert(!readonly); // caller must take care
 
     f.close();
     // reopen with "trunc" option
-    f.open(image_fname, ios::in | ios::out | ios::binary | ios::trunc);
+    f.open(image_fname, std::ios::in | std::ios::out | std::ios::binary | std::ios::trunc);
     return  f.is_open() ;
 }
 
@@ -159,7 +159,8 @@ bool storageimage_binfile_c::truncate() {
  * if file is too short, 00s are read
  * it is assumed that buffer has at least a size of "len"
  */
-void storageimage_binfile_c::read(uint8_t *buffer, uint64_t position, unsigned len) {
+void storageimage_binfile_c::read(uint8_t *buffer, uint64_t position, unsigned len) 
+{
     assert(is_open());
     assert(buffer != nullptr) ;
     assert(len) ;
@@ -177,7 +178,8 @@ void storageimage_binfile_c::read(uint8_t *buffer, uint64_t position, unsigned l
 /* write "len" bytes from buffer into file at position "offset"
  * if file too short, it is extended
  */
-void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned len) {
+void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned len) 
+{
     int64_t write_pos = (int64_t) position;  // unsigned-> int
     const int max_chunk_size = 0x40000; //256KB: trade-off between performance and mem usage
     uint8_t *fillbuff = NULL;
@@ -189,7 +191,7 @@ void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned 
 
     // enlarge file in chunks until filled up to "position"
     f.clear(); // clear fail bit
-    f.seekp(0, ios::end); // move to current EOF
+    f.seekp(0, std::ios::end); // move to current EOF
     file_size = f.tellp(); // current file len
     if (file_size < 0)
         file_size = 0; // -1 on emtpy files
@@ -203,7 +205,7 @@ void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned 
             memset(fillbuff, 0, max_chunk_size);
         }
         f.clear(); // clear fail bit
-        f.seekp(file_size, ios::beg); // move to end
+        f.seekp(file_size, std::ios::beg); // move to end
         f.write((const char *) fillbuff, chunk_size);
         file_size += chunk_size;
     }
@@ -216,7 +218,7 @@ void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned 
     else {
         // move write pointer to target position
         f.clear(); // clear fail bit
-        f.seekp(write_pos, ios::beg);
+        f.seekp(write_pos, std::ios::beg);
         p = f.tellp(); // position now < target?
         assert(p == write_pos);
     }
@@ -228,12 +230,14 @@ void storageimage_binfile_c::write(uint8_t *buffer, uint64_t position, unsigned 
     f.flush();
 }
 
-uint64_t storageimage_binfile_c::size(void) {
-    f.seekp(0, ios::end);
+uint64_t storageimage_binfile_c::size(void) 
+{
+    f.seekp(0, std::ios::end);
     return f.tellp();
 }
 
-void storageimage_binfile_c::close(void) {
+void storageimage_binfile_c::close(void) 
+{
     if (!is_open())
         return ;
     f.close();
@@ -256,16 +260,16 @@ void storageimage_binfile_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte
 
 // make a snapshot
 // must be locked against parallel read()/write()/close()
-void storageimage_binfile_c::save_to_file(string _host_filename)
+void storageimage_binfile_c::save_to_file(std::string _host_filename)
 {
-    string host_filename = absolute_path(&_host_filename) ;
+    std::string host_filename = absolute_path(&_host_filename) ;
     assert(is_open()) ;
 
     try {
-        streampos current_pos = f.tellg() ;
+        std::streampos current_pos = f.tellg() ;
 
         // make a stream copy, then resore the position
-        ofstream dest(host_filename, ios::binary);
+        std::ofstream dest(host_filename, std::ios::binary);
         f.seekg(0) ; // pos source to begin
 
         // copy
@@ -274,7 +278,7 @@ void storageimage_binfile_c::save_to_file(string _host_filename)
         // restore pos
         f.seekg(current_pos) ;
     }
-    catch(exception& e) {
+    catch(std::exception& e) {
         ERROR(e.what()) ;
     }
 }
@@ -391,10 +395,10 @@ void storageimage_memory_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_
 
 // load complete image from a host file
 // if result_file_created:
-bool storageimage_memory_c::load_from_file(string _host_filename,
+bool storageimage_memory_c::load_from_file(std::string _host_filename,
         bool allowcreate, bool *result_file_created)
 {
-    string host_filename ;
+    std::string host_filename ;
 
     bool result ;
     bool file_created = false ;
@@ -445,7 +449,7 @@ bool storageimage_memory_c::load_from_file(string _host_filename,
 
         result = true ;
     }
-    catch(exception& e) {
+    catch(std::exception& e) {
         ERROR(e.what()) ;
         result = false ;
     }
@@ -455,9 +459,9 @@ bool storageimage_memory_c::load_from_file(string _host_filename,
 }
 
 // needs to be locked against image changes
-void storageimage_memory_c::save_to_file(string _host_filename)
+void storageimage_memory_c::save_to_file(std::string _host_filename)
 {
-    string host_filename = absolute_path(&_host_filename) ;
+    std::string host_filename = absolute_path(&_host_filename) ;
 
     try {
         // opens image file for full rewrite or creates it
@@ -469,7 +473,7 @@ void storageimage_memory_c::save_to_file(string _host_filename)
         ::write(file_descriptor, data, data_size);
         ::close(file_descriptor);
     }
-    catch(exception& e) {
+    catch(std::exception& e) {
         ERROR(e.what()) ;
     }
 }

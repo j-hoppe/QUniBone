@@ -195,13 +195,13 @@ namespace sharedfilesystem {
 
 // just save some parameters, open() does the main job.
 storageimage_shared_c::storageimage_shared_c(
-    string _image_path,
+    std::string _image_path,
     bool _use_syncer_thread,
     enum filesystem_type_e _filesystem_type,
     enum dec_drive_type_e _drive_type,
     unsigned _drive_unit,
     uint64_t _capacity,
-    string _hostdir) : storageimage_base_c()
+    std::string _hostdir) : storageimage_base_c()
 {
     log_label = "ImgShr" ;
 
@@ -338,7 +338,7 @@ bool storageimage_shared_c::open(bool create)
     // init host directory, create if not exists
     if (! file_exists(&host_shared_rootdir)) {
         INFO(printf_to_cstr("Creating shared directory %s", host_shared_rootdir.c_str())) ;
-        system(string("mkdir -p " + host_shared_rootdir).c_str()) ;
+        system(std::string("mkdir -p " + host_shared_rootdir).c_str()) ;
     }
     if (! file_exists(&host_shared_rootdir))
         FATAL(printf_to_cstr("Shared directory %s could not be created!", host_shared_rootdir.c_str())) ;
@@ -564,7 +564,7 @@ void storageimage_shared_c::set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_
 }
 
 // not really needed, but a storage_image_base_c must implement
-void storageimage_shared_c::save_to_file(string host_filename)
+void storageimage_shared_c::save_to_file(std::string host_filename)
 {
     assert(is_open()) ;
     image->save_to_file(host_filename)  ;

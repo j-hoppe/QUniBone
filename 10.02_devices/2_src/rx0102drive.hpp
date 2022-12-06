@@ -32,7 +32,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <vector>
-using namespace std;
 
 #include "storagedrive.hpp"
 

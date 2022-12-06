@@ -30,22 +30,25 @@
 
 #include "storagecontroller.hpp"
 
-storagecontroller_c::storagecontroller_c() :
-		qunibusdevice_c() {
+storagecontroller_c::storagecontroller_c():  	  qunibusdevice_c() 
+{
 	// sub class (Like "RL11") must create drives into array
 	this->drivecount = 0;
 }
 
-storagecontroller_c::~storagecontroller_c() {
+storagecontroller_c::~storagecontroller_c() 
+{
 }
 
 // called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
 // result false: configuration error, do not install
-bool storagecontroller_c::on_before_install(void) {
+bool storagecontroller_c::on_before_install(void) 
+{
 	return true ;
 }
 
-void storagecontroller_c::on_after_uninstall(void) {
+void storagecontroller_c::on_after_uninstall(void) 
+{
 	// power/up/down attached drives, then plug to QBUS/UNIBUS
 	// if disable, disable also the drives ("controller plugged from QBUS/UNIBUS)")
 	// on enable, leave them disabled (user may decide which to use)
@@ -55,7 +58,8 @@ void storagecontroller_c::on_after_uninstall(void) {
 
 
 // implements params, so must handle "change"
-bool storagecontroller_c::on_param_changed(parameter_c *param) {
+bool storagecontroller_c::on_param_changed(parameter_c *param) 
+{
 	return qunibusdevice_c::on_param_changed(param); // more actions (for enable)
 }
 
@@ -63,17 +67,19 @@ bool storagecontroller_c::on_param_changed(parameter_c *param) {
 
 // drives are powered if controller is powered
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void storagecontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
-	vector<storagedrive_c*>::iterator it;
+void storagecontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
+	std::vector<storagedrive_c*>::iterator it;
 	for (it = storagedrives.begin(); it != storagedrives.end(); it++) {
-		// drives should evaluate only DCLO for power to simualte wall power.
+		// drives should evaluate only DCLO for power to simulate wall power.
 		(*it)->on_power_changed(aclo_edge, dclo_edge);
 	}
 }
 
 // drives get INIT if controller got it
-void storagecontroller_c::on_init_changed() {
-	vector<storagedrive_c*>::iterator it;
+void storagecontroller_c::on_init_changed() 
+{
+	std::vector<storagedrive_c*>::iterator it;
 	for (it = storagedrives.begin(); it != storagedrives.end(); it++) {
 		(*it)->init_asserted = init_asserted;
 		(*it)->on_init_changed();

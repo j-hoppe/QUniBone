@@ -92,7 +92,7 @@ rt11_stream_c::rt11_stream_c(file_rt11_c *_file, rt11_stream_c *stream):
     init() ;
 }
 
-rt11_stream_c::rt11_stream_c(file_rt11_c *_file, string _stream_name):
+rt11_stream_c::rt11_stream_c(file_rt11_c *_file, std::string _stream_name):
     file_dec_stream_c(_file, _stream_name)
 {
     file = _file ; // uplink
@@ -115,11 +115,11 @@ void rt11_stream_c::init()
 // MUST be the inverse of stream_by_host_filename()
 // result is used to find host files in host map.
 // make /dir1/dir2/filname.ext[.streamname]
-string rt11_stream_c::get_host_path()
+std::string rt11_stream_c::get_host_path()
 {
     // let host build the linux path, using my get_filename()
     // result is just "/filename"
-    string result = filesystem_host_c::get_host_path(file) ;
+    std::string result = filesystem_host_c::get_host_path(file) ;
 
     if (!stream_name.empty()) {
         result.append(".");
@@ -204,12 +204,12 @@ void directory_rt11_c::copy_metadata_to(directory_base_c *_other_dir)
 
 
 // BASENAME.EXT
-string file_rt11_c::get_filename()
+std::string file_rt11_c::get_filename()
 {
     return filesystem_rt11_c::make_filename(basename, ext) ;
 }
 
-rt11_stream_c **file_rt11_c::get_stream_ptr(string stream_code)
+rt11_stream_c **file_rt11_c::get_stream_ptr(std::string stream_code)
 {
     // which stream?
     if (stream_code.empty())
@@ -306,11 +306,11 @@ filesystem_rt11_c::~filesystem_rt11_c()
 }
 
 // Like "RT11 @ RL02 #1"
-string filesystem_rt11_c::get_label()
+std::string filesystem_rt11_c::get_label()
 {
     char buffer[80] ;
     sprintf(buffer, "RT11 @ %s #%d", image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
-    return string(buffer) ;
+    return std::string(buffer) ;
 }
 
 
@@ -369,15 +369,15 @@ void filesystem_rt11_c::copy_metadata_to(filesystem_base_c *metadata_copy)
 // join basename and ext
 // with "." on empty extension "FILE."
 // used as key for file map
-string filesystem_rt11_c::make_filename(string basename, string ext)
+std::string filesystem_rt11_c::make_filename(std::string basename, std::string ext)
 {
-    string _basename = trim_copy(basename);
-    string _ext = trim_copy(ext);
+    std::string _basename = trim_copy(basename);
+    std::string _ext = trim_copy(ext);
 
     if (_basename.empty())
         _basename = "_"; // at least the filename must be non-empty
 
-    string result = _basename;
+    std::string result = _basename;
     if (!_ext.empty()) {
         result.append(".");
         result.append(_ext);
@@ -696,10 +696,10 @@ void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
  **************************************************************/
 
 // parse filesystem special blocks to new file
-void filesystem_rt11_c::parse_internal_blocks_to_file(string _basename, string _ext,
+void filesystem_rt11_c::parse_internal_blocks_to_file(std::string _basename, std::string _ext,
         uint32_t start_block_nr, uint32_t data_size)
 {
-    string fname = make_filename(_basename, _ext) ;
+    std::string fname = make_filename(_basename, _ext) ;
     file_base_c* fbase = file_by_path.get(fname);
     file_rt11_c* f = dynamic_cast<file_rt11_c*>(fbase);
 
@@ -771,17 +771,17 @@ bool filesystem_rt11_c::parse_homeblock()
     s = &block_buffer[0730] ;
     strncpy(buffer, (char *)s, 12);
     buffer[12] = 0;
-    volume_id = string(buffer) ;
+    volume_id = std::string(buffer) ;
     // 12 char owner name
     s = &block_buffer[0744] ;
     strncpy(buffer, (char *)s, 12);
     buffer[12] = 0;
-    owner_name = string(buffer) ;
+    owner_name = std::string(buffer) ;
     // 12 char system id
     s = &block_buffer[0760] ;
     strncpy(buffer, (char *)s, 12);
     buffer[12] = 0;
-    system_id = string(buffer) ;
+    system_id = std::string(buffer) ;
 
     return true ;
 }
@@ -846,7 +846,7 @@ void filesystem_rt11_c::parse_directory()
                 file_rt11_c *f = new file_rt11_c(); // later own by rootdir
                 f->status = de_status;
                 // basename and ext WITHOUT leading spaces
-                string s ;
+                std::string s ;
                 // basename: 6 chars
                 w = block_buffer.get_word_at_byte_offset(de_offset + 2); // word #2
                 s.assign(rad50_decode(w)) ;
@@ -1040,7 +1040,7 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
                     image_partition->block_nr_info(f->stream_data->start_block_nr));
             buffer << line ;
             if (image_partition->is_interleaved()) {
-                // dump out image sectors
+                // dump out physical image sectors
                 for (unsigned j = 0 ; j < f->block_count ; j += 10) {
 //                for (unsigned block_nr = f->stream_data->start_block_nr ; block_nr < f->block_count ; block_nr += 10) {
 					if (j == 0)
@@ -1067,7 +1067,7 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
 //  file tree always valid, defective objects deleted
 void filesystem_rt11_c::parse()
 {
-    string parse_error ;
+    std::string parse_error ;
     std::exception_ptr eptr ;
 
     // events in the queue references streams, which get invalid on re-parse.
@@ -1188,7 +1188,7 @@ void filesystem_rt11_c::render_homeblock()
     uint8_t *s ;
     s = &block_buffer[0730] ;
     // always 12 chars long, right padded with spaces
-    string tmp = volume_id ;
+    std::string tmp = volume_id ;
     strcpy((char *)s, tmp.append(12-tmp.length(), ' ').c_str()) ;
 
     // 12 char owner name
@@ -1452,16 +1452,16 @@ void filesystem_rt11_c::render()
 	ptr			ptr				existing stream of an existing file
 */
 
-bool filesystem_rt11_c::stream_by_host_filename(string host_fname,
-        file_rt11_c **result_file, string *result_host_filename,
-        rt11_stream_c **result_stream, string *result_stream_code)
+bool filesystem_rt11_c::stream_by_host_filename(std::string host_fname,
+        file_rt11_c **result_file, std::string *result_host_filename,
+        rt11_stream_c **result_stream, std::string *result_stream_code)
 {
     *result_file = nullptr;
     *result_stream = nullptr ;
 
     // one of 3 streams of a regular or internal file
     // process host file name
-    string host_ext, stream_code ="" ; // "", "dirext", ...
+    std::string host_ext, stream_code ="" ; // "", "dirext", ...
     split_path(host_fname, nullptr, nullptr, nullptr, &host_ext) ;
     // is outer extension a known streamname?
     if (!strcasecmp(host_ext.c_str(), RT11_STREAMNAME_DIREXT)
@@ -1475,9 +1475,9 @@ bool filesystem_rt11_c::stream_by_host_filename(string host_fname,
 
     // make filename.extension to "FILN.E"(not: "FILN  .E  ")
     // find file with this name.
-    string _basename, _ext;
+    std::string _basename, _ext;
     filename_from_host(&host_fname, &_basename, &_ext);
-    string filename = make_filename(_basename, _ext) ;
+    std::string filename = make_filename(_basename, _ext) ;
     auto f = *result_file = dynamic_cast<file_rt11_c *>(file_by_path.get(filename)) ; // already hashed?
 
     if (f)
@@ -1491,9 +1491,9 @@ bool filesystem_rt11_c::stream_by_host_filename(string host_fname,
 void filesystem_rt11_c::import_host_file(file_host_c *host_file)
 {
     file_rt11_c *f ;
-    string host_fname ;// host file name with out stream extension
+    std::string host_fname ;// host file name with out stream extension
     rt11_stream_c *stream ;
-    string stream_code ; // clipped stream extension from host file name
+    std::string stream_code ; // clipped stream extension from host file name
     bool block_ack_event = true ; // do not feed changes back to host
     // false: changes are re-sent to the host. necessary for files like VOLUME.INF,
     // which change independently and whose changes must sent to the host.
@@ -1511,7 +1511,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     // locate stream and file, and/or produce RT11 names
     stream_by_host_filename(host_file->get_filename(), &f, &host_fname, &stream, &stream_code) ;
 
-    string _basename, _ext;
+    std::string _basename, _ext;
     filename_from_host(&host_fname, &_basename, &_ext);
     // create event for existing file/stream? Is acknowledge from host, ignore.
     if (f != nullptr || stream != nullptr) {
@@ -1610,10 +1610,10 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
 }
 
 
-void filesystem_rt11_c::delete_host_file(string host_path)
+void filesystem_rt11_c::delete_host_file(std::string host_path)
 {
     // build RT11 name and stream code
-    string host_dir, host_fname ;
+    std::string host_dir, host_fname ;
 
     split_path(host_path, &host_dir, &host_fname, nullptr, nullptr) ;
     if (host_dir != "/")
@@ -1621,7 +1621,7 @@ void filesystem_rt11_c::delete_host_file(string host_path)
         return ;
     file_rt11_c *f ;
     rt11_stream_c *stream ;
-    string stream_code ; // clipped stream extension from host file name
+    std::string stream_code ; // clipped stream extension from host file name
 
     // locate stream and file, and/or produce RT11 names
     if (!stream_by_host_filename(host_fname, &f, &host_fname, &stream, &stream_code))
@@ -1641,7 +1641,7 @@ void filesystem_rt11_c::delete_host_file(string host_path)
     }
 
     //
-    string _basename, _ext;
+    std::string _basename, _ext;
     filename_from_host(&host_fname, &_basename, &_ext);
     if (_basename == RT11_VOLUMEINFO_BASENAME && _ext == RT11_VOLUMEINFO_EXT) {
         return ; // do not change from host -> change evetns not blocked via ack_event
@@ -1692,9 +1692,9 @@ file_rt11_c *filesystem_rt11_c::file_get(int fileidx)
 // "bla.foo.c" => "BLA.FO", "C  ", result = "BLA.FO.C"
 // "bla" => "BLA."
 // RAD-50 character "%" is considered "undefined under RT-11, https://en.wikipedia.org/wiki/DEC_RADIX_50
-string filesystem_rt11_c::filename_from_host(string *hostfname, string *result_basename, string *result_ext)
+std::string filesystem_rt11_c::filename_from_host(std::string *hostfname, std::string *result_basename, std::string *result_ext)
 {
-    string pathbuff = *hostfname ;
+    std::string pathbuff = *hostfname ;
 
 
     // upcase and replace forbidden characters
@@ -1721,7 +1721,7 @@ string filesystem_rt11_c::filename_from_host(string *hostfname, string *result_b
 
 
     // make it 6.3. can use Linux function
-    string _basename, _ext ;
+    std::string _basename, _ext ;
     split_path(pathbuff, nullptr, nullptr, &_basename, &_ext) ;
     _ext = _ext.substr(0, 3) ;
     trim(_ext) ;
@@ -1752,14 +1752,14 @@ void filesystem_rt11_c::sort()
  * Display structures
  **************************************************************/
 
-string filesystem_rt11_c::rt11_date_text(struct tm t)
+std::string filesystem_rt11_c::rt11_date_text(struct tm t)
 {
-    string mon[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
+    std::string mon[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
                      "Dec"
                    };
     char buff[80];
     sprintf(buff, "%02d-%3s-%02d", t.tm_mday, mon[t.tm_mon].c_str(), t.tm_year);
-    return string(buff);
+    return std::string(buff);
 }
 // print a DIR like RT11
 // RT11SJ.SYS    79P 20-Dec-85      DD    .SYS     5  20-Dec-85
@@ -1769,18 +1769,18 @@ string filesystem_rt11_c::rt11_date_text(struct tm t)
 //  8 Files, 184 Blocks
 //  320 Free blocks
 
-string filesystem_rt11_c::rt11_dir_entry_text(file_rt11_c *f)
+std::string filesystem_rt11_c::rt11_dir_entry_text(file_rt11_c *f)
 {
     char buff[80];
     sprintf(buff, "%6s.%-3s%6d%c %s", f->basename.c_str(), f->ext.c_str(), f->block_count,
             f->readonly ? 'P' : ' ', rt11_date_text(f->modification_time).c_str());
-    return string(buff);
+    return std::string(buff);
 }
 
 
 void filesystem_rt11_c::print_directory(FILE *stream)
 {
-    string line;
+    std::string line;
     // no header
     line = "";
     unsigned file_nr = 0 ;

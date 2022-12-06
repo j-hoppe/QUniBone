@@ -117,7 +117,7 @@ public:
     uint64_t get_image_position_from_physical_sector_nr(unsigned phy_sector_nr) const ;
     unsigned get_physical_sector_nr_from_image_position(uint64_t image_byte_offset) const ;
 
-    vector<unsigned> get_physical_sector_nrs_from_blocks(uint32_t _start_block_nr, uint32_t _block_count) const ;
+    std::vector<unsigned> get_physical_sector_nrs_from_blocks(uint32_t _start_block_nr, uint32_t _block_count) const ;
 
     void get_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr, uint32_t _block_count) const ;
     void set_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr) ;
@@ -138,16 +138,16 @@ private:
     // index: linear logical nr of sector on disk
     // result: interleaved physical nr of that sector in the image
     // all sector_nr relative to partition start, not to image start.
-    vector<unsigned> log_sector_nr_to_phy ;
+    std::vector<unsigned> log_sector_nr_to_phy ;
 
     // reverse table: for each sector in the image, given
     // index: interleaved physical nr of that sector in the image
     // result: linear logical nr of sector on disk
-    vector<unsigned> phy_sector_nr_to_log ;
+    std::vector<unsigned> phy_sector_nr_to_log ;
 
-    void  build_interleave_table(const vector<unsigned> &track_phy_to_log_pattern,   unsigned cylinder_skew, unsigned head_skew) ;
+    void  build_interleave_table(const std::vector<unsigned> &track_phy_to_log_pattern,   unsigned cylinder_skew, unsigned head_skew) ;
 	
-	void  save_to_file(string _host_filename) ;
+	void  save_to_file(std::string _host_filename) ;
 
 } ;
 

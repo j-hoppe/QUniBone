@@ -44,7 +44,6 @@
 #include <vector>
 #include <iostream>
 #include <mutex>
-using namespace std;
 
 #include "logsource.hpp"
 
@@ -100,7 +99,7 @@ private:
 	// list of registered logsources
 	// may have mepty places: NULL
 	// index = logsource.log_id
-	vector<logsource_c *> logsources;
+	std::vector<logsource_c *> logsources;
 
 	unsigned messagecount; // total # of logged messages
 
@@ -136,7 +135,7 @@ public:
 	void remove_source(logsource_c *logsource);
 
 	unsigned default_level = LL_WARNING;
-	string default_filepath; // caller may save a file name here
+	std::string default_filepath; // caller may save a file name here
 	void reset_log_levels(void);
 
 	// show messages up to this level immediately on console
@@ -157,9 +156,9 @@ public:
 			unsigned databuffsize, void *markptr);
 
 	// buffer interface
-	void dump(ostream *stream, unsigned style_title, unsigned style_data); // dump all messages in fifo to stream
+	void dump(std::ostream *stream, unsigned style_title, unsigned style_data); // dump all messages in fifo to stream
 	void dump(void); // dump all messages in fifo to console
-	void dump(string filepath); // dump all messages into a file
+	void dump(std::string filepath); // dump all messages into a file
 	void clear(void); // clear fifo
 
 };

@@ -47,7 +47,7 @@ namespace sharedfilesystem {
 
 filesystem_dec_event_c::filesystem_dec_event_c() : filesystem_event_c() {}
 filesystem_dec_event_c::filesystem_dec_event_c(     enum operation_e _operation,
-        string _host_path, bool _is_dir, file_dec_stream_c *_stream)
+        std::string _host_path, bool _is_dir, file_dec_stream_c *_stream)
     : filesystem_event_c()
 {
     operation = _operation ;
@@ -56,7 +56,7 @@ filesystem_dec_event_c::filesystem_dec_event_c(     enum operation_e _operation,
     dec_stream = _stream ;
 }
 
-string filesystem_dec_event_c::as_text()
+std::string filesystem_dec_event_c::as_text()
 {
     assert(event_queue) ;
     filesystem_base_c *filesystem = event_queue->filesystem ;
@@ -70,7 +70,7 @@ string filesystem_dec_event_c::as_text()
 }
 
 
-file_dec_stream_c::file_dec_stream_c(file_dec_c *_file, string _stream_name)
+file_dec_stream_c::file_dec_stream_c(file_dec_c *_file, std::string _stream_name)
 {
     file = _file ;
     stream_name = _stream_name ;
@@ -217,7 +217,7 @@ void filesystem_dec_c::update_host_volume_info(std::string root_path)
 // printf("DEC filesystem changed, %s updated\n", volume_info_host_path.c_str()) ;
 
     produce_volume_info(buffer) ;
-    ofstream fout(root_path + "/" + volume_info_host_path) ;
+    std::ofstream fout(root_path + "/" + volume_info_host_path) ;
     fout << buffer.str() ;
 
     // host event to ignore list !!!

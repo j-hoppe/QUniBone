@@ -80,7 +80,7 @@ public:
 };
 */
 // a list of block addresses
-class xxdp_block_nr_list_c: public vector<xxdp_blocknr_t>  {	} ; // alias
+class xxdp_block_nr_list_c: public std::vector<xxdp_blocknr_t>  {	} ; // alias
 
 
 // a single block iamge cache
@@ -105,7 +105,7 @@ public:
 
 // linked list of logical blocks, as full in-memory copy
 // 1st word in each block is nr of next lock, 0 terminates
-class xxdp_linked_block_list_c: public vector<xxdp_linked_block_c>  {
+class xxdp_linked_block_list_c: public std::vector<xxdp_linked_block_c>  {
     // xxdp_block_nr_list_c block_nr_list ;
 
     filesystem_xxdp_c *filesystem ;
@@ -117,16 +117,16 @@ public:
     }
 
     void clear() {
-        vector<xxdp_linked_block_c>::clear() ;
+        std::vector<xxdp_linked_block_c>::clear() ;
     }
 
     unsigned size() {
-        return (unsigned) vector<xxdp_linked_block_c>::size() ;
+        return (unsigned) std::vector<xxdp_linked_block_c>::size() ;
     }
 
 // not implementable, block_cache constructor needs filesystem argument
 //    void resize(unsigned count) {
-//        vector<block_cache_dec_c>::resize(count) ;
+//        std::vector<block_cache_dec_c>::resize(count) ;
 //    }
 
     xxdp_linked_block_c *next_block(xxdp_linked_block_c *block) {
@@ -165,7 +165,7 @@ class xxdp_bitmap_c {
     filesystem_xxdp_c *filesystem ;
 public:
     xxdp_linked_block_list_c	block_list ;
-    bool used[XXDP_MAX_BLOCKCOUNT]; // later vector<uint8_t>
+    bool used[XXDP_MAX_BLOCKCOUNT]; // later std::vector<uint8_t>
 
     void init(filesystem_xxdp_c *_filesystem)	{
         filesystem = _filesystem ;
@@ -183,8 +183,8 @@ public:
 class file_xxdp_c: public file_dec_c, public file_dec_stream_c {
 public:
     // these blocks are allocated, but no necessarily all used
-    string basename;	// DEC: normally 6 chars, encoded in 2 words RADIX50. Special filenames longer
-    string ext; // DEC: normally 3 chars, encoded 1 word
+    std::string basename;	// DEC: normally 6 chars, encoded in 2 words RADIX50. Special filenames longer
+    std::string ext; // DEC: normally 3 chars, encoded 1 word
 
     // two types of files: linkend block lists, and sequential bytes for boot block and monitor
     bool is_contiguous_file ; // false: block list.
@@ -202,8 +202,8 @@ public:
     xxdp_blocknr_t block_count ; // saved blockcount from UFD.
     // UFD should not differ from blocklist.count !
 
-    string get_filename() override ;
-    string get_host_path() override ;
+    std::string get_filename() override ;
+    std::string get_host_path() override ;
     bool data_changed(file_base_c *cmp) override ;
 
     // has only 1 stream: itself
@@ -223,7 +223,7 @@ public:
     directory_xxdp_c(): directory_dec_c() {}
     directory_xxdp_c(directory_xxdp_c *d): directory_dec_c(d) {}
 
-    string get_filename() override {
+    std::string get_filename() override {
         return "XXDPROOT" ;
     }
 
@@ -253,7 +253,7 @@ private:
     static struct tm dos11date_decode(uint16_t w);
     static uint16_t dos11date_encode(struct tm t);
 public:
-    static string make_filename(string basename, string ext) ;
+    static std::string make_filename(std::string basename, std::string ext) ;
 
 private:
     typedef struct {
@@ -297,7 +297,7 @@ private:
     xxdp_linked_block_list_c ufd_block_list;
 
     // XXDP has no subdirectories
-    virtual string get_filepath(file_base_c *f) override {
+    virtual std::string get_filepath(file_base_c *f) override {
         return f->get_filename() ;
     }
 
@@ -312,16 +312,16 @@ public:
 
     ~filesystem_xxdp_c() override ;
 
-    string get_label() override ;
+    std::string get_label() override ;
 
     unsigned get_block_size() override {
         return layout_info.block_size ;// in bytes
     }
 
     // name of internal special files
-    string bootblock_filename ;
-    string monitor_filename ;
-    string volume_info_filename ;
+    std::string bootblock_filename ;
+    std::string monitor_filename ;
+    std::string volume_info_filename ;
 
     virtual void init() override ;
     void copy_metadata_to(filesystem_base_c *metadata_copy) override ;
@@ -342,7 +342,7 @@ private:
 private:
     bool parse_mfd_load_bitmap_ufd() ;
     void parse_bitmap() ;
-    void parse_internal_contiguous_file(string _basename, string _ext,
+    void parse_internal_contiguous_file(std::string _basename, std::string _ext,
                                         xxdp_blocknr_t _start_blocknr, xxdp_blocknr_t _block_count)	 ;
     void parse_ufd() ;
     void parse_file_data(file_xxdp_c *f) ;
@@ -365,17 +365,17 @@ public:
 	void produce_volume_info(std::stringstream &buffer) override ;
 	
     void import_host_file(file_host_c *host_file) override ;
-    void delete_host_file(string host_path) override ;
+    void delete_host_file(std::string host_path) override ;
 
     file_xxdp_c *file_get(int fileidx) override ;
 
-    string filename_from_host(string *hostfname, string *result_filnam, string *result_ext) override ;
+    std::string filename_from_host(std::string *hostfname, std::string *result_filnam, std::string *result_ext) override ;
 
     void sort() override ;
 
 private:
-    string date_text(struct tm t) ;
-    string directory_text_line(int fileidx) ;
+    std::string date_text(struct tm t) ;
+    std::string directory_text_line(int fileidx) ;
 public:
     void print_directory(FILE *stream) override ;
     void print_diag(FILE *stream) override;

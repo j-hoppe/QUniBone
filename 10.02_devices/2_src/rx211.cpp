@@ -133,7 +133,8 @@ RX211_c::RX211_c(void) : storagecontroller_c()
 
 }
 
-RX211_c::~RX211_c() {
+RX211_c::~RX211_c() 
+{
     unsigned i;
     for (i = 0; i < drivecount; i++)
         delete storagedrives[i];
@@ -142,7 +143,8 @@ RX211_c::~RX211_c() {
 
 
 // RXV21 has is QBUS + DMA
-RXV21_c::RXV21_c(): RX211_c() {
+RXV21_c::RXV21_c(): RX211_c() 
+{
     is_RXV21 = true ;
 
     type_name.value = "RXV12";
@@ -151,7 +153,8 @@ RXV21_c::RXV21_c(): RX211_c() {
 }
 
 
-bool RX211_c::on_param_changed(parameter_c *param) {
+bool RX211_c::on_param_changed(parameter_c *param) 
+{
     if (param == &priority_slot) {
         dma_request.set_priority_slot(priority_slot.new_value);
         intr_request.set_priority_slot(priority_slot.new_value);
@@ -166,7 +169,8 @@ bool RX211_c::on_param_changed(parameter_c *param) {
 
 
 // reset controller, after installation, on power and on INIT
-void RX211_c::reset(void) {
+void RX211_c::reset(void) 
+{
     reset_unibus_registers();
 
     DEBUG("RX211_c::reset()");
@@ -195,7 +199,8 @@ void RX211_c::reset(void) {
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-                                       uint8_t qunibus_control) {
+                                       uint8_t qunibus_control) 
+{
     // on drive select:
     // move  status of new drive to controller status register
     // on command: signal worker thread
@@ -312,7 +317,8 @@ void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 // write current status into CS, for next read operation
 // must be done after each DATO
 // generates INTR too: on change on DONE or on change of INTENABLE
-void RX211_c::update_status(const char *debug_info) {
+void RX211_c::update_status(const char *debug_info) 
+{
     // update_status() *NOT* called both by DATI/DATO on_after_register_access() and uCPU worker thread
     //	pthread_mutex_lock(&status_mutex);
 
@@ -397,7 +403,8 @@ void RX211_c::update_status(const char *debug_info) {
 
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_power_changed(aclo_edge, dclo_edge);
 
@@ -409,7 +416,8 @@ void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo
 }
 
 // QBUS/UNIBUS INIT: clear some registers, not all error conditions
-void RX211_c::on_init_changed(void) {
+void RX211_c::on_init_changed(void) 
+{
 
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_init_changed();
@@ -421,7 +429,8 @@ void RX211_c::on_init_changed(void) {
 
 // called by drive if ready or error
 // handled by uCPU
-void RX211_c::on_drive_status_changed(storagedrive_c *drive) {
+void RX211_c::on_drive_status_changed(storagedrive_c *drive) 
+{
     UNUSED(drive) ;
 }
 
@@ -513,7 +522,8 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
 
 // thread
 // no background activity for bus interface
-void RX211_c::worker(unsigned instance) {
+void RX211_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
 
     while (!workers_terminate) {

@@ -127,8 +127,8 @@
 //#define RL11_STATE_RW_WAIT_DMA 0x0203
 //#define RL11_STATE_RW_DONE 0x0204
 
-RL11_c::RL11_c(void) :
-    storagecontroller_c() {
+RL11_c::RL11_c(void) :    storagecontroller_c() 
+{
     unsigned i;
 
     state = RL11_STATE_CONTROLLER_READY;
@@ -190,14 +190,16 @@ RL11_c::RL11_c(void) :
 
 }
 
-RL11_c::~RL11_c() {
+RL11_c::~RL11_c() 
+{
     unsigned i;
     for (i = 0; i < drivecount; i++)
         delete storagedrives[i];
 }
 
 // RLV11 is only 18 bit capable, and has an (unimplementedd) maintenance mode.
-RLV11_c::RLV11_c(): RL11_c() {
+RLV11_c::RLV11_c(): RL11_c() 
+{
     type_name.value = "RLV11";
     // base addr, intr-vector, intr level
     // INTR level 4 instead of RL11s 5 
@@ -206,7 +208,8 @@ RLV11_c::RLV11_c(): RL11_c() {
 }
 
 // RLV12 is 22 bit capable, and has an (unimplementedd) maintenance mode.
-RLV12_c::RLV12_c(): RL11_c() {
+RLV12_c::RLV12_c(): RL11_c() 
+{
     type_name.value = "RLV12";
 
     // Bus Address Extension: offset +8
@@ -226,17 +229,20 @@ RLV12_c::RLV12_c(): RL11_c() {
 
 // called when "enabled" goes true, before registers plugged to QBUS/UNIBUS
 // result false: configuration error, do not install
-bool RL11_c::on_before_install() {
+bool RL11_c::on_before_install() 
+{
     connect_to_panel();
     return true ;
 }
 
-void RL11_c::on_after_uninstall() {
+void RL11_c::on_after_uninstall() 
+{
     disconnect_from_panel();
 }
 
 
-bool RL11_c::on_param_changed(parameter_c *param) {
+bool RL11_c::on_param_changed(parameter_c *param) 
+{
     if (param == &priority_slot) {
         dma_request.set_priority_slot(priority_slot.new_value);
         intr_request.set_priority_slot(priority_slot.new_value);
@@ -254,7 +260,8 @@ bool RL11_c::on_param_changed(parameter_c *param) {
  * or refresh_params_from_panel()
  * TODO: virtual in base class
  */
-void RL11_c::connect_to_panel() {
+void RL11_c::connect_to_panel() 
+{
     if (drivecount != 4)
         FATAL("RL11 must control exactly 4 RL drives");
     /* Connection matrix: See construction of I2C paneldriver:
@@ -283,7 +290,8 @@ void RL11_c::connect_to_panel() {
 }
 
 /* unconnect drives from i2c paneldriver */
-void RL11_c::disconnect_from_panel() {
+void RL11_c::disconnect_from_panel() 
+{
     for (int drive_no = 0; drive_no < 4; drive_no++) {
         RL0102_c *drive = dynamic_cast<RL0102_c *>(storagedrives[drive_no]);
         paneldriver->unlink_controls_from_device(drive);
@@ -291,7 +299,8 @@ void RL11_c::disconnect_from_panel() {
 }
 
 // force param values of all drives as set by panel.
-void RL11_c::refresh_params_from_panel() {
+void RL11_c::refresh_params_from_panel() 
+{
     for (int drive_no = 0; drive_no < 4; drive_no++) {
         RL0102_c *drive = dynamic_cast<RL0102_c *>(storagedrives[drive_no]);
         paneldriver->refresh_params(drive);
@@ -299,12 +308,14 @@ void RL11_c::refresh_params_from_panel() {
 }
 
 // short alias
-RL0102_c *RL11_c::selected_drive(void) {
+RL0102_c *RL11_c::selected_drive(void) 
+{
     return dynamic_cast<RL0102_c *>(storagedrives[selected_drive_unitno]);
 }
 
 // reset controller, after installation, on power and on INIT
-void RL11_c::reset(void) {
+void RL11_c::reset(void) 
+{
     // MPR = mpr_silo[0] is not reset
     busreg_MP->reset_value = busreg_MP->active_dati_flipflops;
     reset_unibus_registers();
@@ -324,7 +335,8 @@ void RL11_c::reset(void) {
     do_controller_status(false, __func__);
 }
 
-void RL11_c::clear_errors() {
+void RL11_c::clear_errors() 
+{
     error_dma_timeout = false;
     error_operation_incomplete = false;
     error_writecheck = false;
@@ -332,12 +344,14 @@ void RL11_c::clear_errors() {
 }
 
 // busaddress <17:16> = CS<4:5>, <21:16> maybe BAE
-uint32_t RL11_c::get_qunibus_address() {
+uint32_t RL11_c::get_qunibus_address() 
+{
     return (qunibus_address_msb << 16) | get_register_dato_value(busreg_BA);
 }
 
 // set the changed current DMA qunibus address
-void RL11_c::update_qunibus_address(uint32_t addr) {
+void RL11_c::update_qunibus_address(uint32_t addr) 
+{
     qunibus_address_msb = (addr >> 16);  // bit 17,16 used if CS is calculated, or BAE
     set_register_dati_value(busreg_BA, addr & 0xfffe, __func__);
 	// bits 17&16 in CSR updated after DMA, as side effect via change_state()-> do_controller_status()
@@ -349,13 +363,15 @@ void RL11_c::update_qunibus_address(uint32_t addr) {
 // eval 2's complement value in MP register
 // doc says: "bits13-15 must be ones": count value <= 0x2000
 // but RT11 v5.5 violates this rule.
-uint16_t RL11_c::get_MP_wordcount() {
+uint16_t RL11_c::get_MP_wordcount() 
+{
     uint16_t result = (0x10000 - get_register_dato_value(busreg_MP)) & 0xffff;
     // assert(result <= 0x2000); // RT11 v5.5 boot?
     return result;
 }
 
-void RL11_c::set_MP_wordcount(uint16_t wordcount) {
+void RL11_c::set_MP_wordcount(uint16_t wordcount) 
+{
     // word count in 2's complement, bits 15:13 always set
     // assert(wordcount <= 0x1fff); // RT11 v5.5 boot?
     // do not change MP value visible with DATI
@@ -364,14 +380,16 @@ void RL11_c::set_MP_wordcount(uint16_t wordcount) {
 
 // data read from MP register comes from a 3 word silo.
 // a  word must be put in the whole silo
-void RL11_c::set_MP_dati_value(uint16_t w, const char *debug_info) {
+void RL11_c::set_MP_dati_value(uint16_t w, const char *debug_info) 
+{
     mpr_silo[0] = mpr_silo[1] = mpr_silo[2] = w;
     mpr_silo_idx = 0;
     set_register_dati_value(busreg_MP, w, debug_info);
 }
 
 // activate MP output sequence for filled silo
-void RL11_c::set_MP_dati_silo(const char *debug_info) {
+void RL11_c::set_MP_dati_silo(const char *debug_info) 
+{
     mpr_silo_idx = 0;
     set_register_dati_value(busreg_MP, mpr_silo[0], debug_info);
 }
@@ -383,7 +401,8 @@ void RL11_c::set_MP_dati_silo(const char *debug_info) {
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-                                      uint8_t unibus_control) {
+                                      uint8_t unibus_control) 
+{
     // on drive select:
     // move  status of new drive to controller status register
     // on command: signal worker thread
@@ -523,7 +542,8 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void RL11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RL11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_power_changed(aclo_edge, dclo_edge);
 
@@ -535,8 +555,8 @@ void RL11_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_
 }
 
 // QBUS/UNIBUS INIT: clear some registers, not all error conditions
-void RL11_c::on_init_changed(void) {
-
+void RL11_c::on_init_changed(void) 
+{
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_init_changed();
 
@@ -547,7 +567,8 @@ void RL11_c::on_init_changed(void) {
 
 // called by drive if ready or error
 // must update CS then
-void RL11_c::on_drive_status_changed(storagedrive_c *drive) {
+void RL11_c::on_drive_status_changed(storagedrive_c *drive) 
+{
     if (drive->unitno.value != selected_drive_unitno)
         return;
     // show status lines in CS for selected drive
@@ -556,7 +577,8 @@ void RL11_c::on_drive_status_changed(storagedrive_c *drive) {
 
 // issue interrupt.
 // do not set CONTROLLER READY bit
-void RL11_c::do_command_done(void) {
+void RL11_c::do_command_done(void) 
+{
     // bool do_int = false;
     if (interrupt_enable && state != RL11_STATE_CONTROLLER_READY)
         change_state_INTR(RL11_STATE_CONTROLLER_READY);
@@ -597,7 +619,8 @@ void RL11_c::do_command_done(void) {
 // CS read/Write access different registers.
 // write current status into CS, for next read operation
 // must be done after each DATO
-void RL11_c::do_controller_status(bool do_intr, const char *debug_info) {
+void RL11_c::do_controller_status(bool do_intr, const char *debug_info) 
+{
     RL0102_c *drive = selected_drive();
     uint16_t tmp = 0;
     bool drive_error_any = drive->drive_error_line; // save, may change
@@ -648,7 +671,8 @@ void RL11_c::do_controller_status(bool do_intr, const char *debug_info) {
 
 // if the drive is powered of, or not READY, it will not answer to RL11 requests
 // then call do_operation_incomplete()
-void RL11_c::do_operation_incomplete(const char *info) {
+void RL11_c::do_operation_incomplete(const char *info) 
+{
     DEBUG("do_operation_incomplete! %s", info);
     // drive does not respond after 200ms
     timeout.wait_ms(200 / emulation_speed.value);
@@ -664,7 +688,8 @@ void RL11_c::change_state(unsigned new_state) {
     do_controller_status(false, __func__);
 }
 
-void RL11_c::change_state_INTR(unsigned new_state) {
+void RL11_c::change_state_INTR(unsigned new_state) 
+{
     if (state != new_state)
         DEBUG("Change RL11 state from 0x%x to 0x%x.", state, new_state);
     state = new_state;
@@ -673,7 +698,8 @@ void RL11_c::change_state_INTR(unsigned new_state) {
 
 // start seek operation, then interrupt
 // only one state, but complex operation
-void RL11_c::state_seek() {
+void RL11_c::state_seek() 
+{
     RL0102_c *drive = selected_drive();
 
 // eval difference word in DA to destination_cylinder
@@ -729,7 +755,8 @@ void RL11_c::state_seek() {
 // perhaps a DATA LATE if previous DMA not ready
 // increment diskaddress, read next sector.
 // disk drive is guaranteed to need time_per_sector_us
-void RL11_c::state_readwrite() {
+void RL11_c::state_readwrite() 
+{
     RL0102_c *drive = selected_drive();
     uint16_t disk_address = get_register_dato_value(busreg_DA);
     uint32_t qunibus_address = get_qunibus_address(); // device register to local var
@@ -883,7 +910,8 @@ void RL11_c::state_readwrite() {
 
 // thread
 // excutes commands
-void RL11_c::worker(unsigned instance) {
+void RL11_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
     assert(!pthread_mutex_lock(&on_after_register_access_mutex));
 

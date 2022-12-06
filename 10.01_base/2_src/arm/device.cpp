@@ -41,7 +41,6 @@
 #include <fstream>
 #include <string>
 #include <algorithm>
-using namespace std;
 
 #include "utils.hpp"
 #include "logger.hpp"
@@ -49,13 +48,14 @@ using namespace std;
 #include "device.hpp"
 
 // declare device list of class separate
-list<device_c *> device_c::mydevices;
+std::list<device_c *> device_c::mydevices;
 
 // argument is a device_c
 // called reentrant in parallel for all different devices
 
 // called on cancel and exit()
-static void device_worker_pthread_cleanup_handler(void *context) {
+static void device_worker_pthread_cleanup_handler(void *context) 
+{
 	device_worker_c *worker_instance = (device_worker_c *) context;
 	device_c *device = worker_instance->device;
 #define this device // make INFO work
@@ -65,7 +65,8 @@ static void device_worker_pthread_cleanup_handler(void *context) {
 #undef this
 }
 
-static void *device_worker_pthread_wrapper(void *context) {
+static void *device_worker_pthread_wrapper(void *context) 
+{
 	device_worker_c *worker_instance = (device_worker_c *) context;
 	device_c *device = worker_instance->device;
 	int oldstate; // not used
@@ -83,7 +84,8 @@ static void *device_worker_pthread_wrapper(void *context) {
 	return NULL;
 }
 
-device_c::device_c() {
+device_c::device_c() 
+{
 	// create work thread and run virtual "worker()" function in parallel
 
 	// add reference to device to class list
@@ -117,13 +119,14 @@ device_c::device_c() {
 	// do not call virtual "reset()" here, sub class constructors must finish first
 }
 
-device_c::~device_c() {
+device_c::~device_c() 
+{
 	// registered parameters must be deleted by allocator
 	parameter.clear();
 
 	// remove device from class list
 	// https://www.safaribooksonline.com/library/view/c-cookbook/0596007612/ch08s05.html
-	list<device_c*>::iterator p = find(mydevices.begin(), mydevices.end(), this);
+	std::list<device_c*>::iterator p = find(mydevices.begin(), mydevices.end(), this);
 	if (p != mydevices.end())
 		mydevices.erase(p);
 }
@@ -131,7 +134,8 @@ device_c::~device_c() {
 // default is 1 worker. Default: null function, terminates if not overwritten by child class
 // can be set > 1 if device needs multiple worker instances
 // only to be called in constructors
-void device_c::set_workers_count(unsigned workers_count) {
+void device_c::set_workers_count(unsigned workers_count) 
+{
 	workers.resize(workers_count);
 	for (unsigned instance = 0; instance < workers_count; instance++) {
 		device_worker_c *worker_instance = &workers[instance];
@@ -141,7 +145,8 @@ void device_c::set_workers_count(unsigned workers_count) {
 	}
 }
 
-bool device_c::on_param_changed(parameter_c *param) {
+bool device_c::on_param_changed(parameter_c *param) 
+{
 	if (param == &enabled) {
 		if (enabled.new_value)
 			workers_start();
@@ -155,8 +160,9 @@ bool device_c::on_param_changed(parameter_c *param) {
 }
 
 // search device in global list mydevices[]				
-device_c *device_c::find_by_name(char *name) {
-	list<device_c *>::iterator it;
+device_c *device_c::find_by_name(char *name) 
+{
+	std::list<device_c *>::iterator it;
 	for (it = device_c::mydevices.begin(); it != device_c::mydevices.end(); ++it)
 		if (!strcasecmp((*it)->name.value.c_str(), name))
 			return *it;
@@ -165,7 +171,8 @@ device_c *device_c::find_by_name(char *name) {
 
 // set priority to max, keep policy, return current priority
 // do not change worker_sched_priority
-void device_c::worker_boost_realtime_priority() {
+void device_c::worker_boost_realtime_priority() 
+{
 	int ret;
 	// int prev_priority ;
 	struct sched_param params;
@@ -180,7 +187,8 @@ void device_c::worker_boost_realtime_priority() {
 }
 
 // fast set to saved worker_sched_policy
-void device_c::worker_restore_realtime_priority() {
+void device_c::worker_restore_realtime_priority() 
+{
 	int ret;
 	struct sched_param params;
 	params.sched_priority = worker_sched_priority;		// std val, from init()
@@ -189,15 +197,16 @@ void device_c::worker_restore_realtime_priority() {
 }
 
 // http://www.yonch.com/tech/82-linux-thread-priority
-void device_c::worker_init_realtime_priority(enum worker_priority_e priority) {
+void device_c::worker_init_realtime_priority(enum worker_priority_e priority) 
+{
 	/* 1. set RT priority to 100% CPU time, without scheduler failsave.
 	 * Endless loop in worker() will now hang the machine
 	 */
-	string rtperiod_path = "/proc/sys/kernel/sched_rt_runtime_us";
+	std::string rtperiod_path = "/proc/sys/kernel/sched_rt_runtime_us";
 	// disable while debugging:: each error in thread requires a powercycle-reboot
 	bool rttotal = true;
 //	bool rttotal = false;
-	fstream rtperiod;
+	std::fstream rtperiod;
 	// /proc/sys/kernel/sched_rt_period_us containing 1000000 and /proc/sys/kernel/sched_rt_runtime_us containing 950000
 	// See https://www.kernel.org/doc/Documentation/scheduler/sched-rt-group.txt
 
@@ -211,13 +220,13 @@ void device_c::worker_init_realtime_priority(enum worker_priority_e priority) {
 		} else {
 			if (rttotal) {
 				// 2. set to -1 = unlimited
-				rtperiod.open(rtperiod_path, ios::out | ios::trunc);
+				rtperiod.open(rtperiod_path, std::ios::out | std::ios::trunc);
 				rtperiod << "-1\n";
 				rtperiod.close();
 			}
 			// 3. verify -1
-			string line;
-			rtperiod.open(rtperiod_path, ios::in);
+			std::string line;
+			rtperiod.open(rtperiod_path, std::ios::in);
 			getline(rtperiod, line);
 			rtperiod.close();
 			if (line != "-1") {
@@ -292,7 +301,8 @@ void device_c::worker_init_realtime_priority(enum worker_priority_e priority) {
  * TODO: crash still there, was caused by cross compile -> back to C++11 threads!
  */
 
-void device_c::workers_start(void) {
+void device_c::workers_start(void) 
+{
 	workers_terminate = false;
 	for (unsigned instance = 0; instance < workers.size(); instance++) {
 		device_worker_c *worker_instance = &workers[instance];
@@ -310,7 +320,8 @@ void device_c::workers_start(void) {
 	}
 }
 
-void device_c::workers_stop(void) {
+void device_c::workers_stop(void) 
+{
 	timeout_c timeout;
 	int status;
 

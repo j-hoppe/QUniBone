@@ -28,7 +28,8 @@
 #include "unibuscpu.hpp"
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void unibuscpu_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void unibuscpu_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
 	// called within a bus_cycle, and initiates other cycles?!
 	// Emulation of old behaviour
 	if (aclo_edge == SIGNAL_EDGE_RAISING) {    
@@ -69,7 +70,8 @@ fetch vector 24/26,
 }
 
 // QBUS/UNIBUS INIT: clear all registers
-void unibuscpu_c::on_init_changed(void) {
+void unibuscpu_c::on_init_changed(void) 
+{
 // a CPU does not react to INIT ... else its own RESET would reset it.
 }
 

@@ -58,8 +58,6 @@
 
 #include "logger.hpp"  // own
 
-using namespace std;
-
 /**** singleton ***/
 logger_c *logger;
 
@@ -69,7 +67,8 @@ logger_c *logger;
 #define RENDER_CSV_DATA	3
 
 // constructor
-logger_c::logger_c() {
+logger_c::logger_c() 
+{
 //	mutex = PTHREAD_MUTEX_INITIALIZER ;
 	fifo = NULL;
 	fifo_init(LOG_FIFO_DEFAULT_SIZE);
@@ -79,12 +78,14 @@ logger_c::logger_c() {
 //	pthread_mutex_destroy(&mutex);
 }
 
-logger_c::~logger_c() {
+logger_c::~logger_c() 
+{
 	fifo_init(0); // free buffer
 }
 
 // register a source, set its id
-void logger_c::add_source(logsource_c *logsource) {
+void logger_c::add_source(logsource_c *logsource) 
+{
 	unsigned id;
 	// initialize each object log level with global default
 	*(logsource->log_level_ptr) = default_level;
@@ -102,13 +103,15 @@ void logger_c::add_source(logsource_c *logsource) {
 }
 
 // just set the pointer to NULL
-void logger_c::remove_source(logsource_c *logsource) {
+void logger_c::remove_source(logsource_c *logsource) 
+{
 	unsigned id = logsource->log_id;
 	logsources[id] = NULL;
 }
 
 // set log levels of all soruces back to "default"
-void logger_c::reset_log_levels() {
+void logger_c::reset_log_levels() 
+{
 	unsigned id;
 	for (id = 0; id < logsources.size(); id++) {
 		logsource_c *logsource = logsources[id];
@@ -119,7 +122,8 @@ void logger_c::reset_log_levels() {
 
 // set new size
 // 0 <=> fifo NULL
-void logger_c::fifo_init(unsigned size) {
+void logger_c::fifo_init(unsigned size) 
+{
 	unsigned idx;
 	if (fifo) {
 		free(fifo);
@@ -137,13 +141,15 @@ void logger_c::fifo_init(unsigned size) {
 	fifo_clear();
 }
 
-void logger_c::fifo_clear(void) {
+void logger_c::fifo_clear(void) 
+{
 	messagecount = 0;
 	fifo_fill = fifo_readidx = fifo_writeidx = 0;
 }
 
 // get an entry. 0 = oldest. NULL if idx >= fill
-logmessage_t *logger_c::fifo_get(unsigned idx_rel) {
+logmessage_t *logger_c::fifo_get(unsigned idx_rel) 
+{
 	logmessage_t *result;
 	unsigned idx_abs;
 
@@ -157,7 +163,8 @@ logmessage_t *logger_c::fifo_get(unsigned idx_rel) {
 }
 
 // new msg into fifo. oldest may be deleted
-void logger_c::fifo_push(logmessage_t * msg) {
+void logger_c::fifo_push(logmessage_t * msg) 
+{
 	if (fifo_fill >= (fifo_capacity - 1))
 		// fifo full: delete oldest
 		fifo_pop();
@@ -170,7 +177,8 @@ void logger_c::fifo_push(logmessage_t * msg) {
 }
 
 // erase oldest message
-void logger_c::fifo_pop(void) {
+void logger_c::fifo_pop(void) 
+{
 	if (fifo_fill == 0)
 		return;
 	// inc read pointer, roll around
@@ -180,7 +188,8 @@ void logger_c::fifo_pop(void) {
 	assert(fifo_fill != 0 || fifo_readidx == fifo_writeidx);
 }
 
-const char * logger_c::level_text(unsigned level) {
+const char * logger_c::level_text(unsigned level) 
+{
 	switch (level) {
 	case LL_FATAL:
 		return "FATAL";
@@ -198,7 +207,8 @@ const char * logger_c::level_text(unsigned level) {
 }
 
 // is output with verbosity "level" active for logsource?
-bool logger_c::ignored(logsource_c *logsource, unsigned msglevel) {
+bool logger_c::ignored(logsource_c *logsource, unsigned msglevel) 
+{
 	if (msglevel == LL_FATAL)
 		return false; // never ignored
 	if (msglevel > *(logsource->log_level_ptr))
@@ -206,7 +216,8 @@ bool logger_c::ignored(logsource_c *logsource, unsigned msglevel) {
 	return false;
 }
 
-const char *logger_c::timestamp_text(timeval *tv) {
+const char *logger_c::timestamp_text(timeval *tv) 
+{
 	static char result[80], millibuff[10];
 //	int millis = tv->tv_usec / 1000;
 	strftime(result, 26, "%H:%M:%S", localtime(&tv->tv_sec));
@@ -227,7 +238,8 @@ const char *logger_c::timestamp_text(timeval *tv) {
  */
 
 void logger_c::message_render(char *buffer, unsigned buffer_size, logmessage_t *msg,
-		unsigned style) {
+		unsigned style) 
+{
 
 	char fmtbuffer[LOGMESSAGE_TEXT_SIZE];
 
@@ -288,7 +300,8 @@ void logger_c::message_render(char *buffer, unsigned buffer_size, logmessage_t *
 	}
 }
 
-void logger_c::set_fifo_size(unsigned size) {
+void logger_c::set_fifo_size(unsigned size) 
+{
 	fifo_init(size);
 }
 
@@ -299,7 +312,8 @@ void logger_c::set_fifo_size(unsigned size) {
 
 volatile int m1 = 0;
 void logger_c::vlog(logsource_c *logsource, unsigned msglevel, const char *srcfilename,
-		unsigned srcline, const char *fmt, va_list args) {
+		unsigned srcline, const char *fmt, va_list args) 
+{
 	logmessage_t msg;
 	if (ignored(logsource, msglevel))
 		return; // don't output
@@ -342,7 +356,7 @@ void logger_c::vlog(logsource_c *logsource, unsigned msglevel, const char *srcfi
 	if (msglevel <= life_level) {
 		char msgtext[LOGMESSAGE_TEXT_SIZE];
 		message_render(msgtext, sizeof(msgtext), &msg, RENDER_STYLE_CONSOLE);
-		cout << msgtext << "\n";
+		std::cout << msgtext << "\n";
 		// cout << string(msgtext) << "\n"; // not thread safe???
 	}
 
@@ -357,7 +371,8 @@ void logger_c::vlog(logsource_c *logsource, unsigned msglevel, const char *srcfi
 }
 
 void logger_c::log(logsource_c *logsource, unsigned msglevel, const char *srcfilename,
-		unsigned srcline, const char *fmt, ...) {
+		unsigned srcline, const char *fmt, ...) 
+{
 	va_list args;
 	va_start(args, fmt);
 	vlog(logsource, msglevel, srcfilename ? srcfilename:"", srcline, fmt, args);
@@ -368,7 +383,8 @@ void logger_c::log(logsource_c *logsource, unsigned msglevel, const char *srcfil
  * "markptr" = position im buffer, where a >x< should be placed
  */
 void logger_c::debug_hexdump(logsource_c *logsource, const char *info, uint8_t *databuff,
-		unsigned databuffsize, void *markptr) {
+		unsigned databuffsize, void *markptr) 
+{
 	// whole dump is one big string
 	char message_buffer[5000]; // 16 lines need about 1K
 	char phrase_buffer[80];
@@ -442,7 +458,8 @@ void logger_c::debug_hexdump(logsource_c *logsource, const char *info, uint8_t *
 
 // buffer interface
 
-void logger_c::dump(ostream *stream, unsigned style_title, unsigned style_data) {
+void logger_c::dump(std::ostream *stream, unsigned style_title, unsigned style_data) 
+{
 	logmessage_t *msg;
 	unsigned idx = 0;
 
@@ -453,7 +470,7 @@ void logger_c::dump(ostream *stream, unsigned style_title, unsigned style_data) 
 	if (style_title) {
 		char msgtext[LOGMESSAGE_TEXT_SIZE];
 		message_render(msgtext, sizeof(msgtext), NULL, style_title);
-		*stream << string(msgtext) << "\n";
+		*stream << std::string(msgtext) << "\n";
 	}
 
 	// dump all message in fifo in sequential order
@@ -461,33 +478,36 @@ void logger_c::dump(ostream *stream, unsigned style_title, unsigned style_data) 
 		assert(msg->valid);
 		char msgtext[LOGMESSAGE_TEXT_SIZE];
 		message_render(msgtext, sizeof(msgtext), msg, style_data);
-		*stream << string(msgtext) << "\n";
+		*stream << std::string(msgtext) << "\n";
 	}
 	fifo_mutex.unlock();
 //	pthread_mutex_unlock(&mutex);
 }
 
 // dump all messages in fifo to console
-void logger_c::dump(void) {
-	dump(&cout, RENDER_STYLE_NONE, RENDER_STYLE_CONSOLE);
+void logger_c::dump(void) 
+{
+	dump(&std::cout, RENDER_STYLE_NONE, RENDER_STYLE_CONSOLE);
 }
 
 // dump all messages into a file
-void logger_c::dump(string filepath) {
-	ofstream file_stream;
-	file_stream.open(filepath, ofstream::out | ofstream::trunc);
+void logger_c::dump(std::string filepath) 
+{
+	std::ofstream file_stream;
+	file_stream.open(filepath, std::ofstream::out | std::ofstream::trunc);
 	if (!file_stream.is_open()) {
-		cout << "Can not open log file \"" << filepath << "\"! Aborting!\n";
+		std::cout << "Can not open log file \"" << filepath << "\"! Aborting!\n";
 		exit(2);
 	}
 	dump(&file_stream, RENDER_CSV_TITLES, RENDER_CSV_DATA);
 
 	file_stream.close();
-	cout << "Dumped " << fifo_fill << " log messages to file \"" << filepath << "\".\n";
+	std::cout << "Dumped " << fifo_fill << " log messages to file \"" << filepath << "\".\n";
 }
 
 // clear fifo
-void logger_c::clear(void) {
+void logger_c::clear(void) 
+{
 	fifo_clear();
 }
 

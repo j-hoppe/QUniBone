@@ -27,8 +27,6 @@
 #ifndef _STORAGEDRIVE_HPP_
 #define _STORAGEDRIVE_HPP_
 
-using namespace std;
-
 #include <stdint.h>
 #include <string>
 #include <fstream>
@@ -97,7 +95,7 @@ public:
     bool image_recreate_on_param_change(parameter_c *param) ;
 	void image_delete() ;
 private:
-    bool image_recreate_shared_on_param_change(string image_path, string filesystem_paramval, string shareddir_paramval);
+    bool image_recreate_shared_on_param_change(std::string image_path, std::string filesystem_paramval, std::string shareddir_paramval);
 
 public:
     bool image_open(bool create) ;

@@ -26,16 +26,14 @@
 
 #include <assert.h>
 
-using namespace std;
-
 #include "logger.hpp"
 #include "timeout.hpp"
 #include "utils.hpp"
 #include "rl11.hpp"
 #include "rl0102.hpp"
 
-RL0102_c::RL0102_c(storagecontroller_c *_controller) :
-    storagedrive_c(_controller) {
+RL0102_c::RL0102_c(storagecontroller_c *_controller) :    storagedrive_c(_controller) 
+{
     log_label = "RL0102"; // to be overwritten by RL11 on create
     status_word = 0;
     set_type(2); // default: RL02
@@ -47,7 +45,8 @@ RL0102_c::RL0102_c(storagecontroller_c *_controller) :
 
 // return false, if illegal parameter value.
 // verify "new_value", must output error messages
-bool RL0102_c::on_param_changed(parameter_c *param) {
+bool RL0102_c::on_param_changed(parameter_c *param) 
+{
     if (param == &enabled) {
         if (!enabled.new_value) {
             // disable switches power OFF.
@@ -73,7 +72,8 @@ bool RL0102_c::on_param_changed(parameter_c *param) {
     return storagedrive_c::on_param_changed(param); // more actions (for enable)
 }
 
-void RL0102_c::set_type(uint8_t _drivetype) {
+void RL0102_c::set_type(uint8_t _drivetype) 
+{
     drivetype = _drivetype;
     switch (drivetype) {
     case 1:
@@ -99,7 +99,8 @@ void RL0102_c::set_type(uint8_t _drivetype) {
 /* CRC16 as implemented by the DEC 9401 chip
  * simh/PDP11\pdp11_rl.c
  */
-uint16_t RL0102_c::calc_crc(const int wc, const uint16_t *data) {
+uint16_t RL0102_c::calc_crc(const int wc, const uint16_t *data) 
+{
     uint32_t crc, j, d;
     int32_t i;
 
@@ -117,7 +118,8 @@ uint16_t RL0102_c::calc_crc(const int wc, const uint16_t *data) {
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void RL0102_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RL0102_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     UNUSED(aclo_edge) ;
     // called at high priority.
     // mutex?
@@ -130,7 +132,8 @@ void RL0102_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dcl
 }
 
 // if seeking or ontrack: retrack head to 0
-void RL0102_c::on_init_changed(void) {
+void RL0102_c::on_init_changed(void) 
+{
     // called at high priority.
     // mutex?
 
@@ -148,7 +151,8 @@ void RL0102_c::on_init_changed(void) {
 }
 
 // seek is only possible if ready
-bool RL0102_c::cmd_seek(unsigned destination_cylinder, unsigned destination_head) {
+bool RL0102_c::cmd_seek(unsigned destination_cylinder, unsigned destination_head) 
+{
     assert(destination_cylinder < cylinder_count); // RL11 must calc correct #
 
     if (state.value != RL0102_STATE_lock_on) {
@@ -175,7 +179,8 @@ bool RL0102_c::cmd_seek(unsigned destination_cylinder, unsigned destination_head
 }
 
 // separate proc, to have a testpoint
-void RL0102_c::change_state(unsigned new_state) {
+void RL0102_c::change_state(unsigned new_state) 
+{
     unsigned old_state = state.value;
     uint16_t old_status_word = status_word;
     // TODO: only in update_status_word() the visible state of state of ready line and error line should be set.!
@@ -188,7 +193,8 @@ void RL0102_c::change_state(unsigned new_state) {
 }
 
 /*** state functions, called repeatedly ***/
-void RL0102_c::state_power_off() {
+void RL0102_c::state_power_off() 
+{
     // drive_ready_line = false; // verified
     // drive_error_line = true; // real RL02: RL11 show a DRIVE ERROR after power on / DC_LO
     type_name.readonly = false; // may be changed between RL01/RL02
@@ -208,7 +214,8 @@ void RL0102_c::state_power_off() {
 }
 
 // drive stop, door unlocked, cartridge can be loaded
-void RL0102_c::state_load_cartridge() {
+void RL0102_c::state_load_cartridge() 
+{
     // drive_ready_line = false; // verified
     type_name.readonly = true; // must be powered of to changed between RL01/RL02
     update_status_word(/*drive_ready_line*/false, drive_error_line);
@@ -242,7 +249,8 @@ void RL0102_c::state_load_cartridge() {
     state_timeout.wait_ms(100);
 }
 
-void RL0102_c::state_spin_up() {
+void RL0102_c::state_spin_up() 
+{
     unsigned calcperiod_ms = 100;
     // change of rpm in 0.1 secs
     unsigned rpm_increment = full_rpm / (time_spinup_sec * (1000 / calcperiod_ms));
@@ -277,7 +285,8 @@ void RL0102_c::state_spin_up() {
     state_timeout.wait_ms(calcperiod_ms);
 }
 
-void RL0102_c::state_brush_cycle() {
+void RL0102_c::state_brush_cycle() 
+{
     // a real brush was used only on early RL01
     // drive_ready_line = false ;
     update_status_word(/*drive_ready_line*/false, drive_error_line);
@@ -286,7 +295,8 @@ void RL0102_c::state_brush_cycle() {
     change_state(RL0102_STATE_load_heads);
 }
 
-void RL0102_c::state_load_heads() {
+void RL0102_c::state_load_heads() 
+{
     // drive_ready_line = false ;
     update_status_word(/*drive_ready_line*/false, drive_error_line);
     state_timeout.wait_ms(time_heads_out_ms);
@@ -304,8 +314,8 @@ void RL0102_c::state_load_heads() {
 }
 
 // DEC: seek = 100ms for 512/256 tracks
-void RL0102_c::state_seek() {
-
+void RL0102_c::state_seek() 
+{
     // drive_ready_line = false;
     update_status_word(/*drive_ready_line*/false, drive_error_line);
 
@@ -380,8 +390,8 @@ void RL0102_c::state_seek() {
     }
 }
 
-void RL0102_c::state_lock_on() {
-
+void RL0102_c::state_lock_on()
+{
     if (runstop_button.value == false || fault_lamp.value == true) { // stop spinning
         change_state(RL0102_STATE_unload_heads);
         return;
@@ -399,13 +409,15 @@ void RL0102_c::state_lock_on() {
 //	state_wait_ms = 100 ;
 }
 
-void RL0102_c::state_unload_heads() {
+void RL0102_c::state_unload_heads() 
+{
     drive_ready_line = false;
     state_timeout.wait_ms(time_heads_out_ms);
     change_state(RL0102_STATE_spin_down);
 }
 
-void RL0102_c::state_spin_down() {
+void RL0102_c::state_spin_down() 
+{
     unsigned calcperiod_ms = 100;
     // change of rpm in 0.1 secs
     unsigned rpm_increment = full_rpm / (time_spinup_sec * (1000 / calcperiod_ms));
@@ -432,15 +444,16 @@ void RL0102_c::state_spin_down() {
 }
 
 // clear volatile error conditions in status word
-void RL0102_c::clear_error_register(void) {
+void RL0102_c::clear_error_register(void) 
+{
     error_wge = false;
     volume_check = false;
     update_status_word(drive_ready_line, /*drive_error_line*/false);
 }
 
 // return drive status word for controller MP registers
-void RL0102_c::update_status_word(bool new_drive_ready_line, bool new_drive_error_line) {
-
+void RL0102_c::update_status_word(bool new_drive_ready_line, bool new_drive_error_line) 
+{
     uint16_t tmp = 0;
     if (state.value != RL0102_STATE_power_off)
         tmp |= state.value;
@@ -485,12 +498,14 @@ void RL0102_c::update_status_word(bool new_drive_ready_line, bool new_drive_erro
 }
 
 // update, if neither error nor ready changed
-void RL0102_c::update_status_word(void) {
+void RL0102_c::update_status_word(void) 
+{
     update_status_word(drive_ready_line, drive_error_line);
 }
 
 // is sector with given header on current track?
-bool RL0102_c::header_on_track(uint16_t header) {
+bool RL0102_c::header_on_track(uint16_t header) 
+{
     // fields of disk address word (read/write data, read header)
     unsigned header_cyl = (header >> 7) & 0x1ff; // bits <15:7>
     unsigned header_hd = (header >> 6) & 0x01; // bit 6
@@ -533,7 +548,8 @@ bool RL0102_c::header_on_track(uint16_t header) {
 // (3,042000);(4,030001);(6,104000);(7,072001);(16,164002);(17,012003);(24,170005);
 // (25,006004);(26,044004);(27,132005);(31,056007);(33,162006);(34,110007);
 // (37,152007);(40,140013);(43,102013);(44,170012);(46,044013)
-bool RL0102_c::cmd_read_next_sector_header(uint16_t *buffer, unsigned buffer_size_words) {
+bool RL0102_c::cmd_read_next_sector_header(uint16_t *buffer, unsigned buffer_size_words) 
+{
     if (state.value != RL0102_STATE_lock_on)
         return false; // wrong state
 
@@ -567,7 +583,8 @@ bool RL0102_c::cmd_read_next_sector_header(uint16_t *buffer, unsigned buffer_siz
 // read next data block from rotating platter
 // then increments "sector_segment_under_heads" to next header
 // controller must address sector by waiting for it with cmd_read_next_sector_header()
-bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_words) {
+bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_words) 
+{
     if (state.value != RL0102_STATE_lock_on)
         return false; // wrong state
 
@@ -601,7 +618,8 @@ bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_
 // write data for current sector under head
 // then increments "stuff_under_heads" to next header
 // controller must address sector by waiting for it with cmd_read_next_sector_header()
-bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size_words) {
+bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size_words) 
+{
     if (state.value != RL0102_STATE_lock_on)
         return false; // wrong state
 
@@ -642,7 +660,8 @@ bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size
 }
 
 // thread
-void RL0102_c::worker(unsigned instance) {
+void RL0102_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
     timeout_c timeout;
 

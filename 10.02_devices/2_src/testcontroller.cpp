@@ -134,7 +134,8 @@ testcontroller_c::testcontroller_c() :
 
 }
 
-testcontroller_c::~testcontroller_c() {
+testcontroller_c::~testcontroller_c() 
+{
     for (unsigned i = 0; i < dma_channel_count; i++) {
         delete dma_channel_request[i];
         delete dma_channel_buffer[i];
@@ -145,7 +146,8 @@ testcontroller_c::~testcontroller_c() {
             delete intr_request[slot][level_index];
 }
 
-bool testcontroller_c::on_param_changed(parameter_c *param) {
+bool testcontroller_c::on_param_changed(parameter_c *param) 
+{
     // no own parameter or "enable" logic
     return qunibusdevice_c::on_param_changed(param); // more actions (for enable)
 }
@@ -158,7 +160,8 @@ bool testcontroller_c::on_param_changed(parameter_c *param) {
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void testcontroller_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-        uint8_t unibus_control) {
+        uint8_t unibus_control) 
+{
 
     // emulate a plain memory cell: written values can be read unchanged
     if (unibus_control == QUNIBUS_CYCLE_DATI) {
@@ -180,13 +183,15 @@ void testcontroller_c::on_after_register_access(qunibusdevice_register_t *device
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void testcontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void testcontroller_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     UNUSED(aclo_edge) ;
     UNUSED(dclo_edge) ;
 }
 
 // QBUS/UNIBUS INIT: clear all registers
-void testcontroller_c::on_init_changed(void) {
+void testcontroller_c::on_init_changed(void) 
+{
     // write all registers to "reset-values"
     if (init_asserted) {
         reset_unibus_registers();
@@ -196,7 +201,8 @@ void testcontroller_c::on_init_changed(void) {
 
 // background worker.
 // Just print a heart beat
-void testcontroller_c::worker(unsigned instance) {
+void testcontroller_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
     timeout_c timeout;
     assert(!pthread_mutex_lock(&on_after_register_access_mutex));
@@ -226,12 +232,13 @@ void testcontroller_c::worker(unsigned instance) {
         }
 
         timeout.wait_ms(1000);
-        cout << ".";
+        std::cout << ".";
     }
 
     assert(!pthread_mutex_unlock(&on_after_register_access_mutex));
 }
 
-void testcontroller_c::test_dma_priority() {
+void testcontroller_c::test_dma_priority() 
+{
 }
 

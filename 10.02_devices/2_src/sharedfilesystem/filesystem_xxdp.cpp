@@ -305,13 +305,13 @@ file_xxdp_c::~file_xxdp_c() {
 
 
 // NAME.EXT
-string file_xxdp_c::get_filename()
+std::string file_xxdp_c::get_filename()
 {
     return filesystem_xxdp_c::make_filename(basename, ext) ;
 }
 
 
-string file_xxdp_c::get_host_path()
+std::string file_xxdp_c::get_host_path()
 {
     // let host build the linux path, using my get_filename()
     // result is just "/filename"
@@ -417,9 +417,9 @@ uint16_t filesystem_xxdp_c::dos11date_encode(struct tm t)
 // join basename and ext
 // with "." on empty extension "FILE."
 // used as key for file map
-string filesystem_xxdp_c::make_filename(string basename, string ext)
+std::string filesystem_xxdp_c::make_filename(std::string basename, std::string ext)
 {
-    string result = trim_copy(basename);
+    std::string result = trim_copy(basename);
     result.append(".") ;
     result.append(trim_copy(ext)) ;
     std::transform(result.begin(), result.end(),result.begin(), ::toupper);
@@ -491,11 +491,11 @@ filesystem_xxdp_c::~filesystem_xxdp_c()
 }
 
 // Like "XXDP @ RL02 #1"
-string filesystem_xxdp_c::get_label()
+std::string filesystem_xxdp_c::get_label()
 {
     char buffer[80] ;
     sprintf(buffer, "XXDP @ %s #%d", image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
-    return string(buffer) ;
+    return std::string(buffer) ;
 }
 
 
@@ -1198,10 +1198,10 @@ void filesystem_xxdp_c::parse_bitmap()
 
 
 // parse filesystem special blocks to new file
-void filesystem_xxdp_c::parse_internal_contiguous_file(    string _basename, string _ext,
+void filesystem_xxdp_c::parse_internal_contiguous_file(    std::string _basename, std::string _ext,
         xxdp_blocknr_t _start_block_nr, xxdp_blocknr_t _block_count)
 {
-    string fname = make_filename(_basename, _ext) ;
+    std::string fname = make_filename(_basename, _ext) ;
     file_base_c* fbase = file_by_path.get(fname);
     file_xxdp_c* f = dynamic_cast<file_xxdp_c*>(fbase);
 
@@ -1384,7 +1384,7 @@ void filesystem_xxdp_c::produce_volume_info(std::stringstream &buffer)
 // return: true = OK
 void filesystem_xxdp_c::parse()
 {
-    string parse_error ;
+    std::string parse_error ;
     std::exception_ptr eptr;
 
     // events in the queue references streams, which get invalid on re-parse.
@@ -1672,14 +1672,14 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
     if (host_file->parentdir->parentdir != nullptr)
         return ; // file in host root subdirectory
 
-    string host_fname = host_file->get_filename(); // XXDP:  path == name
+    std::string host_fname = host_file->get_filename(); // XXDP:  path == name
 
     // make filename.extension to "FILN  .E  "
-    string _basename, _ext;
+    std::string _basename, _ext;
 
     filename_from_host(&host_fname, &_basename, &_ext);
 
-    string filename = make_filename(_basename, _ext) ;
+    std::string filename = make_filename(_basename, _ext) ;
     // duplicate file name? Likely! because of trunc to six letters
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
     if (f != nullptr) {
@@ -1750,10 +1750,10 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
 }
 
 
-void filesystem_xxdp_c::delete_host_file(string host_path)
+void filesystem_xxdp_c::delete_host_file(std::string host_path)
 {
     // build XXDP name and stream code
-    string host_dir, host_fname, _basename, _ext ;
+    std::string host_dir, host_fname, _basename, _ext ;
 
     split_path(host_path, &host_dir, &host_fname, nullptr, nullptr) ;
     if (host_dir != "/")
@@ -1761,7 +1761,7 @@ void filesystem_xxdp_c::delete_host_file(string host_path)
         return ;
 
     filename_from_host(&host_fname, &_basename, &_ext);
-    string filename = make_filename(_basename, _ext) ;
+    std::string filename = make_filename(_basename, _ext) ;
 
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
 
@@ -1801,9 +1801,9 @@ file_xxdp_c *filesystem_xxdp_c::file_get(int fileidx)
 // "filname" and "ext" contain components WITH spaces, if != NULL
 // "bla.foo.c" => "BLA.FO", "C	", result = "BLA.FO.C"
 // "bla" => "BLA."
-string filesystem_xxdp_c::filename_from_host(string *hostfname, string *result_basename, string *result_ext)
+std::string filesystem_xxdp_c::filename_from_host(std::string *hostfname, std::string *result_basename, std::string *result_ext)
 {
-    string pathbuff = *hostfname ;
+    std::string pathbuff = *hostfname ;
 
     // upcase and replace forbidden characters
     for (unsigned i = 0 ; i < pathbuff.length() ; i++) {
@@ -1828,7 +1828,7 @@ string filesystem_xxdp_c::filename_from_host(string *hostfname, string *result_b
     }
 
     // make it 6.3. can use Linux function
-    string _basename, _ext ;
+    std::string _basename, _ext ;
     split_path(pathbuff, nullptr, nullptr, &_basename, &_ext) ;
     _ext = _ext.substr(0, 3) ;
     trim(_ext) ;
@@ -1865,13 +1865,13 @@ void filesystem_xxdp_c::sort()
 
 
 
-string filesystem_xxdp_c::date_text(struct tm t) {
-    string mon[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV",
+std::string filesystem_xxdp_c::date_text(struct tm t) {
+    std::string mon[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV",
                      "DEC"
                    };
     char buff[80];
     sprintf(buff, "%2d-%3s-%02d", t.tm_mday, mon[t.tm_mon].c_str(), t.tm_year);
-    return string(buff);
+    return std::string(buff);
 }
 // output like XXDP2.5
 // ENTRY# BASENAME.EXT     DATE		  LENGTH  START   VERSION
@@ -1882,7 +1882,7 @@ string filesystem_xxdp_c::date_text(struct tm t) {
 // ENTRY# FILNAM.EXT        DATE          LENGTH  START   VERSION
 
 
-string filesystem_xxdp_c::directory_text_line(int fileidx)
+std::string filesystem_xxdp_c::directory_text_line(int fileidx)
 {
     char buff[80];
     file_xxdp_c *f;
@@ -1893,7 +1893,7 @@ string filesystem_xxdp_c::directory_text_line(int fileidx)
     assert(f->block_nr_list.size() > 0);
     sprintf(buff, "%5d  %6s.%-3s%15s%11d    %06o", fileidx + 1, f->basename.c_str(), f->ext.c_str(),
             date_text(f->modification_time).c_str(), (unsigned)f->block_nr_list.size(), f->block_nr_list[0]);
-    return string(buff) ;
+    return std::string(buff) ;
 }
 
 void filesystem_xxdp_c::print_directory(FILE *stream)

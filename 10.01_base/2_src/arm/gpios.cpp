@@ -70,7 +70,8 @@ gpios_c::gpios_c() {
 /* fill the 4 gpio_banks with values and
  *	map addresses
  */
-void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr) {
+void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr) 
+{
     int fd;
     gpio_bank_t *bank;
 
@@ -100,7 +101,8 @@ void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr
 }
 
 gpio_config_t *gpios_c::config(const char *name, int direction, unsigned bank_idx,
-                               unsigned pin_in_bank) {
+                               unsigned pin_in_bank) 
+{
     gpio_config_t *result = (gpio_config_t *) malloc(sizeof(gpio_config_t));
     if (name)
         strcpy(result->name, name);
@@ -124,7 +126,8 @@ gpio_config_t *gpios_c::config(const char *name, int direction, unsigned bank_id
 
 // "export" a pin over the sys file system
 // this is necessary for GPIO2&3, despite we operate memory mapped.
-void gpios_c::export_pin(gpio_config_t *pin) {
+void gpios_c::export_pin(gpio_config_t *pin) 
+{
     char fname[256];
     FILE *f;
     struct stat statbuff;
@@ -144,7 +147,8 @@ void gpios_c::export_pin(gpio_config_t *pin) {
 }
 
 /* export the NON-PRU pins: */
-void gpios_c::init() {
+void gpios_c::init() 
+{
     unsigned n;
     gpio_config_t *gpio;
 
@@ -218,7 +222,8 @@ void gpios_c::init() {
 }
 
 // display a number on the 4 LEDs
-void gpios_c::set_leds(unsigned number) {
+void gpios_c::set_leds(unsigned number) 
+{
     // inverted drivers
     GPIO_SETVAL(led[0], !(number & 1)) ;
     GPIO_SETVAL(led[1], !(number & 2)) ;
@@ -230,7 +235,8 @@ void gpios_c::set_leds(unsigned number) {
 /*
  * Toggle in high speed, break with ^C
  */
-void gpios_c::test_toggle(gpio_config_t *gpio) {
+void gpios_c::test_toggle(gpio_config_t *gpio) 
+{
     INFO("Highspeed toggle pin %s, stop with ^C.", gpio->name);
 
     // Setup ^C catcher
@@ -253,7 +259,8 @@ void gpios_c::test_toggle(gpio_config_t *gpio) {
  * Switches control LEDs
  * Button controls QBUS/UNIBUS reg_enable
  */
-void gpios_c::test_loopback(void) {
+void gpios_c::test_loopback(void) 
+{
     timeout_c timeout;
 
     INFO("Manual loopback test, stop with ^C");
@@ -275,7 +282,8 @@ void gpios_c::test_loopback(void) {
 }
 
 
-void activity_led_c::waiter_func() {
+void activity_led_c::waiter_func() 
+{
     // loop until terminated
     while (!waiter_terminated) {
         // polling frequency
@@ -294,7 +302,8 @@ void activity_led_c::waiter_func() {
     }
 }
 
-activity_led_c::activity_led_c() {
+activity_led_c::activity_led_c() 
+{
     waiter_terminated = false ;
     for (unsigned led_idx=0 ; led_idx < led_count ; led_idx++)
         cycles[led_idx] = 1 ; // will go off when thread waiter_func() starts
@@ -303,14 +312,16 @@ activity_led_c::activity_led_c() {
 }
 
 
-activity_led_c::~activity_led_c() {
+activity_led_c::~activity_led_c() 
+{
     waiter_terminated = true ;
     waiter.join() ;
 }
 
 
 // a "set" pusles for 100ms, a "clear" does nothing
-void activity_led_c::set(unsigned led_idx, bool onoff) {
+void activity_led_c::set(unsigned led_idx, bool onoff) 
+{
     const std::lock_guard<std::mutex> lock(m); // cycles[]
     assert(led_idx < led_count) ;
     // atomic commands

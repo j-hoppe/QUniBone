@@ -148,7 +148,7 @@ public:
 	uint16_t get_register_dato_value(qunibusdevice_register_t *device_reg);
 	void reset_unibus_registers();
 
-	qunibusdevice_register_t *register_by_name(string name);
+	qunibusdevice_register_t *register_by_name(std::string name);
 	qunibusdevice_register_t *register_by_unibus_address(uint32_t addr);
 
 

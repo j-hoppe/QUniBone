@@ -58,8 +58,8 @@ enum dec_drive_type_e {
 class drive_info_c: logsource_c {
 public:
     enum dec_drive_type_e drive_type;
-    string 	device_name; // "RL02"
-    string 	mnemonic; // "DL"
+    std::string 	device_name; // "RL02"
+    std::string 	mnemonic; // "DL"
     uint64_t capacity ; // full surface
     unsigned cylinder_count, head_count, sector_count, sector_size ;
     uint64_t bad_sector_file_offset ; // optional start of bad sector track

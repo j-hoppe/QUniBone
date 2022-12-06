@@ -18,15 +18,14 @@
 #include <assert.h>
 #include <memory>
 
-using namespace std;
-
 #include "logger.hpp"
 #include "utils.hpp"
 #include "mscp_drive.hpp"
 #include "mscp_server.hpp"
 
 mscp_drive_c::mscp_drive_c(storagecontroller_c *_controller, uint32_t _driveNumber) :
-    storagedrive_c(_controller), _useImageSize(false) {
+    storagedrive_c(_controller), _useImageSize(false) 
+{
     set_workers_count(0) ; // needs no worker()
     log_label = "MSCPD";
     SetDriveType("RA81");
@@ -36,7 +35,8 @@ mscp_drive_c::mscp_drive_c(storagecontroller_c *_controller, uint32_t _driveNumb
     _unitDeviceNumber = _driveNumber + 1;
 }
 
-mscp_drive_c::~mscp_drive_c() {
+mscp_drive_c::~mscp_drive_c() 
+{
     if (image_is_open()) {
         image_close();
     }
@@ -44,7 +44,8 @@ mscp_drive_c::~mscp_drive_c() {
 
 // on_param_changed():
 //  Handles configuration parameter changes.
-bool mscp_drive_c::on_param_changed(parameter_c *param) {
+bool mscp_drive_c::on_param_changed(parameter_c *param) 
+{
     // no own "enable" logic
     if (&type_name == param) {
         return SetDriveType(type_name.new_value.c_str());
@@ -69,7 +70,8 @@ bool mscp_drive_c::on_param_changed(parameter_c *param) {
 //  Returns the size, in bytes, of a single block on this drive.
 //  This is either 512 or 576 bytes.
 //
-uint32_t mscp_drive_c::GetBlockSize() {
+uint32_t mscp_drive_c::GetBlockSize() 
+{
     //
     // For the time being this is always 512 bytes.
     //
@@ -81,7 +83,8 @@ uint32_t mscp_drive_c::GetBlockSize() {
 //  Get the size of the data space (not including RCT area) of this
 //  drive, in blocks.
 //
-uint32_t mscp_drive_c::GetBlockCount() {
+uint32_t mscp_drive_c::GetBlockCount() 
+{
     if (_useImageSize) {
         // Return the image size / Block size (rounding down).
         return image_size() / GetBlockSize();
@@ -97,7 +100,8 @@ uint32_t mscp_drive_c::GetBlockCount() {
 // GetRCTBlockCount():
 //  Returns the total size of the RCT area in blocks.
 //
-uint32_t mscp_drive_c::GetRCTBlockCount() {
+uint32_t mscp_drive_c::GetRCTBlockCount() 
+{
     return _driveInfo.RCTSize * GetRCTCopies();
 }
 
@@ -105,7 +109,8 @@ uint32_t mscp_drive_c::GetRCTBlockCount() {
 // GetMediaID():
 //  Returns the media ID specific to this drive's type.
 //
-uint32_t mscp_drive_c::GetMediaID() {
+uint32_t mscp_drive_c::GetMediaID() 
+{
     return _driveInfo.MediaID;
 }
 
@@ -113,7 +118,8 @@ uint32_t mscp_drive_c::GetMediaID() {
 // GetDeviceNumber():
 //  Returns the unique device number for this drive.
 //
-uint32_t mscp_drive_c::GetDeviceNumber() {
+uint32_t mscp_drive_c::GetDeviceNumber() 
+{
     return _unitDeviceNumber;
 }
 
@@ -121,7 +127,8 @@ uint32_t mscp_drive_c::GetDeviceNumber() {
 // GetClassModel():
 //  Returns the class and model information for this drive.
 //
-uint16_t mscp_drive_c::GetClassModel() {
+uint16_t mscp_drive_c::GetClassModel() 
+{
     return _unitClassModel;
 }
 
@@ -129,7 +136,8 @@ uint16_t mscp_drive_c::GetClassModel() {
 // GetRCTSize():
 //  Returns the size of one copy of the RCT.
 //
-uint16_t mscp_drive_c::GetRCTSize() {
+uint16_t mscp_drive_c::GetRCTSize() 
+{
     return _driveInfo.RCTSize;
 }
 
@@ -138,7 +146,8 @@ uint16_t mscp_drive_c::GetRCTSize() {
 //  Returns the number of replacement blocks per track for
 //  this drive.
 //
-uint8_t mscp_drive_c::GetRBNs() {
+uint8_t mscp_drive_c::GetRBNs() 
+{
     return 0;
 }
 
@@ -147,7 +156,8 @@ uint8_t mscp_drive_c::GetRBNs() {
 //  Returns the number of copies of the RCT present in the RCT
 //  area.
 //
-uint8_t mscp_drive_c::GetRCTCopies() {
+uint8_t mscp_drive_c::GetRCTCopies() 
+{
     return 1;
 }
 
@@ -156,7 +166,8 @@ uint8_t mscp_drive_c::GetRCTCopies() {
 //  Indicates whether this drive is available (i.e. has an image
 //  assigned to it and can thus be used by the controller.)
 //
-bool mscp_drive_c::IsAvailable() {
+bool mscp_drive_c::IsAvailable() 
+{
     return image_is_open();
 }
 
@@ -165,7 +176,8 @@ bool mscp_drive_c::IsAvailable() {
 //  Indicates whether this drive has been placed into an Online
 //  state (for example by the ONLINE command).
 //
-bool mscp_drive_c::IsOnline() {
+bool mscp_drive_c::IsOnline() 
+{
     return _online;
 }
 
@@ -173,7 +185,8 @@ bool mscp_drive_c::IsOnline() {
 // SetOnline():
 //  Brings the drive online.
 //
-void mscp_drive_c::SetOnline() {
+void mscp_drive_c::SetOnline() 
+{
     _online = true;
 
     //
@@ -188,7 +201,8 @@ void mscp_drive_c::SetOnline() {
 // SetOffline():
 //  Takes the drive offline.
 //
-void mscp_drive_c::SetOffline() {
+void mscp_drive_c::SetOffline() 
+{
     _online = false;
     type_name.readonly = false;
     image_params_readonly(false) ;
@@ -198,7 +212,8 @@ void mscp_drive_c::SetOffline() {
 // Writes the specified number of bytes from the provided buffer,
 // starting at the specified logical block.
 //
-void mscp_drive_c::Write(uint32_t blockNumber, size_t lengthInBytes, uint8_t* buffer) {
+void mscp_drive_c::Write(uint32_t blockNumber, size_t lengthInBytes, uint8_t* buffer) 
+{
     image_write(buffer, blockNumber * GetBlockSize(), lengthInBytes);
     // clear out remainder of disk sector
     image_clear_remaining_block_bytes(GetBlockSize(), blockNumber * GetBlockSize(), lengthInBytes) ;
@@ -209,7 +224,8 @@ void mscp_drive_c::Write(uint32_t blockNumber, size_t lengthInBytes, uint8_t* bu
 // block.  Returns a pointer to a buffer containing the data read.
 // Caller is responsible for freeing this buffer.
 //
-uint8_t* mscp_drive_c::Read(uint32_t blockNumber, size_t lengthInBytes) {
+uint8_t* mscp_drive_c::Read(uint32_t blockNumber, size_t lengthInBytes) 
+{
     uint8_t* buffer = new uint8_t[lengthInBytes];
 
     assert(nullptr != buffer);
@@ -224,7 +240,8 @@ uint8_t* mscp_drive_c::Read(uint32_t blockNumber, size_t lengthInBytes) {
 // RCT area at the specified RCT block.  Buffer must be at least as large
 // as the disk's block size.
 //
-void mscp_drive_c::WriteRCTBlock(uint32_t rctBlockNumber, uint8_t* buffer) {
+void mscp_drive_c::WriteRCTBlock(uint32_t rctBlockNumber, uint8_t* buffer) 
+{
     assert(rctBlockNumber < GetRCTBlockCount());
 
     memcpy(reinterpret_cast<void *>(_rctData.get() + rctBlockNumber * GetBlockSize()),
@@ -236,7 +253,8 @@ void mscp_drive_c::WriteRCTBlock(uint32_t rctBlockNumber, uint8_t* buffer) {
 // block offset).  Returns a pointer to a buffer containing the data read.
 // Caller is responsible for freeing this buffer.
 //
-uint8_t* mscp_drive_c::ReadRCTBlock(uint32_t rctBlockNumber) {
+uint8_t* mscp_drive_c::ReadRCTBlock(uint32_t rctBlockNumber) 
+{
     assert(rctBlockNumber < GetRCTBlockCount());
 
     uint8_t* buffer = new uint8_t[GetBlockSize()];
@@ -253,7 +271,8 @@ uint8_t* mscp_drive_c::ReadRCTBlock(uint32_t rctBlockNumber) {
 // UpdateCapacity():
 //  Updates the capacity parameter of the drive based on the block count and block size.
 //
-void mscp_drive_c::UpdateCapacity() {
+void mscp_drive_c::UpdateCapacity() 
+{
     capacity.value = GetBlockCount() * GetBlockSize();
 }
 
@@ -261,7 +280,8 @@ void mscp_drive_c::UpdateCapacity() {
 // UpdateMetadata():
 //  Updates the Unit Class / Model info and RCT area based on the selected drive type.
 //
-void mscp_drive_c::UpdateMetadata() {
+void mscp_drive_c::UpdateMetadata() 
+{
     _unitClassModel = 0x0200 | _driveInfo.Model;
 
     // Initialize the RCT area
@@ -280,7 +300,8 @@ void mscp_drive_c::UpdateMetadata() {
 //  drive types, the drive's type is not changed and false
 //  is returned.
 //
-bool mscp_drive_c::SetDriveType(const char* typeName) {
+bool mscp_drive_c::SetDriveType(const char* typeName) 
+{
     //
     // Search through drive data table for name,
     // and if valid, set the type appropriately.
@@ -311,7 +332,8 @@ bool mscp_drive_c::SetDriveType(const char* typeName) {
 //  Handle power change notifications.
 //
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void mscp_drive_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void mscp_drive_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     UNUSED(aclo_edge) ;
     UNUSED(dclo_edge) ;
     // Take the drive offline due to power change
@@ -321,7 +343,8 @@ void mscp_drive_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum
 //
 // on_init_changed():
 //  Handle INIT signal.
-void mscp_drive_c::on_init_changed(void) {
+void mscp_drive_c::on_init_changed(void) 
+{
     // Take the drive offline due to reset
     SetOffline();
 }

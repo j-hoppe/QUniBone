@@ -87,7 +87,8 @@
 // Singleton
 pru_c *pru;
 
-pru_c::pru_c() {
+pru_c::pru_c() 
+{
 	prucode_id = PRUCODE_NONE;
 	log_label = "PRU";
 }
@@ -135,7 +136,8 @@ struct prucode_entry prucode[] = {
 	   // end marker
 	{ pru_c::PRUCODE_EOD, NULL, 0, 0, NULL, 0, 0 } };
 
-int pru_c::start(enum prucode_enum _prucode_id) {
+int pru_c::start(enum prucode_enum _prucode_id) 
+{
 	timeout_c timeout;
 	int rtn;
 	tpruss_intc_initdata intc = PRUSS_INTC_INITDATA;
@@ -236,7 +238,8 @@ int pru_c::start(enum prucode_enum _prucode_id) {
 
  Returns 0 on success, non-0 on error.
  ***/
-int pru_c::stop(void) {
+int pru_c::stop(void) 
+{
 	int rtn = 0;
 	prucode_id = PRUCODE_NONE;
 
