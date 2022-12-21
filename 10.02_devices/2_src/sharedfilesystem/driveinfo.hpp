@@ -285,7 +285,7 @@ public:
     }
 
 
-    // for a gicen position in the image, return cylinder, head within cylinder,
+    // for a given position in the image, return cylinder, head within cylinder,
     // sector within track and offset within sector
     void get_chs(uint64_t image_offset, unsigned *cylinder, unsigned *head, unsigned *sector, unsigned *sector_offset) const
     {

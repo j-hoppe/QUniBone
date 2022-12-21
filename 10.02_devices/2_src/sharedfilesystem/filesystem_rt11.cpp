@@ -342,17 +342,22 @@ void filesystem_rt11_c::init()
 
     clear_rootdir() ;
 
-    // defaults for home block, according to [VFFM91], page 1-3
+    // defaults for home block and filesystem, according to [VFFM91], page 1-3
+    // This is the default layout in case of parse errors (emtpy disks)
     pack_cluster_size = 1;
-    first_dir_blocknr = 6;
     // system_version = "V3A"; RAD50: 0xa9, 0x8e
     system_version = "V05"; // RAD50: 0x53, 0x8e
     volume_id = "RT11A       ";
     owner_name = "            " ;
     system_id ="DECRT11A    " ;
+    first_dir_blocknr = 6;
     dir_entry_extra_bytes = 0;
     homeblock_chksum = 0;
     struct_changed = false ;
+
+	// recalc other parameters
+	calc_layout() ;
+	
 }
 
 
@@ -590,7 +595,7 @@ void filesystem_rt11_c::calc_change_flags()
 //	the existing volume
 void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
 {
-    unsigned _dir_max_seg_nr;
+    unsigned _dir_max_used_seg_nr;
     unsigned _used_file_blocks;
     unsigned _available_blocks;
 
@@ -611,16 +616,16 @@ void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
         _used_file_blocks += needed_blocks(test_data_size);
 
     // total blocks available for dir and data
-    // On disk supporting STd144 bad sector info,
+    // On disk supporting STD144 bad sector info,
     // "available blocks" should not be calculated from total disk size,
     // but from usable blockcount of "layout_info".
     // Difficulties in case of enlarged images!
     _available_blocks = blockcount - first_dir_blocknr; // boot, home, 2..5 used
     if (test_data_size)
-        _dir_max_seg_nr = directory_needed_segments(dir_file_count + 1);
+        _dir_max_used_seg_nr = directory_needed_segments(dir_file_count + 1);
     else
-        _dir_max_seg_nr = directory_needed_segments(dir_file_count);
-    if (_available_blocks < _used_file_blocks + 2 * _dir_max_seg_nr) {
+        _dir_max_used_seg_nr = directory_needed_segments(dir_file_count);
+    if (_available_blocks < _used_file_blocks + 2 * _dir_max_used_seg_nr) {
         // files do not fit on volume
         if (!test_data_size)
             free_blocks = 0; // can't be negative
@@ -631,10 +636,10 @@ void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
 
     /* end of test mode */
     // now modify file system
-    dir_max_seg_nr = _dir_max_seg_nr;
+    dir_max_used_seg_nr = _dir_max_used_seg_nr;
     used_file_blocks = _used_file_blocks;
 
-    free_blocks = _available_blocks - _used_file_blocks - 2 * _dir_max_seg_nr;
+    free_blocks = _available_blocks - _used_file_blocks - 2 * _dir_max_used_seg_nr;
     // now used_blocks,free_blocks, dir_total_seg_num valid.
 
     /* Plan use of remaining free_space
@@ -655,7 +660,7 @@ void filesystem_rt11_c::calc_block_use(unsigned test_data_size)
 
     if (dir_file_count == 0) {
         // if disk empty: start with only 1 segment
-        dir_max_seg_nr = 1;
+        dir_max_used_seg_nr = 1;
     } else {
         unsigned planned_avg_file_blocks; // average filesize in blocks
         unsigned planned_new_file_count; // planned count of additional files
@@ -821,10 +826,10 @@ void filesystem_rt11_c::parse_directory()
         else if (w != dir_total_seg_num)
             throw filesystem_exception("parse_directory(): ds_header_total_seg_num in entry %d different from entry 1", ds_nr);
         if (ds_nr == 1)
-            dir_max_seg_nr = block_buffer.get_word_at_byte_offset(4); // word #3
+            dir_max_used_seg_nr = block_buffer.get_word_at_byte_offset(4); // word #3
         ds_next_nr = block_buffer.get_word_at_byte_offset(2); // word #2 nr of next segment
-        if (ds_next_nr > dir_max_seg_nr)
-            throw filesystem_exception("parse_directory(): next segment nr %d > maximum %d", ds_next_nr, dir_max_seg_nr);
+        if (ds_next_nr > dir_max_used_seg_nr)
+            throw filesystem_exception("parse_directory(): next segment nr %d > maximum %d", ds_next_nr, dir_max_used_seg_nr);
         de_data_blocknr = block_buffer.get_word_at_byte_offset(8); // word #5 block of data start
         if (ds_nr == 1) {
             dir_entry_extra_bytes = block_buffer.get_word_at_byte_offset(6); // word #4: extra bytes
@@ -1014,7 +1019,7 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
     buffer << line ;
 
     sprintf(line, "\n# Number of highest dir segment in use\ndir_max_seg_nr=%d\n",
-            dir_max_seg_nr);
+            dir_max_used_seg_nr);
     buffer << line ;
 
     sprintf(line, "\n# Start block of file area = %s\n", image_partition->block_nr_info(file_space_blocknr));
@@ -1121,7 +1126,7 @@ void filesystem_rt11_c::calc_layout()
 {
     int file_start_blocknr;
 
-    calc_block_use(0) ; // throws
+    calc_block_use(false) ; // throws
 
     // free, used blocks, dir_total_seg_num now set
 
@@ -1226,11 +1231,11 @@ void filesystem_rt11_c::render_directory_entry(byte_buffer_c &block_buffer, file
     if (de_nr == 0) {
         // 1st entry in segment: write 5 word header
         block_buffer.set_word_at_byte_offset(0, dir_total_seg_num); // word #1
-        if (ds_nr == dir_max_seg_nr)
+        if (ds_nr == dir_max_used_seg_nr)
             block_buffer.set_word_at_byte_offset(2, 0); // word #2: next segment
         else
             block_buffer.set_word_at_byte_offset(2, ds_nr + 1); // link to next segment
-        block_buffer.set_word_at_byte_offset(4, dir_max_seg_nr); // word #3
+        block_buffer.set_word_at_byte_offset(4, dir_max_used_seg_nr); // word #3
         block_buffer.set_word_at_byte_offset(6, dir_entry_extra_bytes); //word #4
         if (f)
             block_buffer.set_word_at_byte_offset(8, f->block_nr); // word #5 start of first file on disk

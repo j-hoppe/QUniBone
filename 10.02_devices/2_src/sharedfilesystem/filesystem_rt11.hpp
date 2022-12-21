@@ -158,7 +158,7 @@ class filesystem_rt11_c: public filesystem_dec_c {
 
     // directory layout data
     uint16_t dir_total_seg_num ; // total number of segments in this directory
-    uint16_t dir_max_seg_nr ; // number of highest segment in use (only 1st segment)
+    uint16_t dir_max_used_seg_nr ; // number of highest segment in use (only 1st segment)
     uint16_t dir_entry_extra_bytes ; // number of extra bytes per dir entry
 
     bool struct_changed ; // directories or homeblock changed
