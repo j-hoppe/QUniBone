@@ -45,7 +45,6 @@
 #include <regex>
 #include <ctime>
 
-#include "driveinfo.hpp"
 
 namespace sharedfilesystem {
 
@@ -128,17 +127,6 @@ public:
 };
 
 
-// manages reference counters for filename strings
-class filesystem_event_filter_c: public std::map<std::string, int>
-{
-public:
-    void add(std::string path) ;
-    // void remove(string path) ;
-    bool is_filtered(std::string path) ;
-} ;
-
-
-
 class file_base_c: public logsource_c {
     friend class filesystem_base_c;
 public:
@@ -161,7 +149,6 @@ public:
     virtual std::string get_filename() = 0 ;
     // has "this" changed against cmp?
     virtual bool data_changed(file_base_c *cmp) = 0 ;
-
 
 } ;
 
@@ -187,7 +174,7 @@ public:
     virtual void remove_file(file_base_c *oldfile) ;
 public:
     virtual unsigned file_count() ;
-    void debug_print(int level) ;
+    void debug_print(int indent_level) ;
 
 } ;
 
@@ -219,15 +206,12 @@ public:
     // label identifying this instance: "XXDP @ RL02 #1", "Host dir /root/10.02_devices/3_test/sharedfilesystem/xxdp-rl02"
     virtual std::string get_label() = 0 ;
 
-    bool changed ; // unprocessed changes? set by add/rmeove|directory/file
+    bool changed ; // unprocessed changes? set by add/remove|directory/file
     uint64_t change_time_ms ;
 
 
     // quick find files and dirs by name
     file_by_path_map_c	file_by_path ;
-
-    // block re-production of consumed events
-    filesystem_event_filter_c ack_event_filter ;
 
 public:
     // get the path of a file in the tree. key to hash map

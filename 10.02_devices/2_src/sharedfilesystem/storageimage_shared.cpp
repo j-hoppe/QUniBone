@@ -98,14 +98,12 @@ on disk           root              <-----        root
 	  delete + create events.
   - Events are evaluated (consumed) by the other filesystem.
      Files are there deleted or created accordingly.
-  - This causes further change events on the consumer side, called "ack-events".
-    They are *ignored* and not sent back to the producer.
-  - Each consumer ignores create events for existing files, and deleted events for missing files.
-    This also ignores ack-events.
-  - ack-event filter for each filesystem:
-  	* consume of an event marks the file in an "ack_event_filter"
-  	* following changes on disk generate events, but not for files in "ack_event_filter"
-  	* main logic deletes the ack_event_filter after all remaining events are processed
+  - DEC events consumed by the Linux host change the Linuxfile system and create further inotify events, 
+    which are sent back to the DEC file system.
+  - These are called "ack-events". They may cause changes to the DEC file system again,
+    as the host by adjust the file date or other properties.
+  - No endless recursion can occur, as the sync_worker() erases all DEC changes after work
+    (snapsjot := current-state)
 
 
   Flow:
@@ -185,6 +183,7 @@ on disk           root              <-----        root
 #include "utils.hpp"
 #include "timeout.hpp"
 
+#include "storagedrive.hpp"
 #include "storageimage_shared.hpp"
 #include "filesystem_dec.hpp"
 #include "filesystem_xxdp.hpp"
@@ -198,9 +197,6 @@ storageimage_shared_c::storageimage_shared_c(
     std::string _image_path,
     bool _use_syncer_thread,
     enum filesystem_type_e _filesystem_type,
-    enum dec_drive_type_e _drive_type,
-    unsigned _drive_unit,
-    uint64_t _capacity,
     std::string _hostdir) : storageimage_base_c()
 {
     log_label = "ImgShr" ;
@@ -209,13 +205,6 @@ storageimage_shared_c::storageimage_shared_c(
     pthread_mutex_init(&mutex, NULL);
     image_path = _image_path ;
     type = _filesystem_type ;
-    drive_info = drive_info_c(_drive_type);
-    if (_capacity > 0)
-        drive_info.capacity = _capacity ; // update from device emulation
-    assert((_capacity % 256) == 0) ; // ad hoc, necessary?
-    drive_unit = _drive_unit ;
-
-//    assert(image_data_size <= raw_drive_size) ; // filesystem must not exceed drive
 
     host_shared_rootdir = absolute_path(&_hostdir) ;
 
@@ -254,7 +243,7 @@ void storageimage_shared_c::unlock(const char *caller)
 
 // create the memory buffer, parse hostdir, create file system in memory buffer
 // called by derived open() first
-bool storageimage_shared_c::open(bool create)
+bool storageimage_shared_c::open(storagedrive_c *_drive, bool create)
 {
     if (is_open())
         close(); // after RL11 INIT
@@ -263,13 +252,17 @@ bool storageimage_shared_c::open(bool create)
     assert(filesystem_dec == nullptr) ;
     assert(filesystem_host == nullptr) ;
     assert(!image_path.empty()) ;
+    assert((_drive->geometry.get_raw_capacity() % 256) == 0) ; // ad hoc, necessary?
+    //	  assert(image_data_size <= raw_drive_size) ; // filesystem must not exceed drive
 
     lock(__FILE__LINE__) ;
+
+    drive = _drive ;
 
     image = new storageimage_binfile_c(image_path);
 //    image = new storageimage_memory_c(drive_info.capacity);
 
-    if (!image->open(create)) {
+    if (!image->open(drive, create)) {
         delete image ;
         image = nullptr ;
         unlock(__FILE__LINE__) ;
@@ -286,21 +279,23 @@ bool storageimage_shared_c::open(bool create)
     // special logic for RX01,RX02: unused track0 sometimes part of image,
     // only then is filesystem_offset == 1 track size
     // Luckily RX01 has no bad sector file, so calculations are easier.
-    if (filesystem_offset > 0) {
+    if (drive->geometry.filesystem_offset > 0) {
         //if (drive_info.drive_type == devRX01 || drive_info.drive_type == devRX02) {
-        assert( drive_info.bad_sector_file_offset == 0 ) ;
-        image_partition_size = image->size() - filesystem_offset ; // exclude track 0
-    } else if (drive_info.bad_sector_file_offset)
-        image_partition_size = drive_info.bad_sector_file_offset ; // 0 .. bad sector track
-    else image_partition_size = image->size() ; // full
+        assert( drive->geometry.bad_sector_file_offset == 0 ) ;
+        image_partition_size = drive->geometry.get_raw_capacity() - drive->geometry.filesystem_offset ; // exclude track 0
+        //		  image_partition_size = image->size() - drive->geometry.filesystem_offset ; // exclude track 0
+    } else if (drive->geometry.bad_sector_file_offset)
+        image_partition_size = drive->geometry.bad_sector_file_offset ; // 0 .. bad sector track
+    else image_partition_size = drive->geometry.get_raw_capacity() ; // full
+//    else image_partition_size = image->size() ; // full
 
-    main_partition = new storageimage_partition_c(image, filesystem_offset, image_partition_size, type, drive_info, drive_unit) ;
+    main_partition = new storageimage_partition_c(image, drive->geometry.filesystem_offset, image_partition_size, type) ;
     main_partition->log_level_ptr = log_level_ptr ; // same log level as drive
 
-    if (drive_info.bad_sector_file_offset) {
+    if (drive->geometry.bad_sector_file_offset) {
         // write empty bad sector files to some disks, on highest track/cylinder
-        std144_partition = new storageimage_partition_c(image, drive_info.bad_sector_file_offset,
-                drive_info.capacity - drive_info.bad_sector_file_offset, type, drive_info, drive_unit) ;
+        std144_partition = new storageimage_partition_c(image, drive->geometry.bad_sector_file_offset,
+                drive->geometry.get_raw_capacity() - drive->geometry.bad_sector_file_offset, type) ;
         std144_partition->log_level_ptr = log_level_ptr ; // same log level as drive
         image_write_std144_bad_sector_table() ;
     } else {
@@ -337,11 +332,11 @@ bool storageimage_shared_c::open(bool create)
 
     // init host directory, create if not exists
     if (! file_exists(&host_shared_rootdir)) {
-        INFO(printf_to_cstr("Creating shared directory %s", host_shared_rootdir.c_str())) ;
+        INFO("Creating shared directory %s", host_shared_rootdir.c_str()) ;
         system(std::string("mkdir -p " + host_shared_rootdir).c_str()) ;
     }
     if (! file_exists(&host_shared_rootdir))
-        FATAL(printf_to_cstr("Shared directory %s could not be created!", host_shared_rootdir.c_str())) ;
+        FATAL("Shared directory %s could not be created!", host_shared_rootdir.c_str()) ;
     filesystem_host = new filesystem_host_c(host_shared_rootdir) ;
     filesystem_host->log_level_ptr = log_level_ptr ; // same level as image
     filesystem_host->event_queue.log_level_ptr = log_level_ptr ;
@@ -369,7 +364,7 @@ bool storageimage_shared_c::open(bool create)
     }
     filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
 
-    sync_dec_snapshot() ; // init snapshot
+    sync_dec_update_snapshot() ; // init snapshot
     filesystem_host->changed = false ;
     filesystem_dec->changed = false ;
     dec_image_changed = false ;
@@ -399,11 +394,11 @@ void storageimage_shared_c::image_write_std144_bad_sector_table()
     assert(std144_partition->image_position > 0);
 
     unsigned table_count ; // == used sectors
-    if (drive_info.drive_type == devRL01) {
+    if (drive->drive_type == drive_type_e::RL01) {
         // two sectors à 128 words, 20 double-sector blocks per track
         std144_partition->init(512) ; // two sectors a 128 words
         table_count = 10 ; // SimH
-    } else if (drive_info.drive_type == devRL02) {
+    } else if (drive->drive_type == drive_type_e::RL02) {
         std144_partition->init(512) ;
         table_count = 10 ; // SimH
         //	}	else if (drive_info.drive_type == devRK067) {
@@ -440,7 +435,7 @@ bool storageimage_shared_c::is_open(	void)
     return (image != nullptr) ;
 }
 
-// regsiter an access of the PDP to the binary image
+// register an access of the PDP to the binary image
 void storageimage_shared_c::image_data_pdp_access(bool changing)
 {
     if (changing) {
@@ -472,10 +467,6 @@ void storageimage_shared_c::close(void)
     delete filesystem_host;
     filesystem_host = nullptr ;
 
-
-//        assert(filesystem_mapper != nullptr) ;
-//		delete filesystem_mapper ;
-//		filesystem_mapper = nullptr ;
     if (main_partition != nullptr)
         delete main_partition ;
     if (std144_partition != nullptr)
@@ -499,7 +490,8 @@ bool storageimage_shared_c::truncate(void)
 void storageimage_shared_c::read(uint8_t *buffer, uint64_t position, unsigned len)
 {
     if (! is_open()) {
-        ERROR("sharedfilesystem::storageimage_shared_c::read(): image %s %d closed", drive_info.device_name.c_str(), drive_unit);
+        ERROR("sharedfilesystem::storageimage_shared_c::read(): image %s closed",
+              drive->type_name.value.c_str());
         return ;
     }
     lock(__FILE__LINE__);
@@ -515,11 +507,11 @@ void storageimage_shared_c::read(uint8_t *buffer, uint64_t position, unsigned le
 void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned len)
 {
     if (! is_open()) {
-        ERROR("sharedfilesystem::storageimage_shared_c::write(): image %s %d closed", drive_info.device_name.c_str(), drive_unit);
+        ERROR("sharedfilesystem::storageimage_shared_c::write(): image %s closed", drive->type_name.value.c_str());
         return ;
     }
     if (readonly) {
-        ERROR("sharedfilesystem::storageimage_shared_c::write(): image %s %d read only", drive_info.device_name.c_str(), drive_unit);
+        ERROR("sharedfilesystem::storageimage_shared_c::write(): image %s read only", drive->type_name.value.c_str());
         return ;
     }
 
@@ -532,7 +524,7 @@ void storageimage_shared_c::write(uint8_t *buffer, uint64_t position, unsigned l
 
     // mark all physical blocks in range.
     //TODO: benachrichtige die richtige Partition.
-    unsigned block_size = drive_info.sector_size ;
+    unsigned block_size = drive->geometry.sector_size_bytes ;
     for (unsigned blknr = position / block_size; blknr < (position + len) / block_size; blknr++)
         main_partition->on_image_sector_write(blknr * block_size) ; // start position of all blocks
     // boolarray_print_diag(_this->changedblocks, stderr, _this->block_count, "IMAGE");
@@ -598,18 +590,18 @@ void storageimage_shared_c::sync_dec_image_to_filesystem_and_events()
     }
     catch (filesystem_exception &e) {
         // valid file tree guaranteed
-        ERROR(printf_to_cstr("Error parsing DEC image: %s", e.what())) ;
+        ERROR("Error parsing DEC image: %s", e.what()) ;
     }
-//    filesystem_dec->debug_print("sync_dec_image_to_filesystem_and_events() AFTER parse") ;
-    // create and clear all block change flags
+    // create and clear all block change flags. Evaluated in parse() above.
     filesystem_dec->image_partition->clear_changed_flags() ;
+
+// filesystem_dec->debug_print("sync_dec_image_to_filesystem_and_events(): DEC filesystem_dec") ;
+// filesystem_dec_metadata_snapshot->debug_print("sync_dec_image_to_filesystem_and_events(): DEC filesystem_dec_metadata_snapshot") ;
 
     // which files have changed? generate change events
 //            if (filesystem_dec_metadata_snapshot_valid) {
     filesystem_dec->produce_events(filesystem_dec_metadata_snapshot) ;
-    filesystem_dec->event_queue.debug_print("sync_dec_image_to_filesystem_and_events()") ;
-
-    filesystem_dec->ack_event_filter.clear() ; // responses to dec.consume() processed
+filesystem_dec->event_queue.debug_print("sync_dec_image_to_filesystem_and_events()") ;
 
 }
 
@@ -633,10 +625,10 @@ void storageimage_shared_c::sync_dec_filesystem_events_to_host()
 void storageimage_shared_c::sync_host_shared_dir_to_filesystem_and_events()
 {
     filesystem_host->produce_events() ;
-    filesystem_host->ack_event_filter.clear() ; // responses to host.consume() processed
 }
 
 // DEC consumes host events, update DEC filesystem and image
+// syncs snapshot => erases DEC change events
 void storageimage_shared_c::sync_host_filesystem_events_to_dec()
 {
     // send resolved host events to DEC
@@ -653,9 +645,10 @@ void storageimage_shared_c::sync_host_filesystem_events_to_dec()
 
 //        filesystem_dec->debug_print("sync_host_filesystem_events_to_dec()") ;
         //filesystem_dec->file_by_path.debug_print("DEC") ;
-        if (filesystem_dec->changed) // events may get filtered (host volume info)
+        if (filesystem_dec->changed) { // events may get filtered (host volume info)
             filesystem_dec->render() ;
 //        image->save_to_file("/tmp/sync_worker_2.dump") ;
+        }
     }
 
     // "render() writes to the image and sets the change flags. caller clear it!
@@ -664,14 +657,14 @@ void storageimage_shared_c::sync_host_filesystem_events_to_dec()
 
 
 // wipe pending changes, by initializing the metadata snapshot
-void storageimage_shared_c::sync_dec_snapshot()
+void storageimage_shared_c::sync_dec_update_snapshot()
 {
     // snapshot current structure (without file data!)
     // for next change event generation
     filesystem_dec_metadata_snapshot->clear_rootdir() ;
     filesystem_dec->copy_metadata_to(filesystem_dec_metadata_snapshot) ;
-//    filesystem_dec_metadata_snapshot->debug_print("sync_dec_snapshot(): DEC filesystem_dec_metadata_snapshot updated") ;
-//    filesystem_dec->event_queue.clear() ; keep some unprocessed ack_events
+//    filesystem_dec->debug_print("sync_dec_update_snapshot(): DEC filesystem_dec") ;
+//    filesystem_dec_metadata_snapshot->debug_print("sync_dec_update_snapshot(): DEC filesystem_dec_metadata_snapshot") ;
 }
 
 // wipe pending changes, by clearing received inotify events
@@ -706,6 +699,41 @@ void storageimage_shared_c::sync_worker()
         // wait until operations on shared dir and DEC image completed
         if (host_filesystem_stable && dec_image_stable) {
 
+			// 1) Produce events DEC->host and host->DEC
+			// 1.1 host events already polled.
+            if (dec_image_changed) {
+                // 1.2 parse dec
+                sync_dec_image_to_filesystem_and_events() ; // may change filesystem_dec->changed
+            }
+
+			// 2) Consume events and change file systems
+            // 2.1) Consume host events, render DEC file system if no more host events for 1 sec
+            sync_host_filesystem_events_to_dec() ; // if events: render DEC
+            // 2.2) update host. triggered by sync_dec_image_to_filesystem_and_events() or sync_host_filesystem_events_to_dec()
+            sync_dec_filesystem_events_to_host() ;
+
+            // 3) the volumne info file on host must be updated when DEC filesystem has changed
+            // changed by image_change and parse(), or consumed host events
+            if (filesystem_dec->changed)
+                filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
+
+			// 4) Cleanup. events produced -> changes processed
+            if (filesystem_host->changed || filesystem_dec->changed || dec_image_changed) {
+                filesystem_dec->changed = false ; // only reset point!
+                // if (filesystem_host->changed)
+				//    // host changed the DEC file system, read back to re-sync host files
+				//    // (necessary for adjusted file dates, access flags or perhaps text file content?)
+				//	 dec_image_changed = true ; // force re-parse in next cycle
+				// else
+                dec_image_changed = false ;
+                filesystem_host->changed = false ; // events produced -> changes processed
+                // changed by DEC image write() or sync_host_filesystem_events_to_dec()
+                sync_dec_update_snapshot() ;
+//filesystem_dec->debug_print("AAA: DEC filesystem_dec") ;
+//filesystem_dec_metadata_snapshot->debug_print("AAA: DEC filesystem_dec_metadata_snapshot") ;
+            }
+		
+#ifdef ORG
             // Consume DEC and host events to update the respective other side
             // ! Produces new ack-events on the other side, which are ignored.
             // ! parallel changes in the DEC image are lost
@@ -713,16 +741,12 @@ void storageimage_shared_c::sync_worker()
 
             // Consume host events, render DEC file system if no more host events for 1 sec
             sync_host_filesystem_events_to_dec() ; // if events: render DEC
-            filesystem_host->changed = false ; // events produced -> changes processed
 
             // if one side has changed, the other is also changed now.
             // reset producer, and wipe ack-events on consumer
             if (dec_image_changed /*|| filesystem_dec->changed*/) {
                 // parse dec
                 sync_dec_image_to_filesystem_and_events() ; // may change filesystem_dec->changed
-                // changed by DEC write() or sync_host_filesystem_events_to_dec()
-                sync_dec_snapshot() ;
-
             }
 
             // the volumne info file on host must be updated when DEC filesystem has changed
@@ -730,15 +754,18 @@ void storageimage_shared_c::sync_worker()
             if (filesystem_dec->changed)
                 filesystem_dec->update_host_volume_info(filesystem_host->get_absolute_filepath("")) ;// produce file and copy to host
 
-            filesystem_dec->changed = false ; // only reset point!
-            dec_image_changed = false ;
+			// Cleanup. events produced -> changes processed
+            if (filesystem_host->changed || filesystem_dec->changed || dec_image_changed) {
+                filesystem_dec->changed = false ; // only reset point!
+                dec_image_changed = false ;
+                filesystem_host->changed = false ; // events produced -> changes processed
+                // changed by DEC write() or sync_host_filesystem_events_to_dec()
+                sync_dec_update_snapshot() ;
+            }
 
             // update host. triggered by sync_dec_image_to_filesystem_and_events() or sync_host_filesystem_events_to_dec()
             sync_dec_filesystem_events_to_host() ;
-
-            // if (filesystem_host->changed)
-            // 	// changed by inotify or sync_dec_filesystem_events_to_host()
-            //     sync_host_restart() ; // filesystem_host->changed=false
+#endif
         }
 
 

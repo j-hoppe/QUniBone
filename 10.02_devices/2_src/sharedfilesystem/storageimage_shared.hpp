@@ -40,12 +40,10 @@
 //#include <future>
 #include <stdint.h>
 
-#include "driveinfo.hpp"
 #include "storageimage.hpp"
 
 #include "filesystem_host.hpp"
 #include "filesystem_dec.hpp"
-//#include "filesystem_mapper.hpp"
 
 namespace sharedfilesystem {
 
@@ -59,9 +57,6 @@ public:
         std::string _image_path,
         bool use_syncer_thread,
         enum filesystem_type_e filesystem_type,
-        enum dec_drive_type_e drive_type_text,
-        unsigned drive_unit,
-        uint64_t capacity,
         std::string hostdir) ;
     virtual ~storageimage_shared_c() override ;
     pthread_mutex_t mutex;
@@ -77,7 +72,7 @@ protected:
 public:
     // storageimage_base, identic interface from emulated disk drive to all
     // filesystem memory images
-    virtual bool open(bool create) override ;
+    virtual bool open(storagedrive_c *drive, bool create) override ;
     virtual bool is_readonly() override ;
     virtual bool is_open(	void) override ;
     virtual bool truncate(void) override ;
@@ -95,8 +90,6 @@ protected:
     std::string image_path ; // DEC image on SDcard
     // derived file system implementation classes use this
     std::string		host_shared_rootdir ; // root of file tree on host, absolute path
-    drive_info_c drive_info ; // block_count, block_size
-    unsigned	drive_unit ; // unit number of drive
 
     // disk surface
     storageimage_base_c *image ;
@@ -143,7 +136,7 @@ private:
     void sync_dec_filesystem_events_to_host() ;
     void sync_host_shared_dir_to_filesystem_and_events() ;
     void sync_host_filesystem_events_to_dec() ;
-    void sync_dec_snapshot() ;
+    void sync_dec_update_snapshot() ;
     void sync_host_restart() ;
 	void sync_update_host_volume_info() ;
 	

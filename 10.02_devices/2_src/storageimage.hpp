@@ -33,22 +33,23 @@
 #ifndef _STORAGEIMAGE_HPP_
 #define _STORAGEIMAGE_HPP_
 
-//using namespace std;
-
 #include <stdint.h>
 #include <string>
 #include <fstream>
 #include "logsource.hpp"
 #include "bytebuffer.hpp"
 
+class storagedrive_c ;
+
 // generic interface to emulated drive
 // storage is accessed as stream of bytes
 class storageimage_base_c: public logsource_c  {
 public:
+	storagedrive_c	*drive ; // uplink to drive managing this image
     // pure interface
     virtual ~storageimage_base_c() {} ; // google for "abstract destructor" for fun
     virtual bool is_readonly() = 0 ;
-    virtual bool open(bool create) = 0;
+    virtual bool open(storagedrive_c *drive, bool create) = 0;
     virtual bool is_open(	void)= 0;
     virtual bool truncate(void)= 0 ;
     virtual void read(uint8_t *buffer, uint64_t position, unsigned len)=0;
@@ -63,9 +64,6 @@ public:
 
     //	bool image_load_from_disk(string host_filename, 		bool allowcreate, bool *filecreated) ;
     virtual void save_to_file(std::string host_filename) = 0 ; // make a snapshot
-
-	// for storageimage_shared: 
-	uint64_t	filesystem_offset = 0 ; // RX01,02 may have has unused track #0
 
 } ;
 
@@ -92,7 +90,7 @@ public:
     virtual bool is_readonly() override {
         return readonly ;
     }
-    virtual bool open(bool create) override;
+    virtual bool open(storagedrive_c *drive, bool create) override;
     virtual bool is_open(	void) override;
     virtual bool truncate(void) override;
     virtual void read(uint8_t *buffer, uint64_t position, unsigned len) override;
@@ -131,7 +129,7 @@ public:
     virtual bool is_readonly() override {
         return readonly ;
     }
-    virtual bool open(bool create) override;
+    virtual bool open(storagedrive_c *drive, bool create) override;
     virtual bool is_open(	void) override;
     virtual bool truncate(void) override;
     virtual void read(uint8_t *buffer, uint64_t position, unsigned len) override;

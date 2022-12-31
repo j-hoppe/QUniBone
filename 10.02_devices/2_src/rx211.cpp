@@ -173,7 +173,7 @@ void RX211_c::reset(void)
 {
     reset_unibus_registers();
 
-    DEBUG("RX211_c::reset()");
+    DEBUG_FAST("RX211_c::reset()");
     interrupt_enable = false ;
     interrupt_condition_prev = false ;
     intr_request.edge_detect_reset();
@@ -383,14 +383,14 @@ void RX211_c::update_status(const char *debug_info)
 
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
         qunibusadapter->INTR(intr_request, busreg_RX2CS, tmp);
     } else {
         if (!interrupt_condition) // revoke INTR, if raised
             qunibusadapter->cancel_INTR(intr_request);
         set_register_dati_value(busreg_RX2CS, tmp, debug_info);
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
     }
 
@@ -468,7 +468,7 @@ void RX211_c::worker_transfer_uCPU2DMA(void)
     if (function_select != RX11_CMD_READ_ERROR_CODE) {
         // RX11_CMD_READ_ERROR_CODE does not change "rx2wc" register
         unsigned new_rx2wc = rx2wc - (dma_request.qunibus_end_addr-bus_addr)/2 - 1;
-        DEBUG("worker_transfer_uCPU2DMA.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
+        DEBUG_FAST("worker_transfer_uCPU2DMA.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
               bus_addr, dma_request.qunibus_end_addr, (unsigned)error_dma_nxm, dma_function_word_count, rx2wc, new_rx2wc) ;
         rx2wc = uCPU->extended_status[1] = new_rx2wc ;
     }
@@ -500,7 +500,7 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
     qunibusadapter->DMA(dma_request, true, QUNIBUS_CYCLE_DATI, bus_addr, dma_buffer,dma_function_word_count);
     error_dma_nxm = !dma_request.success; // NXM
     unsigned new_rx2wc = rx2wc - (dma_request.qunibus_end_addr-bus_addr)/2 - 1;
-    DEBUG("worker_transfer_DMA2uCPU.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
+    DEBUG_FAST("worker_transfer_DMA2uCPU.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
           bus_addr, dma_request.qunibus_end_addr, (unsigned)error_dma_nxm, dma_function_word_count, rx2wc, new_rx2wc) ;
     uCPU->signal_function_code = RX11_CMD_FILL_BUFFER ;
     uCPU->signal_function_density = function_density ;

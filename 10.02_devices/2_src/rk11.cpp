@@ -301,7 +301,7 @@ void rk11_c::worker(unsigned instance)
                                 // this one ASAP.
                                 if (_new_command_ready)
                                 {
-                                    DEBUG("Command canceled.");
+                                    DEBUG_FAST("Command canceled.");
                                     abort = true;
                                     continue;
                                 }
@@ -466,7 +466,7 @@ void rk11_c::worker(unsigned instance)
                             }
 
                             // timeout.wait_us(100);
-                            DEBUG("R/W: Complete.");
+                            DEBUG_FAST("R/W: Complete.");
                             _worker_state = Worker_Finish;
                         }
                         break;

@@ -82,18 +82,18 @@ uint32_t mscp_drive_c::GetBlockSize()
 // GetBlockCount():
 //  Get the size of the data space (not including RCT area) of this
 //  drive, in blocks.
-//
 uint32_t mscp_drive_c::GetBlockCount() 
 {
+	uint32_t block_count ;
     if (_useImageSize) {
         // Return the image size / Block size (rounding down).
-        return image_size() / GetBlockSize();
+        block_count = image_size() / GetBlockSize();
     } else {
-        //
         // Use the size defined by the drive type.
-        //
-        return _driveInfo.BlockCount;
+        block_count = _driveInfo.BlockCount;
     }
+	geometry.mscp_block_count = block_count ; // publish
+	return block_count ;
 }
 
 //
@@ -310,9 +310,14 @@ bool mscp_drive_c::SetDriveType(const char* typeName)
     while (g_driveTable[index].BlockCount != 0) {
         if (!strcasecmp(typeName, g_driveTable[index].TypeName)) {
             _driveInfo = g_driveTable[index];
+			drive_type = _driveInfo.Type ;
             type_name.value = _driveInfo.TypeName;
             UpdateCapacity();
             UpdateMetadata();
+			// publish generic geometry data
+			geometry.sector_size_bytes = GetBlockSize();
+			geometry.mscp_block_count = _driveInfo.BlockCount ; 
+			// ! may change with image size, see GetBlockCount() 
             return true;
         }
 

@@ -185,7 +185,7 @@ void RX11_c::reset(void)
 {
     reset_unibus_registers();
 
-    DEBUG("RX11_c::reset()");
+    DEBUG_FAST("RX11_c::reset()");
     interrupt_enable = false ;
     interrupt_condition_prev = false ;
     intr_request.edge_detect_reset();
@@ -304,14 +304,14 @@ void RX11_c::update_status(const char *debug_info)
 
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
         qunibusadapter->INTR(intr_request, busreg_RXCS, tmp);
     } else {
         if (!interrupt_condition) // revoke INTR, if raised
             qunibusadapter->cancel_INTR(intr_request);
         set_register_dati_value(busreg_RXCS, tmp, debug_info);
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
     }
 

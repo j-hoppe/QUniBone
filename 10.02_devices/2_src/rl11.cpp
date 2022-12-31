@@ -321,7 +321,7 @@ void RL11_c::reset(void)
     reset_unibus_registers();
     busreg_MP->reset_value = 0; // cleared on power cycle
 
-    DEBUG("RL11_c::reset()");
+    DEBUG_FAST("RL11_c::reset()");
 
     // reset internal state
     selected_drive_unitno = 0;
@@ -457,7 +457,7 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                 execute_function_delayed = false;
                 switch (function_code) {
                 case RL11_CMD_NOOP:
-                    DEBUG("cmd %d = Noop", function_code);
+                    DEBUG_FAST("cmd %d = Noop", function_code);
                     do_command_done();
                     break;
                 case RL11_CMD_SEEK:
@@ -466,14 +466,14 @@ void RL11_c::on_after_register_access(qunibusdevice_register_t *device_reg,
                         //	if waiting for end of seek: execute seek in worker()
                         execute_function_delayed = true;
                     else {
-                        DEBUG("cmd %d = Seek", function_code);
+                        DEBUG_FAST("cmd %d = Seek", function_code);
                         state_seek();
                     }
                     break;
                 case RL11_CMD_GET_STATUS:
                     drive = selected_drive();
                     // SIMH: OPI if DA code not 3? Real RL11: just NOOP
-                    DEBUG("cmd %d = Get Status. DA=%06o.", function_code,
+                    DEBUG_FAST("cmd %d = Get Status. DA=%06o.", function_code,
                           get_register_dato_value(busreg_DA));
                     // doc says: bits 0,4:7 must be 0. SimH checks only bit 1 and 3 for "1"
                     // XXDP boot: seen 001217 and 00646
@@ -599,7 +599,7 @@ void RL11_c::do_command_done(void)
         // pending interrupt triggered
         //TODO: connect to interrupt register busreg_CS
         qunibusadapter->INTR(intr_request, NULL, 0);
-        DEBUG("Interrupt!");
+        DEBUG_FAST("Interrupt!");
 //		worker_restore_realtime_priority();
     } else
         // no intr
@@ -607,7 +607,7 @@ void RL11_c::do_command_done(void)
     /*
      {
      // interrupt on leading edge of "controller-ready" signal
-     DEBUG("Interrupt!");
+     DEBUG_FAST("Interrupt!");
      interrupt();
      }
      do_controller_status(__func__);
@@ -673,7 +673,7 @@ void RL11_c::do_controller_status(bool do_intr, const char *debug_info)
 // then call do_operation_incomplete()
 void RL11_c::do_operation_incomplete(const char *info) 
 {
-    DEBUG("do_operation_incomplete! %s", info);
+    DEBUG_FAST("do_operation_incomplete! %s", info);
     // drive does not respond after 200ms
     timeout.wait_ms(200 / emulation_speed.value);
     error_operation_incomplete = true;
@@ -683,7 +683,7 @@ void RL11_c::do_operation_incomplete(const char *info)
 // separate proc, to have a testpoint
 void RL11_c::change_state(unsigned new_state) {
     if (state != new_state)
-        DEBUG("Change RL11 state from 0x%x to 0x%x.", state, new_state);
+        DEBUG_FAST("Change RL11 state from 0x%x to 0x%x.", state, new_state);
     state = new_state;
     do_controller_status(false, __func__);
 }
@@ -691,7 +691,7 @@ void RL11_c::change_state(unsigned new_state) {
 void RL11_c::change_state_INTR(unsigned new_state) 
 {
     if (state != new_state)
-        DEBUG("Change RL11 state from 0x%x to 0x%x.", state, new_state);
+        DEBUG_FAST("Change RL11 state from 0x%x to 0x%x.", state, new_state);
     state = new_state;
     do_controller_status(true, __func__);
 }
@@ -726,8 +726,8 @@ void RL11_c::state_seek()
     // so cyl > 511 : cylinder := 510 !, head = unchanged . Verified.
     if (direction_to_spindle) { // to higher cylinder
         destination_cylinder = drive->cylinder + cyl_diff;
-        if (destination_cylinder >= drive->cylinder_count)
-            destination_cylinder = (drive->cylinder_count - 1) & 0xfffe;
+        if (destination_cylinder >= drive->geometry.cylinder_count)
+            destination_cylinder = (drive->geometry.cylinder_count - 1) & 0xfffe;
     } else { // to lower cylinder
         if (cyl_diff > drive->cylinder)
             destination_cylinder = 0; // bound hit
@@ -760,7 +760,7 @@ void RL11_c::state_readwrite()
     RL0102_c *drive = selected_drive();
     uint16_t disk_address = get_register_dato_value(busreg_DA);
     uint32_t qunibus_address = get_qunibus_address(); // device register to local var
-    unsigned sector_wordcount = drive->sector_size_bytes / 2; // size of sector
+    unsigned sector_wordcount = drive->geometry.sector_size_bytes / 2; // size of sector
     unsigned cmd_wordcount = get_MP_wordcount(); // wordcount in hidden MP register
     unsigned dma_wordcount; // len of current DMA transaction
 
@@ -807,7 +807,7 @@ void RL11_c::state_readwrite()
             drive->cmd_read_next_sector_header((uint16_t *) mpr_silo, 3);
             if (mpr_silo[0] != get_register_dato_value(busreg_DA))
                 break; // wrong sector
-            // DEBUG(LC_RL, "Found sector header DA=%06o.", silo[0]);
+            // DEBUG_FAST(LC_RL, "Found sector header DA=%06o.", silo[0]);
         }
 
         // # of words to read/write from/to memory
@@ -944,7 +944,7 @@ void RL11_c::worker(unsigned instance)
         // res==0: triggered by signal, execute next cmd
         RL0102_c *drive = selected_drive();
         if (init_asserted) {
-            DEBUG("cmd %d ignored because of INIT.", function_code);
+            DEBUG_FAST("cmd %d ignored because of INIT.", function_code);
             continue;
         }
         if ((busreg_CS->active_dati_flipflops & 0x80)) // CRDY must be cleared
@@ -954,18 +954,18 @@ void RL11_c::worker(unsigned instance)
         clear_errors();
 
         if (drive->state.value == RL0102_STATE_power_off) {
-            DEBUG("cmd %d ignored, drive powered off.", function_code);
+            DEBUG_FAST("cmd %d ignored, drive powered off.", function_code);
             do_operation_incomplete("worker: drive power off");
             continue;
         }
 
         // inhibit command execution until previous seek complete (CRDY remains false)
         bool seek_wait = false;
-        // DEBUG("AAA: drive->status_word = %06o", drive->status_word) ;
+        // DEBUG_FAST("AAA: drive->status_word = %06o", drive->status_word) ;
         while ((drive->status_word & 0x07) == RL0102_STATE_seek) {
             timeout.wait_ms(1);
             if (!seek_wait) // suppress to much output
-                DEBUG("Start drive_busy_seeking. drive->status_word = %06o",
+                DEBUG_FAST("Start drive_busy_seeking. drive->status_word = %06o",
                       drive->status_word);
             seek_wait = true;
         }
@@ -975,7 +975,7 @@ void RL11_c::worker(unsigned instance)
                 ;
 
 //			do_controller_status("seek busy ended") ;
-            DEBUG("End drive_busy_seeking: drive->status_word = %06o", drive->status_word);
+            DEBUG_FAST("End drive_busy_seeking: drive->status_word = %06o", drive->status_word);
         }
 
         // start execution of new command
@@ -986,18 +986,18 @@ void RL11_c::worker(unsigned instance)
              */
 
         case RL11_CMD_WRITE_CHECK: // Write Check
-            DEBUG("cmd %d = Write Check", function_code);
+            DEBUG_FAST("cmd %d = Write Check", function_code);
             change_state(RL11_STATE_RW_INIT);
             // reads 1 sector into a separate buffer and compares data
             break;
         case RL11_CMD_SEEK:
             // SEEK has immediate INTR: handled fast in on_after_register_access()
             // but can be delayed if drive already seeking and cmd execution blocked
-            DEBUG("cmd %d = Seek (delayed)", function_code);
+            DEBUG_FAST("cmd %d = Seek (delayed)", function_code);
             change_state(RL11_STATE_SEEK_INIT);
             break;
         case RL11_CMD_READ_HEADER: // Read sector header from disk
-            DEBUG("cmd %d = Read Header", function_code);
+            DEBUG_FAST("cmd %d = Read Header", function_code);
             // read header if not locked-on track?
             if (!drive->cmd_read_next_sector_header((uint16_t *) mpr_silo, 3)) {
             }
@@ -1005,16 +1005,16 @@ void RL11_c::worker(unsigned instance)
             do_command_done();
             break;
         case RL11_CMD_WRITE_DATA: // Write sector data from memory to disk
-            DEBUG("cmd %d = Write Data", function_code);
+            DEBUG_FAST("cmd %d = Write Data", function_code);
             change_state(RL11_STATE_RW_INIT);
             break;
         case RL11_CMD_READ_DATA: // Read disk datao into memory
-            DEBUG("cmd %d = Read Data", function_code);
+            DEBUG_FAST("cmd %d = Read Data", function_code);
             // sector address from DA, before seek must moved head to same track
             change_state(RL11_STATE_RW_INIT);
             break;
         case RL11_CMD_READ_DATA_WITHOUT_HEADER_CHECK:
-            DEBUG("cmd %d = Read Data Without Check", function_code);
+            DEBUG_FAST("cmd %d = Read Data Without Check", function_code);
             change_state(RL11_STATE_RW_INIT);
             break;
         default:

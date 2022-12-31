@@ -68,7 +68,7 @@ void unibone_log(unsigned msglevel, const char *srcfilename, unsigned srcline, c
     va_start(arg_ptr, fmt);
     //vprintf(fmt, arg_ptr) ;
     //va_end(arg_ptr); va_start(arg_ptr, fmt);
-    logger->vlog(unibone_cpu, msglevel, srcfilename, srcline, fmt, arg_ptr);
+    logger->vlog(unibone_cpu, msglevel, /*late_evaluation*/true, srcfilename, srcline, fmt, arg_ptr);
     va_end(arg_ptr);
 }
 
@@ -385,7 +385,7 @@ void cpu_c::stop(const char * info, int show_options)
 	}
 	if (show_options & show_state) {
 		ka11_printstate(&ka11) ;
-		ka11_tracestate(&ka11) ; // DEBUG log
+		ka11_tracestate(&ka11) ; // DEBUG_FAST log
 	}
 	if ((show_options & show_cycletrace) && !cycle_tracefilepath.value.empty()) {
 		cycle_trace_buffer.dump(cycle_tracefilepath.value) ;
@@ -470,7 +470,7 @@ void cpu_c::worker(unsigned instance)
         // serialize asynchronous power events
         // ACLO inactive & no HALT: reboot
         // ACLO inactive & HALT: boot on CONT
-//if (power_event)	DEBUG("power_event=%d", power_event) ;
+//if (power_event)	DEBUG_FAST("power_event=%d", power_event) ;
         // ACLO: power fail trap, if running.
         if (runmode.value && power_event_ACLO_active) {
             ka11_pwrfail_trap(&unibone_cpu->ka11);

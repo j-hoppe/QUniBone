@@ -192,6 +192,16 @@ uint32_t random32_log(uint32_t limit)
     return result;
 }
 
+
+
+bool is_leapyear(int y) {
+    return ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
+}
+
+int monthlen_noleapyear[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+int monthlen_leapyear[12]   = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+
+
 char *cur_time_text()
 {
     static char result[80], millibuff[10];

@@ -68,32 +68,31 @@
 
  */
 #include "limits.h"
-#include "storageimage_shared.hpp"
 
+#include "storagedrive.hpp"
+#include "storageimage_shared.hpp"
 #include "storageimage_partition.hpp"
 
 namespace sharedfilesystem {
 
 storageimage_partition_c::storageimage_partition_c(storageimage_base_c*_image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
-        filesystem_type_e _filesystem_type, drive_info_c _drive_info, unsigned _drive_unit)
+        filesystem_type_e _filesystem_type)
 {
     image = _image ;
     image_position = _image_byte_offset ;
     size = _image_partition_size ;
 
     filesystem_type = _filesystem_type ;
-    drive_info = _drive_info ;
-    drive_unit = _drive_unit ;
 
     // set later by file system
     block_size = 0 ;
     block_count = 0 ;
 
     // partition start at sector boundary?
-    assert( (image_position % drive_info.sector_size) == 0) ;
+    assert( (image_position % image->drive->geometry.sector_size_bytes) == 0) ;
 
     // fits onto disk?
-    assert(image_position + size <= drive_info.capacity);
+    assert(image_position + size <= image->drive->geometry.get_raw_capacity());
 
 }
 
@@ -109,7 +108,7 @@ void storageimage_partition_c::init(unsigned _block_size)
     assert(size % _block_size == 0) ; // size in whole blocks
     block_size = _block_size ;
     block_count = size / _block_size ;
-    sectors_per_block = block_size / drive_info.sector_size ; // cached
+    sectors_per_block = block_size / image->drive->geometry.sector_size_bytes ; // cached
 
     changed_blocks.assign(block_count, false); // create and clear all flags
 
@@ -120,7 +119,7 @@ void storageimage_partition_c::init(unsigned _block_size)
     phy_sector_nr_to_log.clear() ;
 
     // offset sector_nrs by partition image start
-    //	unsigned image_position_sector_nr = image_position / drive_info.sector_size ;
+    //	unsigned image_position_sector_nr = image_position / image->drive->geometry.sector_size_bytes ;
 
     // interleave of 1, all cylinders
     unsigned sector_count = 0 ;
@@ -134,10 +133,9 @@ void storageimage_partition_c::init(unsigned _block_size)
     }
 #endif
 
-    sector_count = size / drive_info.sector_size ;
-    if (filesystem_type == fst_rt11
-            && (drive_info.drive_type ==  devRX01
-                || drive_info.drive_type ==  devRX02)) {
+    sector_count = size / image->drive->geometry.sector_size_bytes ;
+    if (filesystem_type == fst_rt11 && drive_type_c::is_RX(image->drive->drive_type)) {
+		// RX01,02 floppies with interleave
         phy_sector_nr_to_log.resize(sector_count) ;
         log_sector_nr_to_phy.resize(sector_count) ;
         // interleave 1: one empty sector between 2 logical ones
@@ -194,7 +192,7 @@ void storageimage_partition_c::init(unsigned _block_size)
 // Convert position in partition via partiiton-relative to position to absolute image offset
 uint64_t storageimage_partition_c::get_image_position_from_physical_sector_nr(unsigned phy_sector_nr) const
 {
-    uint64_t byte_offset = phy_sector_nr * drive_info.sector_size ; // offset inside partition
+    uint64_t byte_offset = phy_sector_nr * image->drive->geometry.sector_size_bytes ; // offset inside partition
     return image_position + byte_offset ;
 }
 
@@ -202,7 +200,7 @@ uint64_t storageimage_partition_c::get_image_position_from_physical_sector_nr(un
 unsigned storageimage_partition_c::get_physical_sector_nr_from_image_position(uint64_t image_byte_offset) const
 {
     uint64_t byte_offset = image_byte_offset - image_position ; // offset inside partition
-    return byte_offset / drive_info.sector_size ;
+    return byte_offset / image->drive->geometry.sector_size_bytes ;
 }
 
 
@@ -229,7 +227,7 @@ std::vector<unsigned> storageimage_partition_c::get_physical_sector_nrs_from_blo
 // read partition blocks to a buffer
 void storageimage_partition_c::get_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr, uint32_t _block_count) const
 {
-    unsigned sector_size = drive_info.sector_size ; //alias
+    unsigned sector_size = image->drive->geometry.sector_size_bytes ; //alias
 
     if (! is_interleaved() ) {
         // no interlacing: sector order in parttion = sector order in image,
@@ -263,7 +261,7 @@ void storageimage_partition_c::get_blocks(byte_buffer_c *byte_buffer, uint32_t _
 // write partition blocks to a buffer
 void storageimage_partition_c::set_blocks(byte_buffer_c *byte_buffer, uint32_t _start_block_nr)
 {
-    unsigned sector_size = drive_info.sector_size ; //alias
+    unsigned sector_size = image->drive->geometry.sector_size_bytes ; //alias
 
 //    set_bytes(byte_buffer, _start_block_nr * block_size) ;
     if (! is_interleaved() ) {
@@ -277,7 +275,7 @@ void storageimage_partition_c::set_blocks(byte_buffer_c *byte_buffer, uint32_t _
     std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
     // list of contiguous blocks -> list of non-contiguous sectors
 
-    assert(phy_sector_nrs.size() * drive_info.sector_size == _block_count * block_size) ;
+    assert(phy_sector_nrs.size() * image->drive->geometry.sector_size_bytes == _block_count * block_size) ;
 
     // concat all sectors in non-linear order to buffer
     uint8_t *rp = byte_buffer->data_ptr() ;
@@ -338,7 +336,7 @@ char *storageimage_partition_c::block_nr_info(unsigned block_nr)
     char sector_list_text[256] ;
     // get all physical sectors of block, then offset by partition image start
 
-    unsigned image_position_sector_nr = image_position / drive_info.sector_size ;
+    unsigned image_position_sector_nr = image_position / image->drive->geometry.sector_size_bytes ;
     // list of physical sectors, relative to image. not to partition!
     std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(block_nr, 1) ;
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++)
@@ -349,7 +347,7 @@ char *storageimage_partition_c::block_nr_info(unsigned block_nr)
     sector_list_text[0] = 0;
     for (unsigned i=0 ; i < phy_sector_nrs.size() ; i++) {
         char buffer[80] ;
-        sprintf(buffer, "%d @ 0x%x", phy_sector_nrs[i], phy_sector_nrs[i] * drive_info.sector_size) ;
+        sprintf(buffer, "%d @ 0x%x", phy_sector_nrs[i], phy_sector_nrs[i] * image->drive->geometry.sector_size_bytes) ;
         if (i > 0)
             strcat(sector_list_text, ", ") ;
         strcat(sector_list_text, buffer) ;
@@ -369,7 +367,7 @@ char *storageimage_partition_c::block_nr_list_info(unsigned _start_block_nr, uns
 {
     static char result[256] ;
 
-    unsigned image_position_sector_nr = image_position / drive_info.sector_size ;
+    unsigned image_position_sector_nr = image_position / image->drive->geometry.sector_size_bytes ;
 
     // list of physical sectors, relative to image. not to partition!
     std::vector<unsigned> phy_sector_nrs = get_physical_sector_nrs_from_blocks(_start_block_nr, _block_count) ;
@@ -431,19 +429,20 @@ void  storageimage_partition_c::build_interleave_table(
     unsigned cylinder_skew, unsigned head_skew)
 {
 
-    unsigned sectors_per_track = drive_info.sector_count ;
+	storagedrive_geometry_c *geometry = &image->drive->geometry ; 
+    unsigned sectors_per_track = geometry->sector_count ;
     assert(track_log_to_phy_pattern.size() == sectors_per_track) ;
 
     // which cylinder/head range to itarate
     unsigned cylinder_first, cylinder_last, head_first, head_last, sector, sector_offset ;
 
-    drive_info.get_chs(image_position, &cylinder_first, &head_first, &sector, &sector_offset) ;
+    geometry->get_chs(image_position, &cylinder_first, &head_first, &sector, &sector_offset) ;
     // partition must start at track boundary (not cylinder, STD144)
     assert(sector == 0) ;
     assert(sector_offset == 0) ;
 
     // get last track
-    drive_info.get_chs(image_position + size - 1, &cylinder_last, &head_last, nullptr, nullptr) ;
+    geometry->get_chs(image_position + size - 1, &cylinder_last, &head_last, nullptr, nullptr) ;
 
     unsigned track_skew = 0 ; // each track offset against previous one
 
@@ -452,11 +451,11 @@ void  storageimage_partition_c::build_interleave_table(
 
     // iterate all tracks from "first" to "last" disk address
     // stop after cyl_last/head_last
-    while ( drive_info.get_track_nr(cyl_image, head_image) <= drive_info.get_track_nr(cylinder_last, head_last)) {
+    while ( geometry->get_track_nr(cyl_image, head_image) <= geometry->get_track_nr(cylinder_last, head_last)) {
 
         // 1. offset sector numbers from "track local" to "partition global", fill table
         // track relative to this partition
-        unsigned track_nr_partition = (cyl_image - cylinder_first) * drive_info.head_count + head_image - head_first ;
+        unsigned track_nr_partition = (cyl_image - cylinder_first) * geometry->head_count + head_image - head_first ;
 
         for (unsigned log_sector_nr_track = 0 ;  log_sector_nr_track < sectors_per_track ; log_sector_nr_track++) {
             unsigned log_sector_nr_partition = track_nr_partition * sectors_per_track + log_sector_nr_track ;
@@ -500,7 +499,7 @@ void  storageimage_partition_c::build_interleave_table(
 #endif
         // step to next track
         head_image++ ;
-        if (head_image >= drive_info.head_count) {
+        if (head_image >= geometry->head_count) {
             head_image = 0 ;
             cyl_image++ ;
         }

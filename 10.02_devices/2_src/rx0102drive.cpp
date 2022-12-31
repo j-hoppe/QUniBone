@@ -38,12 +38,15 @@
 #include "rx0102ucpu.hpp"
 #include "rx0102drive.hpp"
 
-
-
 RX0102drive_c::RX0102drive_c(RX0102uCPU_c *_uCPU, bool _is_RX02) :
     // no controller assigned, command by box uCPU
     storagedrive_c(nullptr)
 {
+    geometry.cylinder_count = cylinder_count_const ;
+	geometry.head_count = 1 ;
+    geometry.sector_count = sector_count_const ;
+	// sector_size_bytes is 128/256 depending on density
+
     uCPU = _uCPU ; // link to micro CPU board
     is_RX02 = _is_RX02 ;
     if (!is_RX02) {
@@ -57,6 +60,7 @@ RX0102drive_c::RX0102drive_c(RX0102uCPU_c *_uCPU, bool _is_RX02) :
         set_density(true) ; // default: start as 512k MFM
         density_name.readonly = false ;
     }
+	assert(drive_type_c::is_RX(drive_type)) ; // set_density() OK?
 
     // some rxdp floppy images start at track #1 instead of #0
     imagetrack0.value = true ;
@@ -83,7 +87,7 @@ bool RX0102drive_c::on_param_changed(parameter_c *param)
             set_density(true);
         else {
             // throw bad_parameter_check("drive type must be RX01 or RX02") ;
-            ERROR("drive is_double_density SD or DD");
+            ERROR("drive double_density SD or DD");
             return false;
         }
     } else if (image_is_param(param)
@@ -93,17 +97,17 @@ bool RX0102drive_c::on_param_changed(parameter_c *param)
         memset(deleted_data_marks, 0, sizeof(deleted_data_marks)) ;
 
         if (imagetrack0.value)  // image contains unused track 0
-            image_set_filesystem_offset(sector_count * sector_size_bytes) ; // disk data, boot loader at track #1
+        	geometry.filesystem_offset = geometry.sector_count * geometry.sector_size_bytes ; // disk data, boot loader at track #1
         else
-            image_set_filesystem_offset(0) ; // disk data, boot loader at image start
+            geometry.filesystem_offset = 0 ; // disk data, boot loader at image start
 		
         image_open(true) ; // may fail
-        // file size determines is_double_density
+        // file size determines double_density
         if (is_RX02 && image_is_open()) {
             // RX02: user can set density only if not file loaded
-            // if file: is_double_density set by file_size
+            // if file: double_density set by file_size
             // RX02DD ?
-            unsigned single_density_image_size = 128 * cylinder_count * sector_count ; // 256.256
+            unsigned single_density_image_size = 128 * geometry.cylinder_count * geometry.sector_count ; // 256.256
             if (image_size() > single_density_image_size)
                 set_density(true) ;
             else set_density(false) ;
@@ -112,22 +116,21 @@ bool RX0102drive_c::on_param_changed(parameter_c *param)
     return storagedrive_c::on_param_changed(param); // more actions (for enable)
 }
 
-void RX0102drive_c::set_density(bool double_density) 
+void RX0102drive_c::set_density(bool _double_density) 
 {
-    this->is_double_density = double_density;
-    if (!double_density) {
+    double_density = _double_density;
+    if (!_double_density) {
         // RX01, RX02 FM encoding
-        sector_size_bytes = block_size_bytes = 128; // in byte
+        geometry.sector_size_bytes = 128; // in byte
         density_name.value = "SD"; // no "on change" callbacks
-        sharedfilesystem_drivetype = sharedfilesystem::devRX01 ;
+        drive_type = drive_type_e::RX01 ;
     } else {
         // RX02 MFM encoding = Double Density floppy
-        sector_size_bytes = block_size_bytes = 256; // in byte
+        geometry.sector_size_bytes = 256; // in byte
         density_name.value = "DD"; // no "on change" callbacks
-        sharedfilesystem_drivetype = sharedfilesystem::devRX02 ;
+        drive_type = drive_type_e::RX02 ;
     }
-    block_count = cylinder_count * sector_count;
-    capacity.value = block_size_bytes * block_count;
+	capacity.value = geometry.get_raw_capacity() ;
 
 //    uCPU->on_drive_state_changed(this) ;
 }
@@ -171,15 +174,15 @@ void RX0102drive_c::set_cylinder(unsigned cyl)
 
 bool RX0102drive_c::check_disk_address(unsigned track, unsigned sector) 
 {
-    error_illegal_track = (track >= cylinder_count) ;
-    error_illegal_sector = (sector < 1 || sector > sector_count) ;
+    error_illegal_track = (track >= geometry.cylinder_count) ;
+    error_illegal_sector = (sector < 1 || sector > geometry.sector_count) ;
     return !error_illegal_track && !error_illegal_sector ;
 }
 
 // sector offset in image file in bytes
 int RX0102drive_c::get_sector_image_offset(unsigned track, unsigned sector) 
 {
-    return ((track * sector_count) + (sector-1)) * sector_size_bytes ;
+    return ((track * geometry.sector_count) + (sector-1)) * geometry.sector_size_bytes ;
 }
 
 // false: error
@@ -191,17 +194,17 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
         return false ; // no floppy image
 
     // wait for 1 sector to pass, else ZRXB failures
-    unsigned sector_us = 1000 * get_rotation_ms() / sector_count ; // about 6.5 ms
+    unsigned sector_us = 1000 * get_rotation_ms() / geometry.sector_count ; // about 6.5 ms
     if (with_delay)
         timeout_c().wait_us(sector_us / emulation_speed.value) ;
 
     *deleted_data_mark = deleted_data_marks[track][sector] ;
-    DEBUG("sector_read(): delmark=%d, track=%d, sector=%d", (unsigned)*deleted_data_mark, (unsigned)track, (unsigned)sector) ;
+    DEBUG_FAST("sector_read(): delmark=%d, track=%d, sector=%d", (unsigned)*deleted_data_mark, (unsigned)track, (unsigned)sector) ;
 
     if (! imagetrack0.value) {
         // file image does not contain track 0: skip it
         if (track == 0) {
-            memset(sector_buffer, 0, sector_size_bytes);
+            memset(sector_buffer, 0, geometry.sector_size_bytes);
             return true ;
         } else {
             track-- ;
@@ -209,8 +212,8 @@ bool RX0102drive_c::sector_read(uint8_t *sector_buffer, bool *deleted_data_mark,
     }
 
     int offset = get_sector_image_offset(track, sector) ;
-    DEBUG("sector_read(): reading 0x%03x bytes from file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
-    image_read(sector_buffer, (unsigned) offset, sector_size_bytes) ;
+    DEBUG_FAST("sector_read(): reading 0x%03x bytes from file offset 0x%06x", (unsigned) geometry.sector_size_bytes, (unsigned) offset);
+    image_read(sector_buffer, (unsigned) offset, geometry.sector_size_bytes) ;
     // logger->debug_hexdump(this, "image_read():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
     return true ;
 }
@@ -231,13 +234,13 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
 
     // wait for 1 sector to pass, else ZRXB failures
     unsigned rotation_ms =  (1000*60) / full_rpm ; // time for index hole to pass
-    unsigned sector_us = 1000 * rotation_ms / sector_count ; // about 6.5 ms
+    unsigned sector_us = 1000 * rotation_ms / geometry.sector_count ; // about 6.5 ms
     if (with_delay)
         timeout_c().wait_us(sector_us / emulation_speed.value) ;
 
     deleted_data_marks[track][sector] = deleted_data_mark ;
 
-    DEBUG("sector_write(): delmark=%d, track=%d, sector=%d", (unsigned)deleted_data_mark, (unsigned)track, (unsigned)sector) ;
+    DEBUG_FAST("sector_write(): delmark=%d, track=%d, sector=%d", (unsigned)deleted_data_mark, (unsigned)track, (unsigned)sector) ;
 
     if (!imagetrack0.value) {
         // file image does not contain track 0: skip it
@@ -250,8 +253,8 @@ bool RX0102drive_c::sector_write(uint8_t *sector_buffer, bool deleted_data_mark,
         }
     }
     int offset = get_sector_image_offset(track, sector) ;
-    DEBUG("sector_write(): writing 0x%03x bytes to file offset 0x%06x", (unsigned) sector_size_bytes, (unsigned) offset);
-    image_write(sector_buffer, (unsigned) offset, sector_size_bytes) ;
+    DEBUG_FAST("sector_write(): writing 0x%03x bytes to file offset 0x%06x", (unsigned) geometry.sector_size_bytes, (unsigned) offset);
+    image_write(sector_buffer, (unsigned) offset, geometry.sector_size_bytes) ;
     // logger->debug_hexdump(this, "image_write():", (uint8_t *) sector_buffer, sector_size_bytes, NULL);
     return true ;
 }

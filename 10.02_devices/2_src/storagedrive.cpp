@@ -61,7 +61,7 @@ storagedrive_c::storagedrive_c(storagecontroller_c *_controller) :
     // or pure "shared" directory, or syncronizing share<->binary image
 
     // default: shared filesystem not (yet) implementable for this disk type (MSCP)
-    sharedfilesystem_drivetype = sharedfilesystem::devNONE ;
+    drive_type = drive_type_e::NONE ;
 }
 
 storagedrive_c::~storagedrive_c() 
@@ -151,8 +151,8 @@ bool storagedrive_c::image_recreate_shared_on_param_change(std::string image_pat
         image = new sharedfilesystem::storageimage_shared_c(
 			image_path,
 			/*use_syncer_thread*/true,
-            filesystem_type, sharedfilesystem_drivetype, unitno.value,
-            capacity.value, shareddir_paramval) ;
+            filesystem_type,
+            shareddir_paramval) ;
 		if (image != nullptr)
 	        image->log_level_ptr = log_level_ptr ; // same log level as drive
         // filesystem_dec has lifetime between open() and close()
@@ -170,7 +170,7 @@ bool storagedrive_c::image_open(bool create)
         return false ;
 
     // virtual method of implementation
-    return image->open(create) ;
+    return image->open(this, create) ;
 }
 
 void storagedrive_c::image_close(void) 
@@ -192,12 +192,6 @@ bool storagedrive_c::image_is_readonly()
     if (image == nullptr)
         return false ;
     return image->is_readonly() ;
-}
-
-void storagedrive_c::image_set_filesystem_offset(uint64_t offset) 
-{
-    if (image != nullptr)
-    	image->filesystem_offset = offset ;
 }
 
 bool storagedrive_c::image_truncate(void) {

@@ -219,7 +219,7 @@ void directory_host_c::inotify_add_watch()
     std::string abspath =fs->get_absolute_filepath(this->path) ;
 //    const char *hostdir_realpath = abspath.c_str() ;
 
-    DEBUG(printf_to_cstr("inotify_add_watch(%s)\n", abspath.c_str()));
+    DEBUG("inotify_add_watch(%s)\n", abspath.c_str());
     assert(inotify_wd == 0) ;
     unsigned mask ;
     mask = IN_ACCESS // (+) File was accessed (e.g., read(2), execve(2)).
@@ -268,7 +268,7 @@ void directory_host_c::inotify_remove_watch()
     auto fs = dynamic_cast<filesystem_host_c*>(filesystem) ;
     std::string abspath = fs->get_absolute_filepath(this->path);
 
-    DEBUG(printf_to_cstr("inotify_rm_watch(%s)\n", abspath.c_str()));
+    DEBUG("inotify_rm_watch(%s)\n", abspath.c_str());
     int res = ::inotify_rm_watch(fs->inotify_fd, inotify_wd) ;
 
     if (res < 0)
@@ -457,7 +457,7 @@ void filesystem_host_c::clear_disk_dir()
     // do not remove hidden with just ".*", will recurse upwards to ".." !
     sprintf(buffer, "/bin/sh -c 'rm --force --recursive  %s/..?* %s/.[!.]* %s/*'",
             rootpath.c_str(),rootpath.c_str(),rootpath.c_str()) ;
-    DEBUG(buffer) ;
+    DEBUG_FAST(buffer) ;
     system(buffer) ; // waits until ready
 }
 
@@ -673,7 +673,7 @@ void filesystem_host_c::inotify_event_eval(struct inotify_event *ino_event)
 	file_host_c* file = nullptr ;
 	
 
-//    DEBUG(printf_to_cstr("filesystem_host_c::inotify_event_eval(): %s", inotify_event_as_text(ino_event))) ;
+//    DEBUG("filesystem_host_c::inotify_event_eval(): %s", inotify_event_as_text(ino_event)) ;
 //printf("filesystem_host_c::inotify_event_eval(): %s\n", inotify_event_as_text(ino_event));
     auto it = inotify_watch_map.find(ino_event->wd) ; // search dir for watch event
     assert (it != inotify_watch_map.end()) ; // must be found
@@ -1039,7 +1039,7 @@ void filesystem_host_c::import_dec_stream(file_dec_stream_c *dec_stream)
 
     // create event for existing file/dec_stream? Is acknowledge from DEC, ignore.
     if (file_exists(&dir_path, &file_name)) {
-        DEBUG(printf_to_cstr("Host: Ignore \"create\" event for existing file %s", dec_stream->host_path.c_str())) ;
+        DEBUG("Host: Ignore \"create\" event for existing file %s", dec_stream->host_path.c_str()) ;
         return ;
     }
 
@@ -1063,7 +1063,7 @@ void filesystem_host_c::consume_event_do_create(filesystem_dec_event_c *event)
     // first: look for existing file by path
     auto f = dynamic_cast<file_host_c*>(file_by_path.get(event->host_path)) ;
     if (f != nullptr) {
-        DEBUG("filesystem_host_c::consume_event(): file to be create already there ... DEC ack event.") ;
+        DEBUG_FAST("filesystem_host_c::consume_event(): file to be create already there ... DEC ack event.") ;
         return ;
     }
 
@@ -1073,7 +1073,6 @@ void filesystem_host_c::consume_event_do_create(filesystem_dec_event_c *event)
     } else {
         import_dec_stream(event->dec_stream) ;
     }
-    ack_event_filter.add(event->host_path) ;
 }
 
 void filesystem_host_c::consume_event_do_delete(filesystem_dec_event_c *event)
@@ -1081,7 +1080,7 @@ void filesystem_host_c::consume_event_do_delete(filesystem_dec_event_c *event)
     // first: look for existing file by path
     auto f = dynamic_cast<file_host_c*>(file_by_path.get(event->host_path)) ;
     if (f == nullptr) {
-        DEBUG("filesystem_host_c::consume_event(): f to be deleted not found ... DEC ack event.") ;
+        DEBUG_FAST("filesystem_host_c::consume_event(): f to be deleted not found ... DEC ack event.") ;
         return ;
     }
     if (event->is_dir)	{
@@ -1094,15 +1093,13 @@ void filesystem_host_c::consume_event_do_delete(filesystem_dec_event_c *event)
         f->remove_from_disk();
         f->parentdir->remove_file(f) ;
     }
-    ack_event_filter.add(event->host_path) ;
-    //		  delete_dec_file(event->path)
 }
 
 
 // create or delete host files according to DEC change events
 void filesystem_host_c::consume_event(filesystem_dec_event_c *event)
 {
-    DEBUG(printf_to_cstr("filesystem_host_c::consume_event(): %s", event->as_text().c_str())) ;
+    DEBUG("filesystem_host_c::consume_event(): %s", event->as_text().c_str()) ;
 
     if (event->operation == filesystem_event_c::op_create) {
         consume_event_do_create(event) ;

@@ -74,8 +74,9 @@ bool storageimage_base_c::is_zero(uint64_t position, unsigned len)
 // set the file_readonly flag
 // creates file, if not existing
 // result: OK= true, else false
-bool storageimage_binfile_c::open(bool create) 
+bool storageimage_binfile_c::open(storagedrive_c *_drive, bool create) 
 {
+	drive = _drive ;
     // 1st: if file not exists, try to unzip it from <image_fname>.gz
     int retries = 2 ;
     while (retries > 0) {
@@ -286,8 +287,9 @@ void storageimage_binfile_c::save_to_file(std::string _host_filename)
 
 
 // result: OK= true, else false
-bool storageimage_memory_c::open(bool create)
+bool storageimage_memory_c::open(storagedrive_c *_drive, bool create)
 {
+	drive = _drive ;
     UNUSED(create);
     if (is_open())
         close(); // after RL11 INIT

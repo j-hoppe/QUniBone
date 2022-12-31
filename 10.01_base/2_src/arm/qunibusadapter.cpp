@@ -364,7 +364,7 @@ void qunibusadapter_c::request_schedule(priority_request_c& request)
 {
     // Must run under  pthread_mutex_lock(&requests_mutex);
     priority_request_level_c *prl = &request_levels[request.level_index];
-    // DEBUG("request_schedule") ;
+    // DEBUG_FAST("request_schedule") ;
 
     // a device may reraise on of its own interrupts, but not an DMA on same slot
     if (dynamic_cast<dma_request_c *>(&request)) {
@@ -441,7 +441,7 @@ priority_request_c *qunibusadapter_c::request_activate_lowest_slot(unsigned leve
     priority_request_c *rq;
 
     assert(prl->active == NULL);
-    // DEBUG("request_activate_lowest_slot") ;
+    // DEBUG_FAST("request_activate_lowest_slot") ;
 
     unsigned slot = __builtin_ffs(prl->slot_request_mask);
     if (slot == 0)
@@ -481,7 +481,7 @@ void qunibusadapter_c::request_execute_active_on_PRU(unsigned level_index)
     priority_request_level_c *prl = &request_levels[level_index];
     assert(prl->active);
     // Must run under  pthread_mutex_lock(&requests_mutex);
-    // DEBUG("request_execute_active_on_PRU(level_idx=%u)", level_index);
+    // DEBUG_FAST("request_execute_active_on_PRU(level_idx=%u)", level_index);
     if (level_index == PRIORITY_LEVEL_INDEX_NPR) {
 
         dma_request_c *dmareq = dynamic_cast<dma_request_c *>(prl->active);
@@ -585,7 +585,7 @@ void qunibusadapter_c::request_active_complete(unsigned level_index, bool signal
     priority_request_level_c *prl = &request_levels[level_index];
     if (!prl->active) // PRU completed after INIT cleared the tables
         return;
-    // DEBUG("request_active_complete") ;
+    // DEBUG_FAST("request_active_complete") ;
 
     unsigned slot = prl->active->priority_slot;
     //if (prl->slot_request[slot] != prl->active)
@@ -678,7 +678,7 @@ void qunibusadapter_c::DMA(dma_request_c& dma_request, bool blocking, uint8_t qu
     }
     pthread_mutex_unlock(&requests_mutex);
 
-    // DEBUG("device DMA start: %s @ %06o, len=%d", qunibus->control2text(qunibus_cycle), unibus_addr, wordcount);
+    // DEBUG_FAST("device DMA start: %s @ %06o, len=%d", qunibus->control2text(qunibus_cycle), unibus_addr, wordcount);
 
     if (dma_request.is_cpu_access) {
         // NO wait for PRU signal, instead busy waiting. CPU thread blocked.
@@ -762,7 +762,7 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
     priority_request_level_c *prl = &request_levels[intr_request.level_index];
     pthread_mutex_lock(&requests_mutex); // lock schedule table operations
 //if (intr_request.device->log_level == LL_DEBUG)
-    DEBUG("INTR() req: dev %s, slot/level/vector= %d/%d/%03o",
+    DEBUG_FAST("INTR() req: dev %s, slot/level/vector= %d/%d/%03o",
           intr_request.device->name.value.c_str(), (unsigned ) intr_request.priority_slot,
           intr_request.level_index + 4, intr_request.vector);
     // Is an INTR with same slot and level already executed on PRU
@@ -787,12 +787,12 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
         // scheduled and request_active_complete() not called
         pthread_mutex_unlock(&requests_mutex);
         if (interrupt_register) {
-            DEBUG("INTR() delayed with IR");
+            DEBUG_FAST("INTR() delayed with IR");
             // if device re-raises a blocked INTR, CSR must complete immediately
             intr_request.device->set_register_dati_value(interrupt_register,
                     interrupt_register_value, __func__);
         } else {
-            DEBUG("INTR() delayed without IR");
+            DEBUG_FAST("INTR() delayed without IR");
         }
 
         return; // do not schedule a 2nd time
@@ -807,14 +807,14 @@ void qunibusadapter_c::INTR(intr_request_c& intr_request,
     // The associated device interrupt register (if any) should be updated
     // atomically with raising the INTR signal line by PRU.
     if (interrupt_register && request_is_blocking_active(intr_request.level_index)) {
-        DEBUG("INTR() delayed, IR now");
+        DEBUG_FAST("INTR() delayed, IR now");
         //	one or more another requests are handled by PRU: INTR signal delayed by Arbitrator,
         // write intr register asynchronically here.
         intr_request.device->set_register_dati_value(interrupt_register,
                 interrupt_register_value, __func__);
         intr_request.interrupt_register = NULL; // don't do a 2nd  time
     } else { // forward to PRU
-        DEBUG("INTR() IR forward to PRU");
+        DEBUG_FAST("INTR() IR forward to PRU");
         // 	intr_request.level_index, priority_slot, vector in constructor
         intr_request.interrupt_register = interrupt_register;
         intr_request.interrupt_register_value = interrupt_register_value;
@@ -892,7 +892,7 @@ void qunibusadapter_c::worker_init_event()
     qunibusdevice_c *device;
     // notify device on change of INIT line
     // device register values are already resetto "reset_value" by PRU
-    DEBUG("worker_init_event(): INIT %s", line_INIT ? "asserted" : "negated");
+    DEBUG_FAST("worker_init_event(): INIT %s", line_INIT ? "asserted" : "negated");
     for (device_handle = 0; device_handle <= MAX_DEVICE_HANDLE; device_handle++)
         if ((device = devices[device_handle])) {
             device->init_asserted = line_INIT;
@@ -913,10 +913,10 @@ void qunibusadapter_c::worker_power_event(signal_edge_enum aclo_edge, signal_edg
     qunibusdevice_c *device;
     // notify device on change of ACLO/DCLO lines
 #if defined(UNIBUS)
-    DEBUG("worker_power_event(aclo_edge=%d=%s, dclo_edge=%d=s)",
+    DEBUG_FAST("worker_power_event(aclo_edge=%d=%s, dclo_edge=%d=s)",
           (int)aclo_edge, signal_edge_text(aclo_edge), (int)dclo_edge,signal_edge_text(dclo_edge));
 #elif defined(QBUS)
-    DEBUG("worker_power_event(aclo_edge=%d=%s (ACLO=NOT POK), dclo_edge=%d=%s (DCLO=NOT DCOK)",
+    DEBUG_FAST("worker_power_event(aclo_edge=%d=%s (ACLO=NOT POK), dclo_edge=%d=%s (DCLO=NOT DCOK)",
           (int)aclo_edge, signal_edge_text(aclo_edge), (int)dclo_edge,signal_edge_text(dclo_edge));
 #endif
     for (device_handle = 0; device_handle <= MAX_DEVICE_HANDLE; device_handle++)
@@ -1010,7 +1010,7 @@ void qunibusadapter_c::worker_deviceregister_event()
         }
         device->on_after_register_access(device_reg, unibus_control);
         /*
-         DEBUG(LL_DEBUG, LC_UNIBUS, "dev.reg=%d.%d, %s, addr %06o, data %06o->%06o",
+         DEBUG_FAST(LL_DEBUG, LC_UNIBUS, "dev.reg=%d.%d, %s, addr %06o, data %06o->%06o",
          device_handle, evt_idx,
          qunibus_c::control2text(mailbox->event.unibus_control), evt_addr,
          oldval, device_reg->pru_iopage_register->value);
@@ -1112,10 +1112,10 @@ void qunibusadapter_c::worker_intr_complete_event(uint8_t level_index)
     // activate next request of this level on PRU for priority arbitration
     request_activate_lowest_slot(level_index);
     if (prl->active) {
-        _DEBUG("INTR() complete, next scheduled");
+        _DEBUG_FAST("INTR() complete, next scheduled");
         request_execute_active_on_PRU(level_index);
     } else {
-        _DEBUG("INTR() complete, no next scheduled");
+        _DEBUG_FAST("INTR() complete, no next scheduled");
     }
     // else INTRs for all slots of this level completed
 }
@@ -1199,7 +1199,7 @@ void qunibusadapter_c::worker(unsigned instance)
                     worker_init_event();
 	                EVENT_ACK(*mailbox, init); // PRU may re-raise and change mailbox now
                 	}
-                DEBUG(
+                DEBUG_FAST(
                     "EVENT_INIT: init_signal_cur=0x%x, init_raise=%d, init_fall=%d",
                     mailbox->events.init_signal_cur, init_raising_edge, init_falling_edge) ;
 #elif defined(QBUS)
@@ -1208,7 +1208,7 @@ void qunibusadapter_c::worker(unsigned instance)
 			worker_init_event();
 			line_INIT = false;
 			worker_init_event();
-			DEBUG("EVENT_INIT") ;
+			DEBUG_FAST("EVENT_INIT") ;
 			EVENT_ACK(*mailbox, init); // PRU releases DMR line now, CPU continues, event may re-raise and change mailbox now
 #endif
             }
@@ -1240,7 +1240,7 @@ void qunibusadapter_c::worker(unsigned instance)
                         aclo_edge = SIGNAL_EDGE_FALLING;
                     line_ACLO = false;
                 }
-                DEBUG(
+                DEBUG_FAST(
                     "EVENT_POWER: power_signals_prev=0x%x, power_signals_cur=0x%x, aclo_edge=%d, dclo_edge=%d",
                     mailbox->events.power_signals_prev, mailbox->events.power_signals_cur, (int)aclo_edge, (int)dclo_edge) ;
                 if (aclo_edge != SIGNAL_EDGE_NONE || dclo_edge != SIGNAL_EDGE_NONE)
@@ -1257,7 +1257,7 @@ void qunibusadapter_c::worker(unsigned instance)
                 any_event = true;
 
                 // DATI/DATO
-                // DEBUG("EVENT_DEVICEREGISTER:  control=%d, addr=%06o", (int)mailbox->events.unibus_control, mailbox->events.addr);
+                // DEBUG_FAST("EVENT_DEVICEREGISTER:  control=%d, addr=%06o", (int)mailbox->events.unibus_control, mailbox->events.addr);
                 worker_deviceregister_event();
                 // ARM2PRU opcodes raised by device logic are processed in midst of bus cycle
                 EVENT_ACK(*mailbox, deviceregister); // PRU continues bus cycle with SSYN now

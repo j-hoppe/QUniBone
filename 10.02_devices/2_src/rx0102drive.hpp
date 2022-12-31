@@ -36,40 +36,21 @@
 #include "storagedrive.hpp"
 
 
-
 class RX0102uCPU_c;
 class RX0102drive_c: public storagedrive_c {
 private:
-    /*
-    void change_state(unsigned new_state);
 
-    void state_power_off(void);
-    void state_load_floppy(void);
-    void state_seek(void);
-    void state_lock_on(void);
-    void state_unload_heads(void);
-    void state_spin_down(void);
-
-    unsigned seek_destination_cylinder; // target for seek
-
-    timeout_c state_timeout;
-    timeout_c rotational_timeout;
-    //	unsigned state_wait_ms ;
-    */
-
-volatile unsigned cylinder; // current head position
+    volatile unsigned cylinder; // current head position
 
 public:
+	static const unsigned cylinder_count_const = 77 ; // for array declaration 
+	static const unsigned sector_count_const = 26 ;
+	
+	
     // the RX11 controller may see everything
     // dynamic state
-    static const unsigned cylinder_count = 77 ;
-    static const unsigned sector_count = 26 ;
-    unsigned sector_size_bytes; // in byte
-    unsigned block_size_bytes; // in byte
-    unsigned block_count;
-
     bool is_RX02 ; // false: RX01, true: FM/MFM RX02 drive
-    bool is_double_density ; // true = RX02 and MFM
+    bool double_density ; // true = RX02 and MFM
 
     unsigned full_rpm = 360; // normal rotation speed
     // track-to-track time is 5ms, head settle is 25ms
@@ -77,8 +58,8 @@ public:
     // disk is always spinning
     unsigned head_settle_time_ms = 25 ;
 
-	unsigned get_cylinder() ;
-	void set_cylinder(unsigned cyl) ;
+    unsigned get_cylinder() ;
+    void set_cylinder(unsigned cyl) ;
 
     bool error_illegal_track  ;
     bool error_illegal_sector ;
@@ -89,9 +70,9 @@ public:
     parameter_bool_c imagetrack0 = parameter_bool_c(this, "imagetrack0", "it0",/*readonly*/
                                    false, "true: File image contains track 0-76 (std), else only 1..76");
 
-	// current head position , info only							   
-	parameter_unsigned_c current_track = parameter_unsigned_c(this, "track", "tr", /*readonly*/
-		true, "", "%d", "Track # of current head position", 77, 10);
+    // current head position , info only
+    parameter_unsigned_c current_track = parameter_unsigned_c(this, "track", "tr", /*readonly*/
+                                         true, "", "%d", "Track # of current head position", 77, 10);
 
 private:
 
@@ -103,7 +84,7 @@ private:
     // These sector marks are persistent on the floppy disk, but not saved in the
     // SimH-compatible image file format.
     // To pass the ZRX* diags, sector marks are held volatile "per drive".
-    bool deleted_data_marks[cylinder_count][sector_count] ;
+    bool deleted_data_marks[cylinder_count_const][sector_count_const] ;
 
 
     bool check_disk_address(unsigned track, unsigned sector) ;

@@ -42,9 +42,8 @@
 #include <fcntl.h>
 #include <algorithm>
 
-
 #include "logger.hpp"
-
+#include "storagedrive.hpp"
 #include "filesystem_rt11.hpp"
 
 
@@ -235,14 +234,20 @@ bool file_rt11_c::data_changed(file_base_c *_cmp)
     // metadata_snapshot file has no data, and maybe used as "left operand"
     if (stream_data && stream_data->changed)
         return true ;
+    // only compare ymd, ignore other derived fields of struct tm
+    if  (modification_time.tm_year != cmp->modification_time.tm_year)
+        return true ;
+    if  (modification_time.tm_mon != cmp->modification_time.tm_mon)
+        return true ;
+    if  (modification_time.tm_mday != cmp->modification_time.tm_mday)
+        return true ;
+    if (file_size != cmp->file_size)
+        return true ;
+    if (readonly != cmp->readonly)
+        return true ;
+    // above multi-return best for debugging
 
-    return
-//			basename.compare(cmp->basename) != 0
-//			|| ext.compare(cmp->ext) != 0
-        memcmp(&modification_time, &cmp->modification_time, sizeof(modification_time)) // faster
-        //	|| mktime(modification_time) == mktime(cmp->modification_time)
-        || readonly != cmp->readonly
-        || file_size != cmp->file_size ;
+    return false ;
 }
 
 // enumerate streams
@@ -270,7 +275,7 @@ file_dec_stream_c *file_rt11_c::get_stream(unsigned index)
 filesystem_rt11_c::filesystem_rt11_c(	   storageimage_partition_c *_image_partition)
     : filesystem_dec_c(_image_partition)
 {
-    layout_info = get_documented_layout_info(image_partition->drive_info.drive_type) ;
+    layout_info = get_documented_layout_info(image_partition->image->drive->drive_type) ;
 
     image_partition->init(layout_info.block_size) ; // 256 words, fix for RT11, independent of disk (RX01,2?)
 
@@ -309,7 +314,8 @@ filesystem_rt11_c::~filesystem_rt11_c()
 std::string filesystem_rt11_c::get_label()
 {
     char buffer[80] ;
-    sprintf(buffer, "RT11 @ %s #%d", image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
+    sprintf(buffer, "RT11 @ %s #%d", image_partition->image->drive->type_name.value.c_str(),
+            image_partition->image->drive->unitno.value);
     return std::string(buffer) ;
 }
 
@@ -330,7 +336,7 @@ void filesystem_rt11_c::init()
 
     if (blockcount == 0)
         FATAL("%s: init(): RT-11 blockcount for device %s not yet defined!", get_label().c_str(),
-              image_partition->drive_info.device_name.c_str());
+              image_partition->image->drive->type_name.value.c_str());
 
     // trunc large devices, only 64K blocks addressable = 32MB
     // no support for partitioned disks at the moment
@@ -355,9 +361,9 @@ void filesystem_rt11_c::init()
     homeblock_chksum = 0;
     struct_changed = false ;
 
-	// recalc other parameters
-	calc_layout() ;
-	
+    // recalc other parameters
+    calc_layout() ;
+
 }
 
 
@@ -370,6 +376,47 @@ void filesystem_rt11_c::copy_metadata_to(filesystem_base_c *metadata_copy)
     _rootdir->copy_metadata_to(metadata_copy->rootdir) ;
 }
 
+struct tm filesystem_rt11_c::date_decode(uint16_t w)
+{
+    struct tm result = null_time() ; // all 0 except y,m,d
+    result.tm_year = 72 + (w & 0x1f) + 32 * ((w >> 14) & 3);
+    result.tm_mday = (w >> 5) & 0x1f;
+    result.tm_mon = ((w >> 10) & 0x0f) - 1;
+    return result ;
+}
+
+uint16_t filesystem_rt11_c::date_encode(struct tm t)
+{
+    // year already in range 1972..1999
+    assert(t.tm_year >= 72) ;
+    assert(t.tm_year <= 99) ;
+    uint16_t result = t.tm_year - 72;
+    result |= t.tm_mday << 5;
+    result |= (t.tm_mon + 1) << 10;
+    return result ;
+}
+
+
+// make struct tm as valid RT11 date, only y m d set.
+// y,m,d=0,0,0 generates smallest RT11 date
+struct tm filesystem_rt11_c::date_adjust(struct tm t)
+{
+    struct tm result = null_time() ; // all fields 0 except y, m ,d
+
+    result.tm_year = t.tm_year ;
+    if (result.tm_year < 72)
+        result.tm_year = 72 ;
+    else if (result.tm_year > 99)
+        result.tm_year = 99 ;
+
+    result.tm_mon = t.tm_mon ; // January = 0
+
+    result.tm_mday = t.tm_mday ;  // starts with 1
+    if (result.tm_mday < 1)
+        result.tm_mday = 1 ;
+
+    return result ;
+}
 
 // join basename and ext
 // with "." on empty extension "FILE."
@@ -403,76 +450,76 @@ std::string filesystem_rt11_c::make_filename(std::string basename, std::string e
  * Modified by parse of actual disc image.
 
  */
-filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(enum dec_drive_type_e drive_type)
+filesystem_rt11_c::layout_info_t filesystem_rt11_c::get_documented_layout_info(drive_type_e drive_type)
 {
     layout_info_t result ;
-    result.drive_type = drive_type ;
     result.block_size = 512 ; // for all drives
     result.first_dir_blocknr = 6; // for all drives
     switch (drive_type) {
-    case devRK035:
+    case drive_type_e::RK035:
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 16 ;
         break ;
-    case devTU58:
+    case drive_type_e::TU58:
         // result.block_count = 512 ;
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
-    case devTU56:
+    case drive_type_e::TU56:
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
-    case devRF:
+    case drive_type_e::RF:
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
-    case devRS:
+    case drive_type_e::RS:
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
-    case devRP023:
+    case drive_type_e::RP023:
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 31 ;
         break ;
-    case devRX01:
+    case drive_type_e::RX01:
         // result.block_count = 494 ; // todo
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 1 ;
         break ;
-    case devRX02:
+    case drive_type_e::RX02:
         // result.block_count = 988 ; // todo
         result.replacable_bad_blocks = 0 ;
         result.dir_seg_count = 4 ;
         break ;
-    case devRK067:
+    case drive_type_e::RK067:
         result.replacable_bad_blocks = 32 ;
         result.dir_seg_count = 31 ;
         break ;
-    case devRL01:
+    case drive_type_e::RL01:
         // result.block_count = 511*20 ; // without last track 10225 pyRT11
         result.dir_seg_count = 16 ;
         result.replacable_bad_blocks = 10 ;
         break ;
-    case devRL02:
+    case drive_type_e::RL02:
         // result.block_count = 1023*20 ;// 1023*20 without last track. 20465 pyRT11
 //        result.dir_seg_count = 16 ;
         result.dir_seg_count = 31 ; // rt11 5.5 INIT
         result.replacable_bad_blocks = 10 ;
         break ;
-    case devRX50:
+    case drive_type_e::RX50:
         // result.dir_seg_count = 1 ; documented
         result.dir_seg_count = 4 ; // v5.3 INIT
         result.replacable_bad_blocks = 0 ;
         break ;
-    case devRX33:
+    case drive_type_e::RX33:
         // result.dir_seg_count = 1 ; documented
         result.dir_seg_count = 16 ; // v5.3 INIT
         result.replacable_bad_blocks = 0 ;
         break ;
     default:
-        if (image_partition->drive_info.mscp_block_count > 0) {
+        if (drive_type_c::is_MSCP(drive_type)) {
             // RT11 on big MSCP drives
+            assert(image_partition->image->drive->geometry.mscp_block_count > 0) ;
             result.dir_seg_count = 31 ; // max.
             result.replacable_bad_blocks = 0 ;
         } else
@@ -721,6 +768,7 @@ void filesystem_rt11_c::parse_internal_blocks_to_file(std::string _basename, std
     f->stream_data = new rt11_stream_c(f, "");
     stream_parse_blocks(f->stream_data, start_block_nr, f->block_count);
     f->file_size = f->stream_data->size() ;
+    f->modification_time = date_adjust(null_time()) ; // set to smallest possible time
 
 }
 
@@ -755,8 +803,10 @@ bool filesystem_rt11_c::parse_homeblock()
 
     // speciality: at least RT11 v5.3 .INIT writes checksum always as 0 !
     if (actual_chksum != homeblock_chksum && homeblock_chksum != 0) {
-        throw filesystem_exception("parse_homeblock(): home block checksum error. Expected %06o, found %06o",
-                                   homeblock_chksum, actual_chksum);
+        WARNING("%s parse_homeblock(): home block checksum error. Expected %06o, found %06o", get_label().c_str(),
+                homeblock_chksum, actual_chksum);
+        //throw filesystem_exception("parse_homeblock(): home block checksum error. Expected %06o, found %06o",
+        //                           homeblock_chksum, actual_chksum);
     }
 
     // assume valid data
@@ -873,14 +923,11 @@ void filesystem_rt11_c::parse_directory()
                 w = block_buffer.get_word_at_byte_offset(de_offset + 12); // word #7
                 // 5 bit year, 2 bit "age". Year since 1972
                 // date "0" is possible, then no display in DIR output
+
                 if (w) {
-                    f->modification_time.tm_year = 72 + (w & 0x1f) + 32 * ((w >> 14) & 3);
-                    f->modification_time.tm_mday = (w >> 5) & 0x1f;
-                    f->modification_time.tm_mon = ((w >> 10) & 0x0f) - 1;
+                    f->modification_time = date_decode(w) ;
                 } else { // oldest: 1-jan-72
-                    f->modification_time.tm_year = 72;
-                    f->modification_time.tm_mday = 1;
-                    f->modification_time.tm_mon = 0;
+                    f->modification_time = date_adjust(null_time()) ;
                 }
                 // "readonly", if either EREAD or EPROT)
                 f->readonly = false;
@@ -970,7 +1017,9 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
     buffer.clear() ; // reset errors
 
     sprintf(line, "# %s - info about RT-11 volume on %s device #%u.\n",
-            volume_info_filename.c_str(), image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
+            volume_info_filename.c_str(), image_partition->image->drive->type_name.value.c_str(),
+            image_partition->image->drive->unitno.value);
+
     buffer << line ;
 
     time_t t = time(NULL); // now
@@ -982,7 +1031,7 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
 
     sprintf(line, "\nLogical block size = %d bytes.\n", get_block_size());
     buffer << line ;
-    sprintf(line, "Physical device block size = %d bytes.\n", image_partition->drive_info.sector_size);
+    sprintf(line, "Physical device block size = %d bytes.\n", image_partition->image->drive->geometry.sector_size_bytes);
     buffer << line ;
 
     sprintf(line, "\npack_cluster_size=%d\n", pack_cluster_size);
@@ -1048,10 +1097,10 @@ void filesystem_rt11_c::produce_volume_info(std::stringstream &buffer)
                 // dump out physical image sectors
                 for (unsigned j = 0 ; j < f->block_count ; j += 10) {
 //                for (unsigned block_nr = f->stream_data->start_block_nr ; block_nr < f->block_count ; block_nr += 10) {
-					if (j == 0)
-						buffer << "\n    physical sectors = " ;
-					else buffer << "\n    " ; 
-					unsigned blocks_to_print = std::min((unsigned)10,  f->block_count - j) ;
+                    if (j == 0)
+                        buffer << "\n    physical sectors = " ;
+                    else buffer << "\n    " ;
+                    unsigned blocks_to_print = std::min((unsigned)10,  f->block_count - j) ;
                     sprintf(line, "%s",  image_partition->block_nr_list_info(f->stream_data->start_block_nr + j, blocks_to_print)) ;
                     buffer << line ;
                 }
@@ -1286,10 +1335,8 @@ void filesystem_rt11_c::render_directory_entry(byte_buffer_c &block_buffer, file
         // clr job/channel
         block_buffer.set_word_at_byte_offset(de_offset + 10, 0); // word #6 job
         //date. do not set "age", as it is not evaluated by DEC software.
-        // year already in range 1972..1999
-        w = f->modification_time.tm_year - 72;
-        w |= f->modification_time.tm_mday << 5;
-        w |= (f->modification_time.tm_mon + 1) << 10;
+        w = date_encode(f->modification_time) ;
+
         block_buffer.set_word_at_byte_offset(de_offset + 12, w); // word #7 creation date
         if (f->stream_dir_ext) {
             // write bytes from "dir extension" stream into directory entry
@@ -1499,8 +1546,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     std::string host_fname ;// host file name with out stream extension
     rt11_stream_c *stream ;
     std::string stream_code ; // clipped stream extension from host file name
-    bool block_ack_event = true ; // do not feed changes back to host
-    // false: changes are re-sent to the host. necessary for files like VOLUME.INF,
+    // changes are re-sent to the host. necessary for files like $VOLUME.INF,
     // which change independently and whose changes must sent to the host.
 
 
@@ -1520,14 +1566,14 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     filename_from_host(&host_fname, &_basename, &_ext);
     // create event for existing file/stream? Is acknowledge from host, ignore.
     if (f != nullptr || stream != nullptr) {
-        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for existing filename/stream %s.%s %s", get_label().c_str(),
-                             _basename.c_str(), _ext.c_str(), stream_code.c_str()));
+        DEBUG("%s: Ignore \"create\" event for existing filename/stream %s.%s %s", get_label().c_str(),
+              _basename.c_str(), _ext.c_str(), stream_code.c_str());
         return ;
     }
 
     // files with zero size not possible under RT11:
     if (host_file->file_size == 0) {
-        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str())) ;
+        DEBUG("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str()) ;
         return ;
     }
 
@@ -1565,12 +1611,7 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
     f->ext = _ext;
     f->internal = internal ;
 
-    f->modification_time = host_file->modification_time;
-    // only range 1972..1999 allowed
-    if (f->modification_time.tm_year < 72)
-        f->modification_time.tm_year = 72;
-    else if (f->modification_time.tm_year > 99)
-        f->modification_time.tm_year = 99;
+    f->modification_time = date_adjust(host_file->modification_time);
     f->readonly = false; // set from data stream
     rootdir->add_file(f) ; // now owned by rootdir, in map, path valid
 
@@ -1609,9 +1650,6 @@ void filesystem_rt11_c::import_host_file(file_host_c *host_file)
 
     host_file->data_close() ;
 
-    if (block_ack_event)
-        ack_event_filter.add(host_file->path) ;
-
 }
 
 
@@ -1635,13 +1673,13 @@ void filesystem_rt11_c::delete_host_file(std::string host_path)
 
     // delete stream, must exist
     if (stream == nullptr) {
-        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing stream %s of file %s.", get_label().c_str(),
-                             stream_code.c_str(), host_fname.c_str()));
+        DEBUG("%s: ignore \"delete\" event for missing stream %s of file %s.", get_label().c_str(),
+              stream_code.c_str(), host_fname.c_str());
         return ;
     }
 
     if (f == nullptr) {
-        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str()));
+        DEBUG("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str());
         return ;
     }
 
@@ -1669,8 +1707,6 @@ void filesystem_rt11_c::delete_host_file(std::string host_path)
             && f->stream_dir_ext == nullptr
             && f->stream_prefix == nullptr)
         rootdir->remove_file(f) ;
-
-    ack_event_filter.add(host_path) ;
 
 }
 
@@ -1760,8 +1796,8 @@ void filesystem_rt11_c::sort()
 std::string filesystem_rt11_c::rt11_date_text(struct tm t)
 {
     std::string mon[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
-                     "Dec"
-                   };
+                          "Dec"
+                        };
     char buff[80];
     sprintf(buff, "%02d-%3s-%02d", t.tm_mday, mon[t.tm_mon].c_str(), t.tm_year);
     return std::string(buff);

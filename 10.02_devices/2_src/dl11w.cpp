@@ -392,12 +392,12 @@ void slu_c::worker_rcv(void)
 		// at the moments, it is only sent on maintenance loopback xmt
 		/* read serial data, if any */
 		if (rs232adapter.rs232byte_rcv_poll(&rcv_byte)) {
-			DEBUG("rcv_byte=0x%02x", (unsigned)rcv_byte.c);
+			DEBUG_FAST("rcv_byte=0x%02x", (unsigned)rcv_byte.c);
 			pthread_mutex_lock(&on_after_rcv_register_access_mutex); // signal changes atomic against QBUS/UNIBUS accesses
 			rcv_or_err = rcv_fr_err = rcv_p_err = 0;
 			if (rcv_done) { // not yet cleared? overrun!
 				rcv_or_err = 1;
-				DEBUG("RCV OVERRUN");
+				DEBUG_FAST("RCV OVERRUN");
 			}
 			rcv_buffer = rcv_byte.c;
 			if (rcv_byte.format_error)
@@ -549,7 +549,7 @@ void ltc_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 
 	case 0: // LKS
 		if (unibus_control == QUNIBUS_CYCLE_DATO) { // bus write
-//DEBUG("LKS wrDATO, val = %06o", reg_lks->active_dato_flipflops) ;
+//DEBUG_FAST("LKS wrDATO, val = %06o", reg_lks->active_dato_flipflops) ;
 			intr_enable = !!(reg_lks->active_dato_flipflops & LKS_INT_ENB);
 			// schematic: LINE CLOCK MONITOR can only be cleared
 			if ((reg_lks->active_dato_flipflops & LKS_INT_MON) == 0)
@@ -560,7 +560,7 @@ void ltc_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 			}
 			set_lks_dati_value_and_INTR(false); // INTR only by clock, not by LKs access
 		} else
-//DEBUG("LKS DATI, control=%d, val = %06o = %06o", (int)unibus_control, reg_lks->active_dati_flipflops, device_reg->pru_iopage_register->value ) ;
+//DEBUG_FAST("LKS DATI, control=%d, val = %06o = %06o", (int)unibus_control, reg_lks->active_dati_flipflops, device_reg->pru_iopage_register->value ) ;
 			break;
 
 	default:
@@ -662,7 +662,7 @@ void ltc_c::worker(unsigned instance)
 
 		// Test average frequency
 		if (global_edge_count && (global_edge_count %  frequency.value) == 0)
-			DEBUG("LTC: %u secs by INTR", (unsigned)( global_edge_count/ frequency.value) ) ;
+			DEBUG_FAST("LTC: %u secs by INTR", (unsigned)( global_edge_count/ frequency.value) ) ;
 		
 		// wait for next clock event
 		timeout.wait_ns(wait_time_ns);
@@ -672,7 +672,7 @@ void ltc_c::worker(unsigned instance)
 		uint64_t edge_period_ns = BILLION / (2 * frequency.value);
 		// overdue_ns: time which signal edge is too late
 		int64_t overdue_ns = (int64_t) global_time.elapsed_ns() - world_next_intr_ns;
-		// INFO does not work on 64 ints
+		// DEBUG_FAST does not work on 64 ints
 		// printf("elapsed [ms] =%u, overdue [us] =%u\n", (unsigned) global_time.elapsed_ms(), (unsigned) overdue_ns/1000) ;
 		// if overdue_ns positive, next signal edge should have occured
 		if (overdue_ns < 0) {

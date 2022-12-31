@@ -64,7 +64,7 @@
 #include <inttypes.h> // PRI* formats
 
 #include "logger.hpp"
-
+#include "storagedrive.hpp"
 #include "filesystem_xxdp.hpp"
 
 
@@ -325,13 +325,22 @@ std::string file_xxdp_c::get_host_path()
 bool file_xxdp_c::data_changed(file_base_c *_cmp)
 {
     auto cmp = dynamic_cast <file_xxdp_c*>(_cmp) ;
-    return changed
-//			basename.compare(cmp->basename) != 0
-//			|| ext.compare(cmp->ext) != 0
-           || memcmp(&modification_time, &cmp->modification_time, sizeof(modification_time)) // faster
-           //	|| mktime(modification_time) == mktime(cmp->modification_time)
-           || readonly != cmp->readonly
-           || file_size != cmp->file_size ;
+
+    // only compare ymd, ignore other derived fields of struct tm
+    if  (modification_time.tm_year != cmp->modification_time.tm_year)
+        return true ;
+    if  (modification_time.tm_mon != cmp->modification_time.tm_mon)
+        return true ;
+    if  (modification_time.tm_mday != cmp->modification_time.tm_mday)
+        return true ;
+    if (file_size != cmp->file_size)
+        return true ;
+    if (readonly != cmp->readonly)
+        return true ;
+    // above multi-return best for debugging
+
+    return false ;
+
 }
 
 
@@ -357,14 +366,6 @@ void directory_xxdp_c::copy_metadata_to(directory_base_c *_other_dir)
 }
 
 
-
-static int is_leapyear(int y) {
-    return ((y % 4 == 0) && (y % 100 != 0)) || (y % 400 == 0);
-}
-
-static int monthlen_noleap[] = { 31, 28, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-static int monthlen_leap[] = { 31, 29, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-
 // convert a DOS-11 data to time_t
 // day = 5 bits, month= 4bits, year = 9bits
 struct tm filesystem_xxdp_c::dos11date_decode(uint16_t w)
@@ -378,7 +379,7 @@ struct tm filesystem_xxdp_c::dos11date_decode(uint16_t w)
     memset(&result, 0, sizeof(result)); //clear
 
     // use correct table
-    monthlen = is_leapyear(y) ? monthlen_leap : monthlen_noleap;
+    monthlen = is_leapyear(y) ? monthlen_leapyear : monthlen_noleapyear;
 
     m = 0;
     while (d > monthlen[m]) {
@@ -394,18 +395,16 @@ struct tm filesystem_xxdp_c::dos11date_decode(uint16_t w)
 }
 
 
-// year after allowed: trunc to this.
-int dos11date_overflow_year = 1999;
 uint16_t filesystem_xxdp_c::dos11date_encode(struct tm t)
 {
-    int *monthlen;
     uint16_t result = 0;
-    int doy;
+    assert(t.tm_year <= 99) ;
+
     int y = 1900 + t.tm_year; // year is easy
+
+    int *monthlen = is_leapyear(y) ? monthlen_leapyear : monthlen_noleapyear;
+    int doy;
     int m;
-
-    monthlen = is_leapyear(y) ? monthlen_leap : monthlen_noleap;
-
     for (doy = m = 0; m < t.tm_mon; m++)
         doy += monthlen[m];
 
@@ -413,6 +412,29 @@ uint16_t filesystem_xxdp_c::dos11date_encode(struct tm t)
     result += 1000 * (y - 1970);
     return result;
 }
+
+// make struct tm as valid DOS11 date, only y m d set.
+// y,m,d=0,0,0 generates smallest DOS11 date,
+// which is also the Linux epoch 1. jan 1970, so converts to a valid Linux time stamp.
+struct tm filesystem_xxdp_c::dos11date_adjust(struct tm t)
+{
+    struct tm result = null_time() ; // all fields 0 except y, m ,d
+
+    result.tm_year = t.tm_year ;
+    if (result.tm_year < 70)
+        result.tm_year = 70 ;
+    else if (result.tm_year > 99)
+        result.tm_year = 99 ;
+
+    result.tm_mon = t.tm_mon ; // January = 0
+
+    result.tm_mday = t.tm_mday ;  // starts with 1
+    if (result.tm_mday < 1)
+        result.tm_mday = 1 ;
+
+    return result ;
+}
+
 
 // join basename and ext
 // with "." on empty extension "FILE."
@@ -429,7 +451,7 @@ std::string filesystem_xxdp_c::make_filename(std::string basename, std::string e
 filesystem_xxdp_c::filesystem_xxdp_c(       storageimage_partition_c *_image_partition)
     : filesystem_dec_c(_image_partition)
 {
-    layout_info = get_documented_layout_info(image_partition->drive_info.drive_type) ;
+    layout_info = get_documented_layout_info(image_partition->image->drive->drive_type) ;
 
     image_partition->init(layout_info.block_size) ; // 256 words, fix for XXDP, independent of disk (RX01,2?)
 
@@ -454,7 +476,7 @@ filesystem_xxdp_c::filesystem_xxdp_c(       storageimage_partition_c *_image_par
     sort_add_group_pattern(".*\\.BIN") ;  // *.bin and *.bic
 
     // available block = full disk capacity minus bad sector info
-    assert(image_partition->size <= image_partition->drive_info.capacity) ;
+    assert(image_partition->size <= image_partition->image->drive->geometry.get_raw_capacity()) ;
     blockcount = needed_blocks(image_partition->size);
 
     // TODO: who defines the partition size?
@@ -494,7 +516,8 @@ filesystem_xxdp_c::~filesystem_xxdp_c()
 std::string filesystem_xxdp_c::get_label()
 {
     char buffer[80] ;
-    sprintf(buffer, "XXDP @ %s #%d", image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
+    sprintf(buffer, "XXDP @ %s #%d", image_partition->image->drive->type_name.value.c_str(),
+            image_partition->image->drive->unitno.value) ;
     return std::string(buffer) ;
 }
 
@@ -562,15 +585,14 @@ void filesystem_xxdp_c::init()
  Modified  by parse of actual disc image.
 */
 
-filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(enum dec_drive_type_e _drive_type)
+filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(drive_type_e _drive_type)
 {
     layout_info_t result ;
-    result.drive_type = _drive_type ;
     result.block_size = 512 ; // for all drives
     result.monitor_block_count = 16 ; // for XXDP+, others?
 
     switch (_drive_type) {
-    case devTU58:
+    case drive_type_e::TU58:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 4 ;
         result.bitmap_block_1 = 7 ;
@@ -587,7 +609,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 8 ;
         break ;
-    case devRP0456:
+    case drive_type_e::RP0456:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 170 ;
         result.bitmap_block_1 = 173 ;
@@ -600,7 +622,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 223 ;
         break ;
-    case devRK035:
+    case drive_type_e::RK035:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 16 ;
         result.bitmap_block_1 = 4795 ; // ??
@@ -613,7 +635,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 30 ;
         break ;
-    case devRL01:
+    case drive_type_e::RL01:
         result.ufd_block_1 = 24 ;
         result.ufd_blocks_num = 146 ; // 24..169 fiche bad, don north
         result.bitmap_block_1 = 2 ;
@@ -626,7 +648,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 170 ;
         break ;
-    case devRL02:
+    case drive_type_e::RL02:
         result.ufd_block_1 = 24 ; // actual 2 on XXDP25 image
         result.ufd_blocks_num = 146 ; // 24..169 fiche bad, don north
         result.bitmap_block_1 = 2 ; // actual 24 on XXDP25 image
@@ -639,7 +661,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 170 ;
         break ;
-    case devRK067:
+    case drive_type_e::RK067:
         result.ufd_block_1 = 31 ;
         result.ufd_blocks_num = 96 ;
         result.bitmap_block_1 = 2 ;
@@ -652,7 +674,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 127 ;
         break ;
-    case devRP023:
+    case drive_type_e::RP023:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 170 ;
         result.bitmap_block_1 = 173 ;
@@ -665,7 +687,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 223 ;
         break ;
-    case devRM:
+    case drive_type_e::RM:
         result.ufd_block_1 = 52 ;
         result.ufd_blocks_num = 170 ;
         result.bitmap_block_1 = 2 ;
@@ -678,7 +700,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 222 ;
         break ;
-    case devRS:
+    case drive_type_e::RS:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 4 ;
         result.bitmap_block_1 = 7 ;
@@ -691,7 +713,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 9 ;
         break ;
-    case devTU56:
+    case drive_type_e::TU56:
         result.ufd_block_1 = 102 ;
         result.ufd_blocks_num = 2 ;
         result.bitmap_block_1 = 104 ;
@@ -704,7 +726,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 30 ; // bad fiche, don north
         break ;
-    case devRX01:
+    case drive_type_e::RX01:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 4 ;
         result.bitmap_block_1 = 7 ;
@@ -717,7 +739,7 @@ filesystem_xxdp_c::layout_info_t filesystem_xxdp_c::get_documented_layout_info(e
         result.boot_block_nr = 0 ;
         result.monitor_core_image_start_block_nr = 8 ;
         break ;
-    case devRX02:
+    case drive_type_e::RX02:
         result.ufd_block_1 = 3 ;
         result.ufd_blocks_num = 16 ;
         result.bitmap_block_count = 4 ;
@@ -829,8 +851,8 @@ bool filesystem_xxdp_c::is_file_blocklist_changed(file_xxdp_c *f)
         xxdp_blocknr_t block_nr = f->block_nr_list[i] ;
         result |= image_partition->changed_blocks.at(block_nr);
         if (result)
-            DEBUG(printf_to_cstr("%s: is_file_blocklist_changed(),  f=%s, block_nr=%s", get_label().c_str(),
-                                 f->get_filename().c_str(), image_partition->block_nr_info(block_nr)))  ;
+            DEBUG("%s: is_file_blocklist_changed(),  f=%s, block_nr=%s", get_label().c_str(),
+                  f->get_filename().c_str(), image_partition->block_nr_info(block_nr))  ;
     }
     return result ;
 }
@@ -1106,8 +1128,8 @@ bool filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 //		ufd_block_list.print_diag(cout, "ufd_block_list") ;
         // verify len
         if (ufd_block_count != ufd_block_list.size())
-            WARNING(printf_to_cstr("%s; UFD block count is %u, but %d in MFD1/2", get_label().c_str(),
-                                   ufd_block_list.size(), ufd_block_count));
+            WARNING("%s; UFD block count is %u, but %d in MFD1/2", get_label().c_str(),
+                    ufd_block_list.size(), ufd_block_count);
         // best choice is len of disk list
 
         // Build Bitmap block list
@@ -1118,41 +1140,41 @@ bool filesystem_xxdp_c::parse_mfd_load_bitmap_ufd()
 
         // verify len
         if (bit_block_count != bitmap.block_list.size())
-            WARNING(printf_to_cstr("%s: Bitmap block count is %u, but %d in MFD1/2",
-                                   get_label().c_str(), bitmap.block_list.size(), bit_block_count));
+            WARNING("%s: Bitmap block count is %u, but %d in MFD1/2",
+                    get_label().c_str(), bitmap.block_list.size(), bit_block_count);
 
         // total num of blocks
         unsigned n = mfd_block->get_word_at_word_offset(7);
         if (n != blockcount)
-            WARNING(printf_to_cstr("%s: Device blockcount is %u in layout_info, but %d in MFD1/2", get_label().c_str(), blockcount, n));
+            WARNING("%s: Device blockcount is %u in layout_info, but %d in MFD1/2", get_label().c_str(), blockcount, n);
         blockcount = n ;
 
         preallocated_blockcount = mfd_block->get_word_at_word_offset(8);
         if (preallocated_blockcount != layout_info.prealloc_blocks_num)
             // DEC docs wrong?
-            DEBUG(printf_to_cstr("%s: Device preallocated blocks are %u in layout_info, but %d in MFD1/2", get_label().c_str(),
-                                 layout_info.prealloc_blocks_num, preallocated_blockcount));
+            DEBUG("%s: Device preallocated blocks are %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                  layout_info.prealloc_blocks_num, preallocated_blockcount);
 
         interleave =  mfd_block->get_word_at_word_offset(9);
         if (interleave != layout_info.interleave)
-            WARNING(printf_to_cstr("%s: Device interleave is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
-                                   layout_info.interleave, interleave));
+            WARNING("%s: Device interleave is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                    layout_info.interleave, interleave);
 
         monitor_start_block_nr =  mfd_block->get_word_at_word_offset(11);
         if (monitor_start_block_nr != layout_info.monitor_core_image_start_block_nr)
-            WARNING(printf_to_cstr("%s: Monitor core start is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
-                                   layout_info.monitor_core_image_start_block_nr, monitor_start_block_nr));
+            WARNING("%s: Monitor core start is %u in layout_info, but %d in MFD1/2", get_label().c_str(),
+                    layout_info.monitor_core_image_start_block_nr, monitor_start_block_nr);
         // last monitor_core_image block = preallocated_blockcount
         monitor_max_block_count = preallocated_blockcount - monitor_start_block_nr ;
         if (monitor_max_block_count != layout_info.monitor_block_count)
             // noprintf_to_cstr( problem: monitor extended here to end of preallocated area
-            DEBUG(printf_to_cstr("%s: Monitor core len %d blocks, should be %u", get_label().c_str(), monitor_max_block_count,
-                                 layout_info.monitor_block_count)) ;
+            DEBUG("%s: Monitor core len %d blocks, should be %u", get_label().c_str(), monitor_max_block_count,
+                  layout_info.monitor_block_count) ;
 
 
-        DEBUG(printf_to_cstr("%s: Position of bad block file not yet evaluated", get_label().c_str()));
+        DEBUG("%s: Position of bad block file not yet evaluated", get_label().c_str());
     } else
-        FATAL(printf_to_cstr("%s: Invalid block count in MFD: %d", get_label().c_str(), mfd_block_list.size()));
+        FATAL("%s: Invalid block count in MFD: %d", get_label().c_str(), mfd_block_list.size());
     return true ;
 }
 
@@ -1218,6 +1240,7 @@ void filesystem_xxdp_c::parse_internal_contiguous_file(    std::string _basename
     rootdir->add_file(f); //  before parse-stream
     image_partition->get_blocks(f, _start_block_nr, _block_count)  ;
     f->file_size = f->size() ; // size from inherited bytebuffer
+    f->modification_time = dos11date_adjust(null_time()) ; // set to smallest possible time
     f->host_path = f->get_host_path() ;
 }
 
@@ -1298,7 +1321,8 @@ void filesystem_xxdp_c::produce_volume_info(std::stringstream &buffer)
     char line[1024];
 
     sprintf(line, "# %s - info about XXDP volume on %s device #%u.\n",
-            volume_info_filename.c_str(), image_partition->drive_info.device_name.c_str(), image_partition->drive_unit);
+            volume_info_filename.c_str(), image_partition->image->drive->type_name.value.c_str(),
+            image_partition->image->drive->unitno.value);
     buffer << line;
 
     time_t t = time(NULL);
@@ -1311,7 +1335,7 @@ void filesystem_xxdp_c::produce_volume_info(std::stringstream &buffer)
     buffer << line;
     sprintf(line, "\nLogical block size = %d bytes.\n", get_block_size());
     buffer << line;
-    sprintf(line, "Physical device block size = %d bytes.\n", image_partition->drive_info.sector_size);
+    sprintf(line, "Physical device block size = %d bytes.\n", image_partition->image->drive->geometry.sector_size_bytes);
     buffer << line;
 
     sprintf(line, "prealloc_blocks_num=%d (XXDP doc says %d)\n", (unsigned) preallocated_blockcount, layout_info.prealloc_blocks_num);
@@ -1658,10 +1682,8 @@ void filesystem_xxdp_c::render()
 
 void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
 {
-    bool block_ack_event = true ; // do not feed changes back to host
-    // false: changes are re-sent to the host. necessary for files like VOLUME.INF,
+    // changes are re-sent to the host. necessary for files like VOLUME.INF,
     // which change independently and whose changes must sent to the host.
-
 
     // XXDP has no subdirectories, so it accepts only plain host files from the rootdir
     // report file $VOLUME INFO not be read back
@@ -1683,14 +1705,14 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
     // duplicate file name? Likely! because of trunc to six letters
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
     if (f != nullptr) {
-        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for existing filename/stream %s.%s", get_label().c_str(),
-                             _basename.c_str(), _ext.c_str())) ;
+        DEBUG("%s: Ignore \"create\" event for existing filename/stream %s.%s", get_label().c_str(),
+              _basename.c_str(), _ext.c_str()) ;
         return ;
     }
 
     // files with zero size not possible under XXDP:
     if (host_file->file_size == 0) {
-        DEBUG(printf_to_cstr("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str())) ;
+        DEBUG("%s: Ignore \"create\" event for host file with size 0 %s", get_label().c_str(), host_fname.c_str()) ;
         return ;
     }
 
@@ -1733,20 +1755,13 @@ void filesystem_xxdp_c::import_host_file(file_host_c *host_file)
     f->block_count = needed_blocks(f->size());
     f->basename = _basename ;
     f->ext = _ext ;
-    f->modification_time = host_file->modification_time;
-
     // only range 1970..1999 allowed
-    if (f->modification_time.tm_year < 70)
-        f->modification_time.tm_year = 70;
-    else if (f->modification_time.tm_year > 99)
-        f->modification_time.tm_year = 99;
+    f->modification_time = dos11date_adjust(host_file->modification_time) ;
 
     rootdir->add_file(f) ; // add, now owned by rootdir
 
     host_file->data_close() ;
 
-    if (block_ack_event)
-        ack_event_filter.add(host_file->path) ;
 }
 
 
@@ -1766,7 +1781,7 @@ void filesystem_xxdp_c::delete_host_file(std::string host_path)
     file_xxdp_c *f = dynamic_cast<file_xxdp_c *>(file_by_path.get(filename)) ; // already hashed?
 
     if (f == nullptr) {
-        DEBUG(printf_to_cstr("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str()));
+        DEBUG("%s: ignore \"delete\" event for missing file %s.", get_label().c_str(), host_fname.c_str());
         return ;
     }
 
@@ -1776,8 +1791,6 @@ void filesystem_xxdp_c::delete_host_file(std::string host_path)
     }
 
     rootdir->remove_file(f) ;
-
-    ack_event_filter.add(host_path) ;
 
 }
 
@@ -1867,8 +1880,8 @@ void filesystem_xxdp_c::sort()
 
 std::string filesystem_xxdp_c::date_text(struct tm t) {
     std::string mon[] = { "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV",
-                     "DEC"
-                   };
+                          "DEC"
+                        };
     char buff[80];
     sprintf(buff, "%2d-%3s-%02d", t.tm_mday, mon[t.tm_mon].c_str(), t.tm_year);
     return std::string(buff);

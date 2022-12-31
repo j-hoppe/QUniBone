@@ -36,7 +36,7 @@ RL0102_c::RL0102_c(storagecontroller_c *_controller) :    storagedrive_c(_contro
 {
     log_label = "RL0102"; // to be overwritten by RL11 on create
     status_word = 0;
-    set_type(2); // default: RL02
+    set_type(drive_type_e::RL02); // default
     runstop_button.value = false; // force user to load file assume drive is LOAD
     fault_lamp.value = false;
     cover_open.value = false;
@@ -56,9 +56,9 @@ bool RL0102_c::on_param_changed(parameter_c *param)
         }
     } else if (param == &type_name) {
         if (!strcasecmp(type_name.new_value.c_str(), "RL01"))
-            set_type(1);
+            set_type(drive_type_e::RL01);
         else if (!strcasecmp(type_name.new_value.c_str(), "RL02"))
-            set_type(2);
+            set_type(drive_type_e::RL02);
         else {
 //		throw bad_parameter_check("drive type must be RL01 or RL02") ;
             ERROR("drive type must be RL01 or RL02");
@@ -72,28 +72,31 @@ bool RL0102_c::on_param_changed(parameter_c *param)
     return storagedrive_c::on_param_changed(param); // more actions (for enable)
 }
 
-void RL0102_c::set_type(uint8_t _drivetype) 
+void RL0102_c::set_type(enum drive_type_e _drivetype) 
 {
-    drivetype = _drivetype;
-    switch (drivetype) {
-    case 1:
-        cylinder_count = 256;
-        head_count = 2;
-        sector_count = 40;
+	assert(drive_type_c::is_RL(_drivetype)) ;
+    drive_type = _drivetype;
+    switch (drive_type) {
+    case drive_type_e::RL01:
+        geometry.cylinder_count = 256;
+        geometry.head_count = 2;
+        geometry.sector_count = 40;
         type_name.value = "RL01";
-        sharedfilesystem_drivetype = sharedfilesystem::devRL01 ;
         break;
-    case 2:
-        cylinder_count = 512;
-        head_count = 2;
-        sector_count = 40;
+    case drive_type_e::RL02:
+        geometry.cylinder_count = 512;
+        geometry.head_count = 2;
+        geometry.sector_count = 40;
         type_name.value = "RL02";
-        sharedfilesystem_drivetype = sharedfilesystem::devRL02 ;
         break;
+	default: FATAL("illegal drive_type") ;
     }
-    block_count = cylinder_count * head_count * sector_count;
-    sector_size_bytes = block_size_bytes = 256; // in byte
-    capacity.value = block_size_bytes * block_count;
+    geometry.sector_size_bytes = 256; // in byte
+    
+    capacity.value = geometry.get_raw_capacity() ;
+
+	// last track
+	geometry.bad_sector_file_offset = (geometry.head_count*geometry.cylinder_count-1) * geometry.sector_count * geometry.sector_size_bytes ;
 }
 
 /* CRC16 as implemented by the DEC 9401 chip
@@ -153,7 +156,7 @@ void RL0102_c::on_init_changed(void)
 // seek is only possible if ready
 bool RL0102_c::cmd_seek(unsigned destination_cylinder, unsigned destination_head) 
 {
-    assert(destination_cylinder < cylinder_count); // RL11 must calc correct #
+    assert(destination_cylinder < geometry.cylinder_count); // RL11 must calc correct #
 
     if (state.value != RL0102_STATE_lock_on) {
 //	if (state.value != RL0102_STATE_seek && state.value != RL0102_STATE_lock_on) {
@@ -162,7 +165,7 @@ bool RL0102_c::cmd_seek(unsigned destination_cylinder, unsigned destination_head
         return false; // illegal state
     }
 
-    DEBUG("Drive start seek from cyl.head %d.%d to %d.%d", cylinder, head, destination_cylinder,
+    DEBUG_FAST("Drive start seek from cyl.head %d.%d to %d.%d", cylinder, head, destination_cylinder,
           destination_head);
 
     // seek may stop running seek ?
@@ -188,7 +191,7 @@ void RL0102_c::change_state(unsigned new_state)
     state.value = new_state;
     update_status_word(); // contains state
     if (old_state != new_state)
-        DEBUG("Change drive %s state from %d to %d. Status word %06o -> %06o.",
+        DEBUG_FAST("Change drive %s state from %d to %d. Status word %06o -> %06o.",
               name.value.c_str(), old_state, state.value, old_status_word, status_word);
 }
 
@@ -324,7 +327,7 @@ void RL0102_c::state_seek()
     // calc for RL02
     unsigned trackmove_increment = 512 * calcperiod_ms / 100;
     unsigned trackmove_time_ms; // time for increment seek or part of it
-    if (drivetype == 1)
+    if (drive_type == drive_type_e::RL01)
         trackmove_increment /= 2; // RL01 tracks are wider apart
     // trackmove_increment *= emulation_speed.value;
 
@@ -348,7 +351,7 @@ void RL0102_c::state_seek()
         // ZRLJ test 1: any seek > 3ms
         trackmove_time_ms = 5;
         state_timeout.wait_ms(trackmove_time_ms); // must be > 0!
-        DEBUG("Seek: head switch to %d", head);
+        DEBUG_FAST("Seek: head switch to %d", head);
         return;
     }
 
@@ -356,7 +359,7 @@ void RL0102_c::state_seek()
     trackmove_time_ms = calcperiod_ms; // default: max movement
 
     if (seek_destination_cylinder > cylinder) {
-        DEBUG("drive seeking outward, cyl = %d", cylinder);
+        DEBUG_FAST("drive seeking outward, cyl = %d", cylinder);
         cylinder += trackmove_increment;
         if (cylinder >= seek_destination_cylinder) {
             // seek head outward finished
@@ -364,8 +367,8 @@ void RL0102_c::state_seek()
             cylinder = seek_destination_cylinder;
             trackmove_time_ms = calcperiod_ms * (seek_destination_cylinder - cylinder)
                                 / trackmove_increment;
-            DEBUG("drive seek outwards complete, cyl = %d", cylinder);
-            // DEBUG("Seek: trackmove_time_ms =%d", trackmove_time_ms);
+            DEBUG_FAST("drive seek outwards complete, cyl = %d", cylinder);
+            // DEBUG_FAST("Seek: trackmove_time_ms =%d", trackmove_time_ms);
             state_timeout.wait_ms(trackmove_time_ms);
             change_state(RL0102_STATE_lock_on);
         } else
@@ -377,13 +380,13 @@ void RL0102_c::state_seek()
             trackmove_time_ms = calcperiod_ms * (cylinder - seek_destination_cylinder)
                                 / trackmove_increment;
             cylinder = seek_destination_cylinder;
-            DEBUG("drive seek inwards complete, cyl = %d", cylinder);
-            // DEBUG("Seek: trackmove_time_ms =%d", trackmove_time_ms);
+            DEBUG_FAST("drive seek inwards complete, cyl = %d", cylinder);
+            // DEBUG_FAST("Seek: trackmove_time_ms =%d", trackmove_time_ms);
             state_timeout.wait_ms(trackmove_time_ms);
             change_state(RL0102_STATE_lock_on);
             return;
         } else {
-            DEBUG("drive seeking inwards, cyl = %d", cylinder);
+            DEBUG_FAST("drive seeking inwards, cyl = %d", cylinder);
             cylinder -= trackmove_increment;
             state_timeout.wait_ms(trackmove_time_ms);
         }
@@ -466,7 +469,7 @@ void RL0102_c::update_status_word(bool new_drive_ready_line, bool new_drive_erro
         tmp |= RL0102_STATUS_CO;
     if (head == 1) // which head is selected after last seek/read/write?
         tmp |= RL0102_STATUS_HS;
-    if (drivetype == 2)
+    if (drive_type == drive_type_e::RL02)
         tmp |= RL0102_STATUS_DT; // rl02
     /* OPI on RL11 controller
      if (state.value == RL0102_STATE_power_off) {
@@ -588,7 +591,7 @@ bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_
     if (state.value != RL0102_STATE_lock_on)
         return false; // wrong state
 
-    assert(buffer_size_words * 2 >= sector_size_bytes);
+    assert(buffer_size_words * 2 >= geometry.sector_size_bytes);
 
     if (!(next_sector_segment_under_heads & 1)) {
         // even: next segment is header, let it pass the head
@@ -597,15 +600,15 @@ bool RL0102_c::cmd_read_next_sector_data(uint16_t *buffer, unsigned buffer_size_
         // nanosleep() for rotational delay?
     }
     unsigned sectorno = next_sector_segment_under_heads >> 1; // LSB is header/data phase
-    unsigned track_size_bytes = sector_count * sector_size_bytes;
-    uint64_t offset = (uint64_t) (head_count * cylinder + head) * track_size_bytes
-                      + sectorno * sector_size_bytes;
+    unsigned track_size_bytes = geometry.sector_count * geometry.sector_size_bytes;
+    uint64_t offset = (uint64_t) (geometry.head_count * cylinder + head) * track_size_bytes
+                      + sectorno * geometry.sector_size_bytes;
 
     // access image file
     // LSB saved before MSB -> word/byte conversion on ARM (little endian) is easy
-    image_read((uint8_t *) buffer, offset, sector_size_bytes);
-    DEBUG("File Read 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
-          sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
+    image_read((uint8_t *) buffer, offset, geometry.sector_size_bytes);
+    DEBUG_FAST("File Read 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
+          geometry.sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
           (unsigned )(buffer[1]));
 
     // circular advance to next header: 40x headers, 40x data
@@ -623,7 +626,7 @@ bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size
     if (state.value != RL0102_STATE_lock_on)
         return false; // wrong state
 
-    assert(buffer_size_words * 2 >= sector_size_bytes);
+    assert(buffer_size_words * 2 >= geometry.sector_size_bytes);
 
     // error: write can not be executed, different reasons
     if (image_is_readonly() || writeprotect_button.value == true || !drive_ready_line) {
@@ -640,15 +643,15 @@ bool RL0102_c::cmd_write_next_sector_data(uint16_t *buffer, unsigned buffer_size
         // nanosleep() for rotational delay?
     }
     unsigned sectorno = next_sector_segment_under_heads >> 1; // LSB is header/data phase
-    unsigned track_size_bytes = sector_count * sector_size_bytes;
-    uint64_t offset = (uint64_t) (head_count * cylinder + head) * track_size_bytes
-                      + sectorno * sector_size_bytes;
+    unsigned track_size_bytes = geometry.sector_count * geometry.sector_size_bytes;
+    uint64_t offset = (uint64_t) (geometry.head_count * cylinder + head) * track_size_bytes
+                      + sectorno * geometry.sector_size_bytes;
 
     // access image file
     // LSB saved before MSB -> word/byte conversion on ARM (little endian) is easy
-    image_write((uint8_t *) buffer, offset, sector_size_bytes);
-    DEBUG("File Write 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
-          sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
+    image_write((uint8_t *) buffer, offset, geometry.sector_size_bytes);
+    DEBUG_FAST("File Write 0x%x words from c/h/s=%d/%d/%d, file pos=0x%llx, words = %06o, %06o, ...",
+          geometry.sector_size_bytes / 2, cylinder, head, sectorno, offset, (unsigned )(buffer[0]),
           (unsigned )(buffer[1]));
 
     // circular advance to next header: 40x headers, 40x data

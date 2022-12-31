@@ -148,8 +148,7 @@ void m9312_c::plug_rom(parameter_string_c *filepath, unsigned rom_idx,
 		uint32_t baseaddress_saved = r->baseaddress;
 
 		if (!r->load_macro11_listing(filepath->new_value.c_str())) {
-			ERROR("Loading %s from file %s failed.", r->name.c_str(),
-					filepath->new_value.c_str());
+			ERROR("Loading %s from file %s failed.", r->name.c_str(), filepath->new_value.c_str());
 			filepath->new_value = "";
 			empty_socket = true;
 		} else if (r->baseaddress != rom_required_file_start_address) {
@@ -331,7 +330,7 @@ void m9312_c::worker(unsigned instance)
 				bootaddress_timeout.start_ms(bootaddress_timeout_ms);
 			}
 			if (bootaddress_timeout.reached()) {
-				DEBUG("bootaddress_timeout.reached()");
+				DEBUG_FAST("bootaddress_timeout.reached()");
 				bootaddress_clear();
 			}
 		}
@@ -344,7 +343,7 @@ void m9312_c::bootaddress_set()
 	if (bootaddress != MEMORY_ADDRESS_INVALID) {
 		qunibus->set_address_overlay(0773000) ;
 		ddrmem->set_pmi_address_overlay(0773000) ; // emulated CPU booting from DDRRAM via PMI?
-		DEBUG("bootaddress_set");
+		DEBUG_FAST("bootaddress_set");
 		// remove vector after 300ms, if no  access to PC/PSW at 773024/26
 		bootaddress_timeout.start_ms(bootaddress_timeout_ms);
 		bootaddress_reg_trap_accesses = 0;
@@ -357,7 +356,7 @@ void m9312_c::bootaddress_clear()
 	if (qunibus->is_address_overlay_active()) {
 		qunibus->set_address_overlay(0) ;
 		ddrmem->set_pmi_address_overlay(0) ;
-		DEBUG("bootaddress_clr_event");
+		DEBUG_FAST("bootaddress_clr_event");
 	}
 }
 
@@ -382,7 +381,7 @@ void m9312_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 	// bootring CPU accesses PC and PSW, then remove the boot vector
 	bootaddress_reg_trap_accesses++;
 	if (bootaddress_reg_trap_accesses == 2) {
-		DEBUG("2nd MSYN");
+		DEBUG_FAST("2nd MSYN");
 		bootaddress_clear();
 	}
 }
@@ -395,7 +394,7 @@ void m9312_c::on_power_changed(signal_edge_enum aclo_edge,
 	// !!! Detection of ACLO edges appears delayed against MSYN/SSYN activity,
 	// so don't use "ACLO edge falling"
 	if (aclo_edge == SIGNAL_EDGE_RAISING) { // ACLO leading edge: set BOOT vector ADDR
-		DEBUG("ACLO asserted");
+		DEBUG_FAST("ACLO asserted");
 		bootaddress_set();
 	}
 }

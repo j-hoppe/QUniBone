@@ -195,7 +195,7 @@ void filesystem_dec_c::produce_events(filesystem_dec_c *metadata_snapshot)
 
 void filesystem_dec_c::consume_event(filesystem_host_event_c *event)
 {
-    DEBUG(printf_to_cstr("%s: filesystem_dec_c::consume_event(): %s", get_label().c_str(), event->as_text().c_str())) ;
+    DEBUG("%s: filesystem_dec_c::consume_event(): %s", get_label().c_str(), event->as_text().c_str()) ;
 
     if (event->operation == filesystem_event_c::op_create) {
         import_host_file(event->host_file) ;
@@ -219,10 +219,6 @@ void filesystem_dec_c::update_host_volume_info(std::string root_path)
     produce_volume_info(buffer) ;
     std::ofstream fout(root_path + "/" + volume_info_host_path) ;
     fout << buffer.str() ;
-
-    // host event to ignore list !!!
-    // additionally: host event for file creation must be filtered by filesystem_dec->import_host_file()
-    ack_event_filter.add(volume_info_host_path) ;
 }
 
 

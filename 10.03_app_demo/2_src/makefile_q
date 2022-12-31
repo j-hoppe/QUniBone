@@ -53,7 +53,7 @@ endif
 
 CCFLAGS= \
 	-std=c++11     \
-	-fmax-errors=5     \
+	-fmax-errors=3     \
 	-I$(PRUSS_INCLUDE_DIR)	\
 	-I.	\
 	-I$(SHARED_SRC_DIR)	\

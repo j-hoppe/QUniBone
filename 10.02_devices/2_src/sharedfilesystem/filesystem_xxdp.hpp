@@ -252,12 +252,12 @@ class filesystem_xxdp_c: public filesystem_dec_c {
 private:
     static struct tm dos11date_decode(uint16_t w);
     static uint16_t dos11date_encode(struct tm t);
+static struct tm dos11date_adjust(struct tm t) ;
 public:
     static std::string make_filename(std::string basename, std::string ext) ;
 
 private:
     typedef struct {
-        enum dec_drive_type_e drive_type;
         unsigned block_size	; // 512 bytes for all drives
 
         // units are in block_size != sector size!
@@ -277,7 +277,7 @@ private:
 
 
     layout_info_t layout_info ;
-    layout_info_t get_documented_layout_info(enum dec_drive_type_e drive_type) ;
+    layout_info_t get_documented_layout_info(drive_type_e drive_type) ;
     void  recalc_layout_info(unsigned blockcount) ;
 
 

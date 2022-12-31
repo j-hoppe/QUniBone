@@ -69,7 +69,6 @@
 
 #include "logsource.hpp"
 #include "bytebuffer.hpp"
-#include "driveinfo.hpp"
 #include "storageimage.hpp"
 #include "filesystem_base.hpp"
 
@@ -93,11 +92,8 @@ public:
     unsigned block_count ; // size is block_size * block_count
 
     storageimage_partition_c(storageimage_base_c *image, uint64_t _image_byte_offset, uint64_t _image_partition_size,
-                             filesystem_type_e _filesystem_type, drive_info_c _drive_info, unsigned drive_unit) ;
+                             filesystem_type_e _filesystem_type) ;
     ~storageimage_partition_c()	;
-
-    drive_info_c drive_info ; // copy from image
-    unsigned drive_unit ;
 
     void init(unsigned _block_size) ;
 

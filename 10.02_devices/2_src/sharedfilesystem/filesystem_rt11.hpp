@@ -134,9 +134,7 @@ public:
 class filesystem_rt11_c: public filesystem_dec_c {
 
     typedef struct {
-        enum dec_drive_type_e drive_type;
         // units are in drive_info_c.blocksize != sector size!
-
         unsigned block_size  ; // 512 bytes for all drives
         // unsigned block_count ; // # of blocks RT-11 uses on disk surface, equal to partition size
         unsigned first_dir_blocknr ; /// always 6 ?
@@ -145,7 +143,7 @@ class filesystem_rt11_c: public filesystem_dec_c {
     } layout_info_t ;
 
     layout_info_t layout_info ;
-    layout_info_t get_documented_layout_info(enum dec_drive_type_e drive_type) ;
+    layout_info_t get_documented_layout_info(drive_type_e drive_type) ;
 
 
     unsigned pack_cluster_size; // Pack cluster size (== 1). Not used?
@@ -169,6 +167,10 @@ public:
 
     void init() override ;
     void copy_metadata_to(filesystem_base_c *metadata_copy) override ;
+
+    struct tm date_decode(uint16_t w) ;
+    uint16_t date_encode(struct tm t) ;
+    struct tm date_adjust(struct tm t) ;
 
     std::string get_label() override ;
 
@@ -202,7 +204,7 @@ private:
     unsigned file_count() override {
         return rootdir->file_count() ;
     }
-	
+
     void stream_parse_blocks(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, unsigned block_count) ;
     void stream_parse_bytes(rt11_stream_c *stream, rt11_blocknr_t start_block_nr, uint8_t *data, unsigned byte_count) ;
 

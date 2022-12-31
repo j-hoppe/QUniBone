@@ -246,7 +246,7 @@ void qunibusdevice_c::log_register_event(const char *change_info,
 		// only the changed register
 		sprintf(buffer, "%s=%06o", changed_reg->name, changed_reg->pru_iopage_register->value);
 	}
-	DEBUG(buffer);
+	DEBUG_FAST(buffer);
 }
 
 // search device in global list mydevices[]				

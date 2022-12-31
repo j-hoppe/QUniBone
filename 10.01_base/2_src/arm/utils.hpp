@@ -30,6 +30,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <string>
 #include <algorithm> // TRIM_STRING
@@ -103,6 +104,17 @@ public:
 unsigned random24(void);
 uint32_t random32_log(uint32_t limit);
 
+inline struct tm null_time()
+{
+	struct tm result ;
+	memset(&result, 0, sizeof(result)) ;
+	return result ;
+}
+
+bool is_leapyear(int y) ;
+extern int monthlen_noleapyear[12] ;
+extern int monthlen_leapyear[12] ;
+
 char *cur_time_text(void);
 
 // remove leading/trailing spaces
@@ -118,7 +130,7 @@ std::string rtrim_copy(std::string s) ;
 std::string trim_copy(std::string s) ;
 bool caseInsensStringCompare(std::string &str1, std::string &str2);
 
-char *printf_to_cstr(const char *fmt, ...) ;
+//char *printf_to_cstr(const char *fmt, ...) ;
 std::string printf_to_string(const char *fmt, ...) ;
 
 
