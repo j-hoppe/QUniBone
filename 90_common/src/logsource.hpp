@@ -29,7 +29,7 @@
    - An object which wants to log must inherit from logsource_c.
    - In its constructor, it must set log_label_ptr and log_level_ptr pointers
      to its own variables.
-   - Messages are generated with FATAL(), ERROR(), ... DEBUG() message macros.
+   - Messages are generated with FATAL(), ERROR_FAST(), ... DEBUG_FAST() message macros.
    - each object.log_level is initialized by logger.default_level
 */
 #ifndef _LOGSOURCE_HPP_
@@ -67,17 +67,26 @@ public:
 // macros to be used in surrounding class code
 // (must be macros, because of __FILE__/__LINE__ )
 #define FATAL(...)	\
-	logger->log(this, LL_FATAL, __FILE__, __LINE__, __VA_ARGS__)
+	logger->log(this, LL_FATAL, false, __FILE__, __LINE__, __VA_ARGS__)
 #define ERROR(...)	\
-	logger->log(this, LL_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+	logger->log(this, LL_ERROR, false, __FILE__, __LINE__, __VA_ARGS__)
 #define WARNING(...)	\
-	logger->log(this, LL_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+	logger->log(this, LL_WARNING, false, __FILE__, __LINE__, __VA_ARGS__)
 #define INFO(...)	\
-	logger->log(this, LL_INFO, __FILE__, __LINE__, __VA_ARGS__)
+	logger->log(this, LL_INFO, false, __FILE__, __LINE__, __VA_ARGS__)
 #define DEBUG(...)	\
-	logger->log(this, LL_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
-// disables a DEBUG	
+	logger->log(this, LL_DEBUG, false, __FILE__, __LINE__, __VA_ARGS__)
+
+// disables a DEBUG
 #define _DEBUG(...)	
+
+// "Fast" variants: sprintf evaluation at dump time, only unit32 args allowed
+#define DEBUG_FAST(...)	\
+	logger->log(this, LL_DEBUG, true, __FILE__, __LINE__, __VA_ARGS__)
+
+// Quick disable a DEBUG macro
+#define _DEBUG(...)	
+#define _DEBUG_FAST(...)	
 
 
 #endif // _LOGSOURCE_HPP_

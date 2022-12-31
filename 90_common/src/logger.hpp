@@ -44,6 +44,7 @@
 #include <vector>
 #include <iostream>
 #include <mutex>
+#include <stdarg.h>
 
 #include "logsource.hpp"
 
@@ -79,9 +80,14 @@ typedef struct {
 
 	unsigned thread_id;
 	timeval timestamp; // gettimeofday();
+
+	bool late_evaluation; // true: sprintf in dumo, then arg list save. 
+	// false: printf_format is final message
+
 	// format string for printf. Defines interpretation of arg list
 	char printf_format[LOGMESSAGE_FORMAT_SIZE]; // max chunk of text which can be output
-	// list of args
+	
+	// fix list of args
 	LOGMESSAGE_ARGTYPE printf_args[LOGMESSAGE_ARGCOUNT];
 	// va_list	print_args ; better, but would need correct tracing of va_end() calls
 
@@ -141,16 +147,31 @@ public:
 	// show messages up to this level immediately on console
 	unsigned life_level;
 
-	bool ignored(logsource_c *logsource, unsigned level);
+	// is output with verbosity "level" active for logsource?
+	bool ignored(logsource_c *logsource, unsigned msglevel) {
+	    if (msglevel == LL_FATAL)
+    	    return false; // never ignored
+	    if (msglevel > *(logsource->log_level_ptr))
+    	    return true;
+	    return false;
+	}	
 
 	void	set_fifo_size(unsigned size) ;
 
 	// single portal for all messages
 	// message is of verbosity "level", will be output depending on the settings of "logsource"
-	void vlog(logsource_c *logsource, unsigned msglevel, const char *srcfilename,
+	void vlog(logsource_c *logsource, unsigned msglevel, bool late_evaluation, const char *srcfilename,
 			unsigned srcline, const char *fmt, va_list args);
-	void log(logsource_c *logsource, unsigned msglevel, const char *srcfilename,
-			unsigned srcline, const char *fmt, ...);
+	void log(logsource_c *logsource, unsigned msglevel, bool late_evaluation, const char *srcfilename,
+			unsigned srcline, const char *fmt, ...) 
+	{
+		if (ignored(logsource, msglevel))
+			return; // don't output
+		va_list args;
+		va_start(args, fmt);
+		vlog(logsource, msglevel, late_evaluation, srcfilename ? srcfilename:"", srcline, fmt, args);
+		va_end(args);
+	}
 
 	void debug_hexdump(logsource_c *logsource, const char *info, uint8_t *databuff,
 			unsigned databuffsize, void *markptr);
