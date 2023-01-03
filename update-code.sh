@@ -21,6 +21,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
 fi
 
 echo "Deleting now outdated and conflicting files ..."
+chmod +x *.sh
 ./cleanup.sh
 
 ARCHIVE=$GITBRANCH.tar.gz
