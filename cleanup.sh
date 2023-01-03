@@ -3,9 +3,6 @@
 # Removes sources from older Git revisions, which prohibit compiling of current release.
 # Called by update-code.sh
 
-cd ~
-rm -fv github-sync.sh
-
 cd ~/10.01_base/2_src/arm
 rm -fv devices.info drives.info \
     storagecontroller.cpp storagecontroller.hpp \
