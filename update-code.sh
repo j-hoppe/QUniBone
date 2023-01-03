@@ -12,12 +12,17 @@ echo "		https://github.com/$GITREPO/tree/$GITBRANCH"
 echo "It forces all local files also present on GitHub to latest version,"
 echo "then a full recompile is started."
 echo "This will update/rollback all sources and scripts to latest published state."
-echo "Files not (anymore) on GitHub are not touched."
+echo "Also script ./cleanup.sh runs and deletes some conflicting stuff... check it out."
+echo "Other files not (anymore) on GitHub are not touched."
 read -p "Are you sure [y/*] ? "
 if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
 	echo "OK, abort."
 	exit 1
 fi
+
+echo "Deleting now outdated and conflicting files ..."
+chmod +x *.sh
+./cleanup.sh
 
 ARCHIVE=$GITBRANCH.tar.gz
 rm -f $ARCHIVE
