@@ -20,10 +20,6 @@ if [[ ! $REPLY =~ ^[Yy]$ ]] ; then
 	exit 1
 fi
 
-echo "Deleting now outdated and conflicting files ..."
-chmod +x *.sh
-./cleanup.sh
-
 ARCHIVE=$GITBRANCH.tar.gz
 rm -f $ARCHIVE
 wget -nv --show-progress https://github.com/$GITREPO/archive/$ARCHIVE
@@ -37,8 +33,13 @@ fi
 tar xzvf $ARCHIVE --strip-components=1
 
 
-# Create simple file links ("4_deploy") for QBone/UniBone variants ("4_deploy_q")
+# make downloaded scripts executable
 chmod +x *.sh
+
+echo "Deleting now outdated and conflicting files ..."
+./cleanup.sh
+
+# Create simple file links ("4_deploy") for QBone/UniBone variants ("4_deploy_q")
 ./qunibone-platform.sh
 
 # Assure all shell scripts are executable
