@@ -29,73 +29,85 @@
       29 000024 010000                  	.word	     start0		; PC
       30 000026 000340                  	.word	     340		; PSW priority level 7
       31                                
-      32                                
-      33                                	; ----- Main boot addresses
-      34 010000                         	.=10000 			;  arbitrary position > 3000
-      35                                
-      36                                start:
-      37                                	; 4 unit numbers => 4 entry addresses
-      38                                start0:
-      39 010000 012700  000000          	mov	#0,r0
-      40 010004 000413                  	br	dlnr
-      41 010006 000240                  	nop
-      42                                start1:
-      43 010010 012700  000001          	mov	#1,r0
-      44 010014 000407                  	br	dlnr
-      45 010016 000240                  	nop
-      46                                start2:
-      47 010020 012700  000002          	mov	#2,r0
-      48 010024 000403                  	br	dlnr
-      49 010026 000240                  	nop
-      50                                start3:
-      51 010030 012700  000003          	mov	#3,r0
-      52                                
-      53                                dlnr:
-      54 010034 012701  174400          	mov	#rlcsr,r1		; boot std csr, unit <R0>
-      55                                
-      56                                	; --------------------------------------------------
-      57                                
-      58 010040 010003                  	mov	r0,r3			; save unit number
-      59 010042 000303                  	swab	r3			; unit number in upper byte
-      60 010044 010311                  	mov	r3,(r1) 		; set unit, NOP cmd
-      61                                
-      62 010046 012761  000013  000004  	mov	#013,rlda(r1)		; subcmd reset+getstatus
-      63 010054 052703  000004          	bis	#cmstat,r3		; get status cmd (r3lo is 0)
-      64 010060 010311                  	mov	r3,(r1) 		; execute
-      65 010062 105711                  1$:	tstb	(r1)			; test for ready
-      66 010064 100376                  	bpl	1$			; wait
-      67                                
-      68 010066 105003                  	clrb	r3			; unit number in upper byte
-      69 010070 052703  000010          	bis	#cmrdhd,r3		; read header cmd
-      70 010074 010311                  	mov	r3,(r1) 		; execute
-      71 010076 105711                  2$:	tstb	(r1)			; test for ready
-      72 010100 100376                  	bpl	2$			; wait
-      73                                
-      74 010102 016102  000006          	mov	rlmp(r1),r2		; retrieve cyl/head/sector
-      75 010106 042702  000077          	bic	#77,r2			; set sector to zero
-      76 010112 005202                  	inc	r2			; set head 0, seek to cyl 0
-      77 010114 010261  000004          	mov	r2,rlda(r1)		; into da for seek
-      78 010120 105003                  	clrb	r3			; unit number in upper byte
-      79 010122 052703  000006          	bis	#cmseek,r3		; seek cmd
-      80 010126 010311                  	mov	r3,(r1) 		; execute
-      81 010130 105711                  3$:	tstb	(r1)			; test for ready
-      82 010132 100376                  	bpl	3$			; wait
-      83                                
-      84 010134 005061  000004          	clr	rlda(r1)		; select cyl0/head0/sector0
-      85 010140 012761  177000  000006  	mov	#-512.,rlmp(r1) 	; set word count
-      86 010146 105003                  	clrb	r3			; unit number in upper byte
-      87 010150 052703  000014          	bis	#cmrdda,r3		; read data cmd
-      88 010154 010311                  	mov	r3,(r1) 		; execute
-      89 010156 105711                  4$:	tstb	(r1)			; test for ready
-      90 010160 100376                  	bpl	4$			; wait
-      91                                
-      92 010162 005711                  	tst	(r1)			; test for error
-      93 010164 100002                  	bpl	5$			; br if ok
-      94 010166 000005                  	reset				; ERROR - reset the world
-      95 010170 000721                  	br     dlnr			; retry. r0 unchanged
-      96                                
-      97 010172 042711  000377          5$:	bic	#377,(r1)		; execute nop cmd
-      98 010176 005007                  	clr	pc			; jump to bootstrap at zero
-      99                                
-     100                                	.end
-     100                                
+      32                                	; ---- catch EVENT/LTC interrupt on QBUS
+      33 000100                         	. = 100 			; EVENT
+      34 000100 010204                  	.word	     catchi		; PC
+      35 000102 000340                  	.word	     340		; PSW priority level 7
+      36                                
+      37                                
+      38                                	; ----- Main boot addresses
+      39 010000                         	.=10000 			;  arbitrary position > 3000
+      40 007776                         stack = . - 2
+      41                                
+      42                                start:
+      43                                	; 4 unit numbers => 4 entry addresses
+      44                                start0:
+      45 010000 012700  000000          	mov	#0,r0
+      46 010004 000413                  	br	dlnr
+      47 010006 000240                  	nop
+      48                                start1:
+      49 010010 012700  000001          	mov	#1,r0
+      50 010014 000407                  	br	dlnr
+      51 010016 000240                  	nop
+      52                                start2:
+      53 010020 012700  000002          	mov	#2,r0
+      54 010024 000403                  	br	dlnr
+      55 010026 000240                  	nop
+      56                                start3:
+      57 010030 012700  000003          	mov	#3,r0
+      58                                
+      59                                dlnr:
+      60 010034 012706  007776          	mov	#stack,sp		; setup stack
+      61 010040 012701  174400          	mov	#rlcsr,r1		; boot std csr, unit <R0>
+      62                                
+      63                                	; --------------------------------------------------
+      64                                
+      65 010044 010003                  	mov	r0,r3			; save unit number
+      66 010046 000303                  	swab	r3			; unit number in upper byte
+      67 010050 010311                  	mov	r3,(r1) 		; set unit, NOP cmd
+      68                                
+      69 010052 012761  000013  000004  	mov	#013,rlda(r1)		; subcmd reset+getstatus
+      70 010060 052703  000004          	bis	#cmstat,r3		; get status cmd (r3lo is 0)
+      71 010064 010311                  	mov	r3,(r1) 		; execute
+      72 010066 105711                  1$:	tstb	(r1)			; test for ready
+      73 010070 100376                  	bpl	1$			; wait
+      74                                
+      75 010072 105003                  	clrb	r3			; unit number in upper byte
+      76 010074 052703  000010          	bis	#cmrdhd,r3		; read header cmd
+      77 010100 010311                  	mov	r3,(r1) 		; execute
+      78 010102 105711                  2$:	tstb	(r1)			; test for ready
+      79 010104 100376                  	bpl	2$			; wait
+      80                                
+      81 010106 016102  000006          	mov	rlmp(r1),r2		; retrieve cyl/head/sector
+      82 010112 042702  000077          	bic	#77,r2			; set sector to zero
+      83 010116 005202                  	inc	r2			; set head 0, seek to cyl 0
+      84 010120 010261  000004          	mov	r2,rlda(r1)		; into da for seek
+      85 010124 105003                  	clrb	r3			; unit number in upper byte
+      86 010126 052703  000006          	bis	#cmseek,r3		; seek cmd
+      87 010132 010311                  	mov	r3,(r1) 		; execute
+      88 010134 105711                  3$:	tstb	(r1)			; test for ready
+      89 010136 100376                  	bpl	3$			; wait
+      90                                
+      91 010140 005061  000004          	clr	rlda(r1)		; select cyl0/head0/sector0
+      92 010144 012761  177000  000006  	mov	#-512.,rlmp(r1) 	; set word count
+      93 010152 105003                  	clrb	r3			; unit number in upper byte
+      94 010154 052703  000014          	bis	#cmrdda,r3		; read data cmd
+      95 010160 010311                  	mov	r3,(r1) 		; execute
+      96 010162 105711                  4$:	tstb	(r1)			; test for ready
+      97 010164 100376                  	bpl	4$			; wait
+      98                                
+      99 010166 005711                  	tst	(r1)			; test for error
+     100 010170 100002                  	bpl	5$			; br if ok
+     101 010172 000005                  	reset				; ERROR - reset the world
+     102 010174 000717                  	br     dlnr			; retry. r0 unchanged
+     103                                
+     104 010176 042711  000377          5$:	bic	#377,(r1)		; execute nop cmd
+     105 010202 005007                  	clr	pc			; jump to bootstrap at zero
+     106                                
+     107                                
+     108                                	; dummy ISR to catch interrupts
+     109                                catchi:
+     110 010204 000002                  	rti
+     111                                
+     112                                	.end
+     112                                
