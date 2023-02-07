@@ -353,7 +353,7 @@ void gpios_c::test_loopback(void)
         GPIO_SETVAL(led[3], GPIO_GETVAL(swtch[3]));
         GPIO_SETVAL(bus_enable, GPIO_GETVAL(button));
         if (qunibus_activity_led) // tied to driver enable
-            GPIO_SETVAL(qunibus_activity_led, GPIO_GETVAL(button));
+            GPIO_SETVAL(qunibus_activity_led, ! GPIO_GETVAL(button));
         timeout.wait_ms(10);
     }
 }
