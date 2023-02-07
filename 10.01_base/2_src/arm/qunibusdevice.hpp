@@ -99,6 +99,7 @@ public:
 	// !! add logic to update dma_request_c and intr_request_c
 
 	// 0 = not "Plugged" in to UNIBUS
+	// QBUS: "address_with" is variable 16,18,22, must be set in device constructor
 	parameter_unsigned_c base_addr = parameter_unsigned_c(this, "base_addr", "addr", true, "",
 			"%06o", "controller base address in IO page", 18, 8);
 	parameter_unsigned_c priority_slot = parameter_unsigned_c(this, "slot", "sl", true, "",
@@ -147,7 +148,7 @@ public:
 	uint16_t get_register_dato_value(qunibusdevice_register_t *device_reg);
 	void reset_unibus_registers();
 
-	qunibusdevice_register_t *register_by_name(string name);
+	qunibusdevice_register_t *register_by_name(std::string name);
 	qunibusdevice_register_t *register_by_unibus_address(uint32_t addr);
 
 

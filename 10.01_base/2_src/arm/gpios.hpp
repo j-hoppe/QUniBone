@@ -127,6 +127,9 @@ typedef struct {
 
 class gpios_c: public logsource_c {
 private:
+    int memory_filedescriptor;
+
+
     void bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr);
     gpio_config_t *config(const char *name, int direction, unsigned bank_idx,
                           unsigned pin_in_bank);
@@ -144,7 +147,7 @@ public:
     // mapped start addresses of register space for GPIOs
     volatile void *registerrange_start_addr[4];
 
-    gpio_config_t *led[4], *swtch[4], *button, *reg_enable, *bus_enable, *i2c_panel_reset, *qunibus_led=NULL,
+    gpio_config_t *led[4], *swtch[4], *button, *reg_enable, *bus_enable, *i2c_panel_reset, *qunibus_activity_led=NULL,
                                                                                             *reg_addr[3], *reg_write, *reg_datin[8], *reg_datout[8], *collision_p9_41,
                                                                                             *collision_p9_42;
 
@@ -155,6 +158,7 @@ public:
     activity_led_c	drive_activity_led ; // singleton
 
     void init(void);
+    void set_frequency(unsigned frequency);
     void set_leds(unsigned number) ;
     void test_toggle(gpio_config_t *gpio);
     void test_loopback(void);

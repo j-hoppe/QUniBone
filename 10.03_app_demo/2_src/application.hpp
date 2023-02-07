@@ -48,8 +48,8 @@
 
 class application_c: public logsource_c {
 public:
-	const string copyright = string("(C) 2018-2020 Joerg Hoppe <j_hoppe@t-online.de>\n");
-	const string version = string(PROGNAME "  - QUniBone " QUNIBUS_NAME " test application.\n"
+	const std::string copyright = std::string("(C) 2018-2020 Joerg Hoppe <j_hoppe@t-online.de>\n");
+	const std::string version = std::string(PROGNAME "  - QUniBone " QUNIBUS_NAME " test application.\n"
 	"    Version "
 #ifdef DBG
 			"DBG "
@@ -61,9 +61,8 @@ public:
 
 	// command line args
 	unsigned opt_linewidth = 80;
-	string opt_cmdfilename;
+	std::string opt_cmdfilename;
 	getopt_c getopt_parser;
-	inputline_c	inputline ;
 	void help(void);
 	void commandline_error(void);
 	void commandline_option_error(char *errtext, ...);
@@ -78,9 +77,13 @@ public:
 	uint32_t emulated_memory_end_addr; // even (last word)
 
 	void print_arbitration_info(		const char *indent);
-	char *getchoice(const char *menu_code);
-	bool emulate_memory(uint32_t endaddr = 0) ;
 	void print_params(parameterized_c *parameterized, parameter_c *p);
+
+	inputline_c	inputline ;
+	bool script_active() {return inputline.is_file_open();}
+	char *getchoice(const char *menu_code);
+
+	bool emulate_memory(uint32_t endaddr = 0) ;
 
 	qunibusdevice_register_t * device_register_by_id(qunibusdevice_c *device, char *specifier);
 

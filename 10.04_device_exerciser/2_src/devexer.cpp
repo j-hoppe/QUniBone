@@ -47,20 +47,22 @@
 namespace devexer {
 
 // declare device list of class separate
-list<devexer_c *> devexer_c::myexercisers;
+std::list<devexer_c *> devexer_c::myexercisers;
 
-devexer_c::devexer_c() {
+devexer_c::devexer_c() 
+{
 // add reference to device to class list
 	myexercisers.push_back(this);
 }
 
-devexer_c::~devexer_c() {
+devexer_c::~devexer_c() 
+{
 	// registered parameters must be deleted by allocator
 	parameter.clear();
 
 	// remove device from class list
 	// https://www.safaribooksonline.com/library/view/c-cookbook/0596007612/ch08s05.html
-	list<devexer_c*>::iterator p = find(myexercisers.begin(), myexercisers.end(), this);
+	std::list<devexer_c*>::iterator p = find(myexercisers.begin(), myexercisers.end(), this);
 	if (p != myexercisers.end())
 		myexercisers.erase(p);
 }

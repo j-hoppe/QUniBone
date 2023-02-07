@@ -87,7 +87,8 @@
 // Singleton
 pru_c *pru;
 
-pru_c::pru_c() {
+pru_c::pru_c() 
+{
 	prucode_id = PRUCODE_NONE;
 	log_label = "PRU";
 }
@@ -135,7 +136,8 @@ struct prucode_entry prucode[] = {
 	   // end marker
 	{ pru_c::PRUCODE_EOD, NULL, 0, 0, NULL, 0, 0 } };
 
-int pru_c::start(enum prucode_enum prucode_id) {
+int pru_c::start(enum prucode_enum _prucode_id) 
+{
 	timeout_c timeout;
 	int rtn;
 	tpruss_intc_initdata intc = PRUSS_INTC_INITDATA;
@@ -183,7 +185,7 @@ int pru_c::start(enum prucode_enum prucode_id) {
 
 	// search code in dictionary
 	struct prucode_entry *pce;
-	for (pce = prucode; pce->id != prucode_id && pce->id != PRUCODE_EOD; pce++)
+	for (pce = prucode; pce->id != _prucode_id && pce->id != PRUCODE_EOD; pce++)
 		;
 	if (pce->id == PRUCODE_EOD)
 		FATAL("PRU program code for config %u not found", pce->id);
@@ -206,11 +208,11 @@ int pru_c::start(enum prucode_enum prucode_id) {
 			pce->pru1_entry)) != 0) {
 		FATAL("prussdrv_exec_program(PRU1) failed");
 	}
-	INFO("Loaded and started PRU code with id = %d", prucode_id);
+	INFO("Loaded and started PRU code with id = %d", _prucode_id);
 
 	timeout.wait_ms(100); // wait for PRU to come up, much too long
 
-	this->prucode_id = prucode_id;
+	prucode_id = _prucode_id;
 
 	// verify PRU1 is executing its command loop
 	mailbox->arm2pru_req = ARM2PRU_NOP;
@@ -236,7 +238,8 @@ int pru_c::start(enum prucode_enum prucode_id) {
 
  Returns 0 on success, non-0 on error.
  ***/
-int pru_c::stop(void) {
+int pru_c::stop(void) 
+{
 	int rtn = 0;
 	prucode_id = PRUCODE_NONE;
 

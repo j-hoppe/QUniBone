@@ -30,7 +30,6 @@
 #include <list>
 #include <vector>
 #include <mutex>
-using namespace std;
 
 #include "utils.hpp"
 #include "parameter.hpp"
@@ -43,7 +42,8 @@ public:
 	// thread for this worker instance
 	device_c *device; // link to parent
 	unsigned instance; // id of this running instance
-	pthread_t pthread;bool running; // run state
+	pthread_t pthread;
+	bool running; // run state
 };
 
 // abstract qunibus device
@@ -65,7 +65,7 @@ private:
 public:
 	// the class holds a list of pointers to instantiated devices
 	// also needed to have a list of threads
-	static list<device_c *> mydevices;
+	static std::list<device_c *> mydevices;
 
 	device_c *parent; // example: storagedrive_c.parent is storage-controller
 
@@ -139,7 +139,7 @@ public:
 	//	'instance' from 0 .. worker_count-1
 	volatile bool workers_terminate; // cmd flag to all worker() instances
 
-	vector<device_worker_c> workers;
+	std::vector<device_worker_c> workers;
 
 	// default background worker function for devices without need.
 	virtual void worker(unsigned instance) {

@@ -10,32 +10,14 @@
 
 #include <stdint.h>
 #include <string.h>
-using namespace std;
 
 #include "storagedrive.hpp"
 #include "rk11.hpp"
 
-enum DriveType
-{
-    RK05 = 0,
-    RK05f = 1,
-};
-
-struct Geometry
-{
-    uint32_t Cylinders;
-    uint32_t Heads;
-    uint32_t Sectors;
-    uint32_t Sector_Size_Bytes;
-    uint32_t Sector_Size_Words;
-};
 
 class rk05_c: public storagedrive_c 
 {
 private:
-        // Drive geometry details
-        Geometry _geometry;
-
         // Current position of the heads 
         volatile uint32_t _current_cylinder;
         volatile int32_t _seek_count;
@@ -56,15 +38,8 @@ private:
 
         volatile bool _scp;          // Indicates the completion of a seek
 
-
-        uint64_t get_disk_byte_offset(
-            uint32_t cylinder,
-            uint32_t surface,
-            uint32_t sector);
-
      
 public:
-        Geometry get_geometry(void);
         uint32_t get_cylinder(void);
  
         // Status bits
@@ -89,8 +64,6 @@ public:
         void drive_reset(void);
          
 public:
-	DriveType _drivetype; 
-
 	rk05_c(storagecontroller_c *controller);
 
     bool on_param_changed(parameter_c* param) override;

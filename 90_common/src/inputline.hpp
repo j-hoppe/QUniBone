@@ -42,7 +42,8 @@ public:
 	}
 	void init(void);
 
-	bool openfile(char *filename);
+	bool open_file(char *filename);
+	bool is_file_open() ;
 
 	char *readline(char *buffer, int buffer_size, const char *prompt);
 };

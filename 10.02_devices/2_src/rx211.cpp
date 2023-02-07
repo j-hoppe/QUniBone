@@ -133,7 +133,8 @@ RX211_c::RX211_c(void) : storagecontroller_c()
 
 }
 
-RX211_c::~RX211_c() {
+RX211_c::~RX211_c() 
+{
     unsigned i;
     for (i = 0; i < drivecount; i++)
         delete storagedrives[i];
@@ -142,7 +143,8 @@ RX211_c::~RX211_c() {
 
 
 // RXV21 has is QBUS + DMA
-RXV21_c::RXV21_c(): RX211_c() {
+RXV21_c::RXV21_c(): RX211_c() 
+{
     is_RXV21 = true ;
 
     type_name.value = "RXV12";
@@ -151,7 +153,8 @@ RXV21_c::RXV21_c(): RX211_c() {
 }
 
 
-bool RX211_c::on_param_changed(parameter_c *param) {
+bool RX211_c::on_param_changed(parameter_c *param) 
+{
     if (param == &priority_slot) {
         dma_request.set_priority_slot(priority_slot.new_value);
         intr_request.set_priority_slot(priority_slot.new_value);
@@ -166,10 +169,11 @@ bool RX211_c::on_param_changed(parameter_c *param) {
 
 
 // reset controller, after installation, on power and on INIT
-void RX211_c::reset(void) {
+void RX211_c::reset(void) 
+{
     reset_unibus_registers();
 
-    DEBUG("RX211_c::reset()");
+    DEBUG_FAST("RX211_c::reset()");
     interrupt_enable = false ;
     interrupt_condition_prev = false ;
     intr_request.edge_detect_reset();
@@ -195,7 +199,8 @@ void RX211_c::reset(void) {
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-                                       uint8_t qunibus_control) {
+                                       uint8_t qunibus_control) 
+{
     // on drive select:
     // move  status of new drive to controller status register
     // on command: signal worker thread
@@ -312,7 +317,8 @@ void RX211_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 // write current status into CS, for next read operation
 // must be done after each DATO
 // generates INTR too: on change on DONE or on change of INTENABLE
-void RX211_c::update_status(const char *debug_info) {
+void RX211_c::update_status(const char *debug_info) 
+{
     // update_status() *NOT* called both by DATI/DATO on_after_register_access() and uCPU worker thread
     //	pthread_mutex_lock(&status_mutex);
 
@@ -377,14 +383,14 @@ void RX211_c::update_status(const char *debug_info) {
 
     if (!interrupt_condition_prev && interrupt_condition) {
         // set CSR atomically with INTR signal lines
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, interrupt!", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
         qunibusadapter->INTR(intr_request, busreg_RX2CS, tmp);
     } else {
         if (!interrupt_condition) // revoke INTR, if raised
             qunibusadapter->cancel_INTR(intr_request);
         set_register_dati_value(busreg_RX2CS, tmp, debug_info);
-        DEBUG("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
+        DEBUG_FAST("%s: ERROR=%d, TR=%d, INTENB=%d, DONE=%d, no interrupt", debug_info,
               uCPU->signal_error, uCPU->signal_transfer_request, interrupt_enable, uCPU->signal_done) ;
     }
 
@@ -397,7 +403,8 @@ void RX211_c::update_status(const char *debug_info) {
 
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle
-void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) {
+void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) 
+{
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_power_changed(aclo_edge, dclo_edge);
 
@@ -409,7 +416,8 @@ void RX211_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo
 }
 
 // QBUS/UNIBUS INIT: clear some registers, not all error conditions
-void RX211_c::on_init_changed(void) {
+void RX211_c::on_init_changed(void) 
+{
 
     // storagecontroller_c forwards to drives
     storagecontroller_c::on_init_changed();
@@ -421,7 +429,8 @@ void RX211_c::on_init_changed(void) {
 
 // called by drive if ready or error
 // handled by uCPU
-void RX211_c::on_drive_status_changed(storagedrive_c *drive) {
+void RX211_c::on_drive_status_changed(storagedrive_c *drive) 
+{
     UNUSED(drive) ;
 }
 
@@ -459,7 +468,7 @@ void RX211_c::worker_transfer_uCPU2DMA(void)
     if (function_select != RX11_CMD_READ_ERROR_CODE) {
         // RX11_CMD_READ_ERROR_CODE does not change "rx2wc" register
         unsigned new_rx2wc = rx2wc - (dma_request.qunibus_end_addr-bus_addr)/2 - 1;
-        DEBUG("worker_transfer_uCPU2DMA.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
+        DEBUG_FAST("worker_transfer_uCPU2DMA.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
               bus_addr, dma_request.qunibus_end_addr, (unsigned)error_dma_nxm, dma_function_word_count, rx2wc, new_rx2wc) ;
         rx2wc = uCPU->extended_status[1] = new_rx2wc ;
     }
@@ -491,7 +500,7 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
     qunibusadapter->DMA(dma_request, true, QUNIBUS_CYCLE_DATI, bus_addr, dma_buffer,dma_function_word_count);
     error_dma_nxm = !dma_request.success; // NXM
     unsigned new_rx2wc = rx2wc - (dma_request.qunibus_end_addr-bus_addr)/2 - 1;
-    DEBUG("worker_transfer_DMA2uCPU.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
+    DEBUG_FAST("worker_transfer_DMA2uCPU.DMA() complete: bus_addr = 0%06o, end_addr=0%06o, nxm=%d, dmawc=%d, rx2wc=%d, new_rx2wc=%d",
           bus_addr, dma_request.qunibus_end_addr, (unsigned)error_dma_nxm, dma_function_word_count, rx2wc, new_rx2wc) ;
     uCPU->signal_function_code = RX11_CMD_FILL_BUFFER ;
     uCPU->signal_function_density = function_density ;
@@ -513,7 +522,8 @@ void RX211_c::worker_transfer_DMA2uCPU(void)
 
 // thread
 // no background activity for bus interface
-void RX211_c::worker(unsigned instance) {
+void RX211_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
 
     while (!workers_terminate) {

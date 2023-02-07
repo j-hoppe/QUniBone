@@ -42,6 +42,7 @@
 #include "utils.hpp"
 #include "logsource.hpp"
 #include "logger.hpp"
+#include "timeout.hpp"
 
 #include "gpios.hpp"
 
@@ -65,19 +66,21 @@ gpios_c::gpios_c() {
 
     cmdline_leds = 0 ; // is set before init()
     leds_for_debug = false ;
+
+    memory_filedescriptor = open((char*) "/dev/mem", O_RDWR);
+    if (!memory_filedescriptor)
+        FATAL("Can not open /dev/mem");
+
 }
 
 /* fill the 4 gpio_banks with values and
  *	map addresses
  */
-void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr) {
-    int fd;
+void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr)
+{
     gpio_bank_t *bank;
 
     assert(bank_idx < 4);
-    fd = open((char*) "/dev/mem", O_RDWR);
-    if (!fd)
-        FATAL("Can not open /dev/mem");
 
     bank = &(banks[bank_idx]);
     bank->gpios_in_use = 0;
@@ -85,7 +88,7 @@ void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr
     INFO("GPIO%d registers at %X - %X (size = %X)", bank_idx, unmapped_start_addr,
          unmapped_start_addr + GPIO_SIZE - 1, GPIO_SIZE);
     bank->registerrange_start_addr = (uint8_t *) mmap(0, GPIO_SIZE, PROT_READ | PROT_WRITE,
-                                     MAP_SHARED, fd, unmapped_start_addr);
+                                     MAP_SHARED, memory_filedescriptor, unmapped_start_addr);
     if (bank->registerrange_start_addr == MAP_FAILED)
         FATAL("Unable to map GPIO%d", bank_idx);
 
@@ -100,7 +103,8 @@ void gpios_c::bank_map_registers(unsigned bank_idx, unsigned unmapped_start_addr
 }
 
 gpio_config_t *gpios_c::config(const char *name, int direction, unsigned bank_idx,
-                               unsigned pin_in_bank) {
+                               unsigned pin_in_bank)
+{
     gpio_config_t *result = (gpio_config_t *) malloc(sizeof(gpio_config_t));
     if (name)
         strcpy(result->name, name);
@@ -124,7 +128,8 @@ gpio_config_t *gpios_c::config(const char *name, int direction, unsigned bank_id
 
 // "export" a pin over the sys file system
 // this is necessary for GPIO2&3, despite we operate memory mapped.
-void gpios_c::export_pin(gpio_config_t *pin) {
+void gpios_c::export_pin(gpio_config_t *pin)
+{
     char fname[256];
     FILE *f;
     struct stat statbuff;
@@ -144,7 +149,8 @@ void gpios_c::export_pin(gpio_config_t *pin) {
 }
 
 /* export the NON-PRU pins: */
-void gpios_c::init() {
+void gpios_c::init()
+{
     unsigned n;
     gpio_config_t *gpio;
 
@@ -167,7 +173,7 @@ void gpios_c::init() {
     pins[n++] = reg_enable = config("REG_ENABLE", DIR_OUTPUT, 1, 14);
     pins[n++] = bus_enable = config("BUS_ENABLE", DIR_OUTPUT, 1, 13);
     pins[n++] = i2c_panel_reset = config("PANEL_RESET", DIR_OUTPUT, 1, 28);
-    pins[n++] = qunibus_led = config("QUNIBUS_LED", DIR_OUTPUT, 0, 30);
+    pins[n++] = qunibus_activity_led = config("QUNIBUS_LED", DIR_OUTPUT, 0, 30);
 
     // double functions on header: P9.41 set other pin function to tristate
     pins[n++] = collision_p9_41 = config(NULL, DIR_INPUT, 3, 20);
@@ -212,13 +218,89 @@ void gpios_c::init() {
     } else {
         // set the 4 LEDs to OFF
         set_leds(cmdline_leds) ;
-        if (qunibus_led) // default: OFF
-            GPIO_SETVAL(qunibus_led, 1) ;
+        if (qunibus_activity_led) // default: OFF
+            GPIO_SETVAL(qunibus_activity_led, 1) ;
     }
+
+	// On both UniBone PCB before 2022 and QBone timer5 is connected only to a test pin.
+	// On UniBone 2022 timer5 can be jumpered onto UNIBUS LTC.
+#if defined(UNIBUS)
+    // produce 50Hz wave at LTC output.
+    set_frequency(50) ;
+#elif defined(QBUS)
+    set_frequency(0) ; // switch off for now, FPGA generates LTC
+#endif
 }
 
+
+// Setup timer5 output for aribtrary frequency 1Hz-24MHz
+// used on UniBone for LTC generation
+// frequency = 0: stable 0 level on timer5 pin
+void gpios_c::set_frequency(unsigned frequency)
+{
+    // timer5 is programmed to toggle the output on each timer reload
+
+    // map registers
+    // on error: enable clock module for timer5
+    // https://groups.google.com/g/beagleboard/c/_Xxpk05npuU/m/_5noVGFSaHkJ
+
+    // 1) Module clock. CM_PER Clock module peripheral registers, 0x44e00000...ffff
+    uint8_t *cm_per_base = (uint8_t *) mmap(0, 0x10000, PROT_READ | PROT_WRITE,
+                                            MAP_SHARED, memory_filedescriptor, 0x44e00000) ;
+    assert(cm_per_base != MAP_FAILED) ;
+    uint32_t *cm_per_timer5_clkctrl = (uint32_t*) (cm_per_base + 0xec) ;
+    uint32_t *clksel_timer5_clk = (uint32_t *) (cm_per_base + 0x518)  ; // CM_DPLL+0x18, page 1334
+    *cm_per_timer5_clkctrl = 0x2 ; // enable timer5 clock module
+    // now timer5 accessible!
+    *clksel_timer5_clk = 1 ; // select CLK_M_OSC master clock = 24 MHz
+    // clock source at page 1191
+
+    // 2) Timer. DMTIMER5 module registers, 4K
+    // see spruh73n.pdf, Chapter 20, pp 4370
+    uint8_t *timer5_base = (uint8_t *) mmap(0, 4096, PROT_READ | PROT_WRITE,
+                                            MAP_SHARED, memory_filedescriptor, 0x48046000);
+    assert(timer5_base != MAP_FAILED) ;
+    uint32_t *timer5_tclr = (uint32_t *) (timer5_base + 0x38) ; // control register
+    uint32_t *timer5_tcrr = (uint32_t *) (timer5_base + 0x3c) ; // counter register
+    uint32_t *timer5_tldr = (uint32_t *) (timer5_base + 0x40) ; // load register < 0xffffffff
+
+	// Setup Timer5
+    if (frequency > 0)  {
+        *timer5_tclr =
+            BIT(0) // ST = 1 Start the timer
+            | BIT(1) // auto reload mode: tcrr := tldr on overflow
+//        | ((7) << 2) // bit 4,3,2 = PTV = Pre scale clock timer value 2^7 = 128
+//        | BIT(5) // PRE =1 = prescaler enabled
+            | ((1) << 10) // bit11,10 = 01 = Trigger output mode on PORTIMERPWM = Trigger on overflow
+            | BIT(12)  // PT = 1 = PORTIMERPWM Toggle
+            // Bit14 = GPO_CFG General purpose output. This register drives directly the PORGPOCFG output pin
+            // 0h = PORGPOCFG drives 0 and configures the timer pin as an output
+            ;
+
+		// timer counts from reload value upwards to 0xffffffff
+        // timer must run at 100/120hz toggle rate to produce 50/60Hz square wave
+        // 24Mhz count
+        uint32_t timer_ticks_per_overflow = 24000000 / (2*frequency) ;
+        *timer5_tcrr = *timer5_tldr = 0xffffffff - timer_ticks_per_overflow + 1 ; // write reloads
+    } else {
+        // stable GND level on timer5 pin
+        // timer stop, PORGPOCFG drives 0 and configures the timer pin as an output,
+        // no trigger, no autoreload
+        // SCPWM=0: clear pin and generate positive pulses (which never happen)
+        *timer5_tclr = 0 ;
+        *timer5_tcrr = 0 ;
+    }
+
+    // free register mapping
+    munmap(cm_per_base, 0x10000);
+    munmap(timer5_base, 4096);
+
+}
+
+
 // display a number on the 4 LEDs
-void gpios_c::set_leds(unsigned number) {
+void gpios_c::set_leds(unsigned number)
+{
     // inverted drivers
     GPIO_SETVAL(led[0], !(number & 1)) ;
     GPIO_SETVAL(led[1], !(number & 2)) ;
@@ -230,7 +312,8 @@ void gpios_c::set_leds(unsigned number) {
 /*
  * Toggle in high speed, break with ^C
  */
-void gpios_c::test_toggle(gpio_config_t *gpio) {
+void gpios_c::test_toggle(gpio_config_t *gpio)
+{
     INFO("Highspeed toggle pin %s, stop with ^C.", gpio->name);
 
     // Setup ^C catcher
@@ -253,7 +336,8 @@ void gpios_c::test_toggle(gpio_config_t *gpio) {
  * Switches control LEDs
  * Button controls QBUS/UNIBUS reg_enable
  */
-void gpios_c::test_loopback(void) {
+void gpios_c::test_loopback(void)
+{
     timeout_c timeout;
 
     INFO("Manual loopback test, stop with ^C");
@@ -268,14 +352,15 @@ void gpios_c::test_loopback(void) {
         GPIO_SETVAL(led[2], GPIO_GETVAL(swtch[2]));
         GPIO_SETVAL(led[3], GPIO_GETVAL(swtch[3]));
         GPIO_SETVAL(bus_enable, GPIO_GETVAL(button));
-        if (qunibus_led) // tied to driver enable
-            GPIO_SETVAL(qunibus_led, GPIO_GETVAL(button));
+        if (qunibus_activity_led) // tied to driver enable
+            GPIO_SETVAL(qunibus_activity_led, GPIO_GETVAL(button));
         timeout.wait_ms(10);
     }
 }
 
 
-void activity_led_c::waiter_func() {
+void activity_led_c::waiter_func()
+{
     // loop until terminated
     while (!waiter_terminated) {
         // polling frequency
@@ -294,7 +379,8 @@ void activity_led_c::waiter_func() {
     }
 }
 
-activity_led_c::activity_led_c() {
+activity_led_c::activity_led_c()
+{
     waiter_terminated = false ;
     for (unsigned led_idx=0 ; led_idx < led_count ; led_idx++)
         cycles[led_idx] = 1 ; // will go off when thread waiter_func() starts
@@ -303,14 +389,16 @@ activity_led_c::activity_led_c() {
 }
 
 
-activity_led_c::~activity_led_c() {
+activity_led_c::~activity_led_c()
+{
     waiter_terminated = true ;
     waiter.join() ;
 }
 
 
 // a "set" pusles for 100ms, a "clear" does nothing
-void activity_led_c::set(unsigned led_idx, bool onoff) {
+void activity_led_c::set(unsigned led_idx, bool onoff)
+{
     const std::lock_guard<std::mutex> lock(m); // cycles[]
     assert(led_idx < led_count) ;
     // atomic commands

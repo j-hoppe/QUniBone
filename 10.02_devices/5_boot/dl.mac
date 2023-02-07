@@ -29,9 +29,15 @@ cmrdda	=6*2				; read data
 	.word	     start0		; PC
 	.word	     340		; PSW priority level 7
 
+	; ---- catch EVENT/LTC interrupt on QBUS
+	. = 100 			; EVENT
+	.word	     catchi		; PC
+	.word	     340		; PSW priority level 7
+
 
 	; ----- Main boot addresses
 	.=10000 			;  arbitrary position > 3000
+stack = . - 2
 
 start:
 	; 4 unit numbers => 4 entry addresses
@@ -51,6 +57,7 @@ start3:
 	mov	#3,r0
 
 dlnr:
+	mov	#stack,sp		; setup stack
 	mov	#rlcsr,r1		; boot std csr, unit <R0>
 
 	; --------------------------------------------------
@@ -96,5 +103,10 @@ dlnr:
 
 5$:	bic	#377,(r1)		; execute nop cmd
 	clr	pc			; jump to bootstrap at zero
+
+
+	; dummy ISR to catch interrupts
+catchi:
+	rti
 
 	.end

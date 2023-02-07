@@ -528,7 +528,7 @@ step(KA11 *cpu)
 
 	/* Branches */
     // ! 000 0!! !xx xxx xxx    (! = at least one is non-zero)
-    if((cpu->ir & 074000) == 0 && (cpu->ir & 0103400) != 0)
+    if((cpu->ir & 074000) == 0 && (cpu->ir & 0103400) != 0) {
         switch(cpu->ir & 0103400){
         case 0000400:	TR(BR); BR; SVC;
         case 0001000:	TR(BNE); CBR(0x0F0F); SVC;
@@ -546,6 +546,7 @@ step(KA11 *cpu)
         case 0103000:	TR(BCC); CBR(0x5555); SVC;
         case 0103400:	TR(BCS); CBR(0xAAAA); SVC;
         }
+    }
 
 	/* Misc */
 	switch(cpu->ir & 0777300){

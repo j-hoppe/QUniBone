@@ -26,11 +26,10 @@
 
 #include <string>
 
-using namespace std;
-
 #include "logger.hpp"
 
-logsource_c::logsource_c() {
+logsource_c::logsource_c() 
+{
 	// default: use own variables.
 	log_label = "???";
 	log_level_ptr = &log_level;
@@ -38,15 +37,18 @@ logsource_c::logsource_c() {
 	connect();
 }
 
-logsource_c::~logsource_c() {
+logsource_c::~logsource_c() 
+{
 	disconnect();
 }
 
 // called in constructor/destructor
-void logsource_c::connect() {
+void logsource_c::connect() 
+{
 	logger->add_source(this);
 }
 
-void logsource_c::disconnect() {
+void logsource_c::disconnect() 
+{
 	logger->remove_source(this);
 }

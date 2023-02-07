@@ -52,8 +52,6 @@
 #include <string>
 #include <iostream>
 
-using namespace std;
-
 #include "logsource.hpp"
 #include "logger.hpp"
 #include "timeout.hpp"
@@ -78,63 +76,67 @@ using namespace std;
 application_c *app;
 
 
-application_c::application_c() {
+application_c::application_c() 
+{
     log_label = "APP";
 }
 
 /*
  * help()
  */
-void application_c::help() {
-    cout << "\n";
-    cout << "NAME\n";
-    cout << "\n";
-    cout << version << "\n";
-    cout << copyright << "\n";
-    cout << "\n";
-    cout << "SYNOPSIS\n";
-    cout << "\n";
-    cout << "TEST SETUP\n";
-    cout << "  - UniBone must be plugged into SPC slots C-F on DD11-CK backplane.\n";
-    cout << "  - 2 passive M903 terminators plugged into backplane.\n";
-    cout << "  - Short cut BR4,5,6,NPR IN/OUT with jumpers.\n";
-    cout << "  - Install the \"PRU\" device tree overlay:\n";
-    cout << "    - cp UniBone-00B0.dtbo /lib/firmware UniBone-00B0.dtbo\n";
-    cout << "    - reboot\n";
-    cout << "\n";
-//	cout << "Command line options are processed strictly left-to-right. \n\n");
+void application_c::help() 
+{
+    std::cout << "\n";
+    std::cout << "NAME\n";
+    std::cout << "\n";
+    std::cout << version << "\n";
+    std::cout << copyright << "\n";
+    std::cout << "\n";
+    std::cout << "SYNOPSIS\n";
+    std::cout << "\n";
+    std::cout << "TEST SETUP\n";
+    std::cout << "  - UniBone must be plugged into SPC slots C-F on DD11-CK backplane.\n";
+    std::cout << "  - 2 passive M903 terminators plugged into backplane.\n";
+    std::cout << "  - Short cut BR4,5,6,NPR IN/OUT with jumpers.\n";
+    std::cout << "  - Install the \"PRU\" device tree overlay:\n";
+    std::cout << "    - cp UniBone-00B0.dtbo /lib/firmware UniBone-00B0.dtbo\n";
+    std::cout << "    - reboot\n";
+    std::cout << "\n";
+//	std::cout << "Command line options are processed strictly left-to-right. \n\n");
     // getopt must be initialized to print the syntax
-    getopt_parser.help(cout, opt_linewidth, 10, PROGNAME);
-    cout << "\n";
-    cout << "EXAMPLES\n";
-    cout << "\n";
-    cout << "sudo ./" PROGNAME "\n";
-    cout << "    Show interactive menus.\n";
-    cout << "\n";
+    getopt_parser.help(std::cout, opt_linewidth, 10, PROGNAME);
+    std::cout << "\n";
+    std::cout << "EXAMPLES\n";
+    std::cout << "\n";
+    std::cout << "sudo ./" PROGNAME "\n";
+    std::cout << "    Show interactive menus.\n";
+    std::cout << "\n";
 
     exit(1);
 }
 
 // show error for one option
-void application_c::commandline_error() {
-    cerr << "Error while parsing command line:\n";
-    cerr << "  " << getopt_parser.curerrortext.c_str() << "\n";
+void application_c::commandline_error() 
+{
+    std::cerr << "Error while parsing command line:\n";
+    std::cerr << "  " << getopt_parser.curerrortext.c_str() << "\n";
     exit(1);
 }
 
 // parameter wrong for currently parsed option
-void application_c::commandline_option_error(char *errtext, ...) {
+void application_c::commandline_option_error(char *errtext, ...) 
+{
     char buffer[1024];
     va_list args;
-    cerr << "Error while parsing commandline option:\n";
+    std::cerr << "Error while parsing commandline option:\n";
     if (errtext) {
         va_start(args, errtext);
         vsprintf(buffer, errtext, args);
-        cerr << buffer << "\nSyntax:  ";
+        std::cerr << buffer << "\nSyntax:  ";
         va_end(args);
     } else
-        cerr << "  " << getopt_parser.curerrortext << "\nSyntax:  ";
-    getopt_parser.help_option(cerr, 96, 10);
+        std::cerr << "  " << getopt_parser.curerrortext << "\nSyntax:  ";
+    getopt_parser.help_option(std::cerr, 96, 10);
     exit(1);
 }
 
@@ -146,7 +148,8 @@ void application_c::commandline_option_error(char *errtext, ...) {
  * read commandline parameters into global "param_" vars
  * result: 0 = OK, 1 = error
  */
-void application_c::parse_commandline(int argc, char **argv) {
+void application_c::parse_commandline(int argc, char **argv) 
+{
     int res;
 
     // define commandline syntax
@@ -180,7 +183,8 @@ void application_c::parse_commandline(int argc, char **argv) {
                          "<decimal number>: Display number 0..15 on 4 binary LEDs.\n"
                          "\"debug\": LEDs not used, free for internal debugging.", "",
                          "", "", "");
-    // test options
+
+	// test options
 
     getopt_parser.define("t", "test", "iarg1,iarg2", "soptarg", "8 15",
                          "Tests the new c++ getop2.cpp\n"
@@ -212,7 +216,7 @@ void application_c::parse_commandline(int argc, char **argv) {
             // now iopageregisters_init() possible
 #endif
         } else if (getopt_parser.isoption("leds")) {
-            string s ;
+            std::string s ;
             // Option "debug" ?
             if (getopt_parser.arg_s("ledcode", s) < 0)
                 commandline_option_error(NULL);
@@ -228,15 +232,15 @@ void application_c::parse_commandline(int argc, char **argv) {
             }
         } else if (getopt_parser.isoption("test")) {
             int i1, i2;
-            string s;
+            std::string s;
             if (getopt_parser.arg_i("iarg1", &i1) < 0)
                 commandline_option_error(NULL);
             if (getopt_parser.arg_i("iarg2", &i2) < 0)
                 commandline_option_error(NULL);
-            cout << "iarg1=" << i1 << ", iarg2=" << i2;
+            std::cout << "iarg1=" << i1 << ", iarg2=" << i2;
             if (getopt_parser.arg_s("soptarg", s))
-                cout << ", soptarg=" << s;
-            cout << "\n";
+                std::cout << ", soptarg=" << s;
+            std::cout << "\n";
         }
         res = getopt_parser.next();
     }
@@ -249,7 +253,8 @@ void application_c::parse_commandline(int argc, char **argv) {
 
 // configure all hardware related subsystems:
 // PRU, shard memory, GPIOs
-void application_c::hardware_startup(enum pru_c::prucode_enum prucode_id) {
+void application_c::hardware_startup(enum pru_c::prucode_enum prucode_id) 
+{
     INFO("Connecting to PRU.");
     /* initialize the library, PRU and interrupt; launch our PRU program */
 
@@ -276,11 +281,13 @@ void application_c::hardware_startup(enum pru_c::prucode_enum prucode_id) {
 
 
 // disable all hardware related subsystems:
-void application_c::hardware_shutdown() {
+void application_c::hardware_shutdown() 
+{
     pru->stop();
 }
 
-int application_c::run(int argc, char *argv[]) {
+int application_c::run(int argc, char *argv[]) 
+{
     void error_clear(void);
 
     opt_linewidth = 80;
@@ -311,7 +318,7 @@ int application_c::run(int argc, char *argv[]) {
     inputline.init();
     if (!opt_cmdfilename.empty()) {
         // read commands from file
-        if (!inputline.openfile((char*) opt_cmdfilename.c_str())) {
+        if (!inputline.open_file((char*) opt_cmdfilename.c_str())) {
             printf("%s\n",
                    fileErrorText("Could not open command file \"%s\"",
                                  opt_cmdfilename.c_str()));
@@ -319,9 +326,9 @@ int application_c::run(int argc, char *argv[]) {
         }
     }
 
-    cout << version << "\n";
+    std::cout << version << "\n";
 
-    // Multiplex latches are intialized by PRU code after each code download
+    // Multiplex latches are initialized by PRU code after each code download
     INFO("Registering Non-PRU GPIO pins.");
     gpios->init();
     INFO("Disable DS8641 drivers.");
@@ -340,7 +347,8 @@ int application_c::run(int argc, char *argv[]) {
 
 /* construct all singletons in proper order
  */
-static void factory() {
+static void factory() 
+{
     // logger first, all logsource_c connect to it.
     logger = new logger_c();
 
@@ -363,8 +371,8 @@ static void factory() {
     app = new application_c();
 }
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[]) 
+{
     // flush stuff on stdin. (Eclipse remote debugging)
     while (os_kbhit())
         ;

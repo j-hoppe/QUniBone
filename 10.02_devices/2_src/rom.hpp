@@ -46,16 +46,16 @@ class rom_c: public logsource_c {
 private:
 
 public:
-	string name; // identifier for user
+	std::string name; // identifier for user
 
 	uint32_t baseaddress; // start of code in QBUS/UNIBUS address space
 	uint32_t wordcount; // length in 16 bit words
 
-	vector<uint16_t> cells; // data
+	std::vector<uint16_t> cells; // data
 
 	codelabel_map_c codelabels; // smybolic addresses
 
-	rom_c(string name, unsigned wordcount, uint32_t baseaddress);
+	rom_c(std::string name, unsigned wordcount, uint32_t baseaddress);
 
 	void fill(uint16_t value);
 

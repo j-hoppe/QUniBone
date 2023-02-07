@@ -26,8 +26,6 @@
 #ifndef _CPU_HPP_
 #define _CPU_HPP_
 
-using namespace std;
-
 #include "utils.hpp"
 #include "timeout.hpp"
 //#include "qunibusadapter.hpp"
@@ -49,14 +47,14 @@ public:
     uint16_t	data ;
     bool nxm ; // timeout, not existing memory
     qunibus_cycle_trace_entry_c() { }
-    qunibus_cycle_trace_entry_c(uint64_t id, bool iopage, unsigned address, uint8_t cycle, uint16_t data, bool nxm) {
-        this->id = id ;
+    qunibus_cycle_trace_entry_c(uint64_t _id, bool _iopage, unsigned _address, uint8_t _cycle, uint16_t _data, bool _nxm) {
+        id = _id ;
         this->timestamp_ns = timeout_c::abstime_ns() ;
-        this->iopage = iopage ;
-        this->address = address ;
-        this->cycle = cycle ;
-        this->data = data ;
-        this->nxm = nxm ;
+        iopage = _iopage ;
+        address = _address ;
+        cycle = _cycle ;
+        data = _data ;
+        nxm = _nxm ;
     }
 } ;
 
@@ -75,7 +73,8 @@ public:
     }
 
     // readout non-destructive. to clear, use "clearConsumer()"
-    void dump(std::ostream *stream) {
+    void dump(std::ostream *stream) 
+    {
         qunibus_cycle_trace_entry_c *cte ;
         char buffer[256] ;
         timeval now ;
@@ -93,18 +92,19 @@ public:
     }
 
 
-    void dump(std::string filepath) {
+    void dump(std::string filepath) 
+    {
         std::ofstream file_stream;
         file_stream.open(filepath, std::ofstream::out | std::ofstream::trunc);
         if (!file_stream.is_open()) {
-            cout << "Can not open log file \"" << filepath << "\"! Aborting!\n";
+            std::cout << "Can not open log file \"" << filepath << "\"! Aborting!\n";
             exit(2);
         }
         size_t fill = readAvailable() ;
         dump(&file_stream);
 
         file_stream.close();
-        cout << "Dumped " << fill << " messages to file \"" << filepath << "\".\n";
+        std::cout << "Dumped " << fill << " messages to file \"" << filepath << "\".\n";
     }
 } ;
 

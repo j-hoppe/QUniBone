@@ -16,6 +16,7 @@ PRU1_BASE_SRC_DIR= $(QUNIBONE_ROOT)/10.01_base/2_src/pru1_q
 PRU_DEPLOY_DIR=$(QUNIBONE_ROOT)/10.01_base/4_deploy_q
 BASE_SRC_DIR= $(QUNIBONE_ROOT)/10.01_base/2_src/arm
 DEVICE_SRC_DIR= $(QUNIBONE_ROOT)/10.02_devices/2_src
+SHAREDFILESYSTEM_SRC_DIR= $(QUNIBONE_ROOT)/10.02_devices/2_src/sharedfilesystem
 DEVEXER_SRC_DIR= $(QUNIBONE_ROOT)/10.04_device_exerciser/2_src
 
 # PRUSSDRV includes
@@ -30,9 +31,9 @@ LDFLAGS+= -static -lstdc++ -lpthread $(PRUSS_DRV_LIB)
 
 # compiler flags and libraries
 ifeq ($(MAKE_CONFIGURATION),RELEASE)
-	CC_DBG_FLAGS = -O3 -Wall -Wextra -DDBG
+	CC_DBG_FLAGS = -O3 -Wall -Wextra -Wshadow -DDBG
 else ifeq ($(MAKE_CONFIGURATION),DBG)
- 	CC_DBG_FLAGS = -ggdb3 -O0 -Wall -Wextra -DDBG
+ 	CC_DBG_FLAGS = -ggdb3 -O0 -Wall -Wextra -Wshadow -DDBG
 else
 	$(error Set MAKE_CONFIGURATION to RELEASE or DBG!)
 endif
@@ -52,6 +53,7 @@ endif
 
 CCFLAGS= \
 	-std=c++11     \
+	-fmax-errors=3     \
 	-I$(PRUSS_INCLUDE_DIR)	\
 	-I.	\
 	-I$(SHARED_SRC_DIR)	\
@@ -116,6 +118,13 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/storageimage.o	\
 	$(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
+	$(OBJDIR)/sharedfilesystem/storageimage_partition.o \
+	$(OBJDIR)/sharedfilesystem/storageimage_shared.o \
+	$(OBJDIR)/sharedfilesystem/filesystem_base.o \
+	$(OBJDIR)/sharedfilesystem/filesystem_host.o \
+	$(OBJDIR)/sharedfilesystem/filesystem_dec.o \
+	$(OBJDIR)/sharedfilesystem/filesystem_rt11.o \
+	$(OBJDIR)/sharedfilesystem/filesystem_xxdp.o \
     $(OBJDIR)/demo_io.o	\
     $(OBJDIR)/testcontroller.o	\
     $(OBJDIR)/device.o	\
@@ -126,6 +135,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/priorityrequest.o	\
 	$(OBJDIR)/qunibusadapter.o	\
 	$(OBJDIR)/qunibus.o	\
+	$(OBJDIR)/bytebuffer.o	\
 	$(OBJDIR)/gpios.o	\
 	$(OBJDIR)/buslatches.o	\
 	$(OBJDIR)/buslatches_q.o	\
@@ -160,7 +170,8 @@ all:	version $(OBJDIR)/$(PROG)
 pru:	$(PRU0_CODE_LIST) $(PRU1_CODE_LIST)
 
 clean:
-	rm -f $(OBJDIR)/$(PROG) $(OBJECTS) $(OBJDIR)/* $(PRU_DEPLOY_DIR)/*
+	rm -f $(OBJDIR)/$(PROG) $(OBJECTS) $(PRU_DEPLOY_DIR)/*
+	rm -rf $(OBJDIR)/*
 
 .PHONY: all pru clean
 
@@ -289,6 +300,37 @@ $(OBJDIR)/storagedrive.o :  $(DEVICE_SRC_DIR)/storagedrive.cpp $(DEVICE_SRC_DIR)
 $(OBJDIR)/storagecontroller.o :  $(DEVICE_SRC_DIR)/storagecontroller.cpp $(DEVICE_SRC_DIR)/storagecontroller.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
+$(OBJDIR)/sharedfilesystem/storageimage_partition.o :  $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_partition.cpp $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_partition.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/storageimage_shared.o :  $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.cpp $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+
+$(OBJDIR)/sharedfilesystem/filesystem_base.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/filesystem_host.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_host.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_host.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/filesystem_dec.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_dec.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_dec.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/filesystem_rt11.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_rt11.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_rt11.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/sharedfilesystem/filesystem_xxdp.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_xxdp.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_xxdp.hpp
+	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+
+
 $(OBJDIR)/demo_io.o :  $(DEVICE_SRC_DIR)/demo_io.cpp $(DEVICE_SRC_DIR)/demo_io.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
@@ -329,6 +371,9 @@ $(OBJDIR)/kbhit.o :  $(COMMON_SRC_DIR)/kbhit.c $(COMMON_SRC_DIR)/kbhit.h
 	$(CC) $(CCFLAGS) -xc++ $< -o $@
 
 $(OBJDIR)/bitcalc.o :  $(COMMON_SRC_DIR)/bitcalc.cpp $(COMMON_SRC_DIR)/bitcalc.h
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/bytebuffer.o :  $(BASE_SRC_DIR)/bytebuffer.cpp $(BASE_SRC_DIR)/bytebuffer.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/gpios.o :  $(BASE_SRC_DIR)/gpios.cpp $(BASE_SRC_DIR)/gpios.hpp

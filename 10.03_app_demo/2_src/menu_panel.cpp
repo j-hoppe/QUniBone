@@ -38,9 +38,10 @@
  * Test input and outputs on I2C connected MC23017s.
  * no active PRU needed
  * */
-void application_c::menu_panel(const char *menu_code) {
+void application_c::menu_panel(const char *menu_code) 
+{
 	mcout_t mcout; // Multi Column OUTput
-	bool show_help = true; // show cmds on first screen, then only on error or request
+	bool show_help = true ; // show cmds on first screen, then only on error or request
 	bool ready = false;
 	char *s_choice;
 	unsigned n_fields;
@@ -50,12 +51,11 @@ void application_c::menu_panel(const char *menu_code) {
   	printf("Start worker().\n");
 
 	while (!ready) {
-
 		// display all known controls
 		unsigned name_len = 0;
 		unsigned controlno;
 		// get max name len of all panel controls
-		for (vector<panelcontrol_c *>::iterator it = paneldriver->controls.begin();
+		for (std::vector<panelcontrol_c *>::iterator it = paneldriver->controls.begin();
 				it != paneldriver->controls.end(); ++it)
 			if ((*it)->full_name().length() > name_len)
 				name_len = (*it)->full_name().length();
@@ -70,7 +70,8 @@ void application_c::menu_panel(const char *menu_code) {
 		}
 		mcout_flush(&mcout, stdout, opt_linewidth, "  ||  ", /*first_col_then_row*/0);
 
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && !script_active()) {
 			show_help = false; // only once
 			// show all registers
 

@@ -109,7 +109,7 @@
 #include "getopt2.hpp"
 
 /*
- * first intialize, only once!
+ * first initialize, only once!
  * NO FREE() HERE !
  */
 
@@ -135,7 +135,7 @@ void getopt_c::init(bool _ignore_case) {
 }
 
 /* compare string with regard to "ignore_case*/
-int getopt_c::stringcmp(string s1, string s2) {
+int getopt_c::stringcmp(std::string s1, std::string s2) {
 	if (this->ignore_case)
 		return strcasecmp(s1.c_str(), s2.c_str());
 	else
@@ -147,10 +147,10 @@ int getopt_c::stringcmp(string s1, string s2) {
  if short/long optionname = NULL
  its the definition of the non-option commandline arguments
  */
-getopt_option_descr_c *getopt_c::define(string short_option_name, string long_option_name,
-		string fix_args_csv, string opt_args_csv, string default_args, string info,
-		string example_simple_cline, string example_simple_info, string example_complex_cline,
-		string example_complex_info) {
+getopt_option_descr_c *getopt_c::define(std::string short_option_name, std::string long_option_name,
+		std::string fix_args_csv, std::string opt_args_csv, std::string default_args, std::string info,
+		std::string example_simple_cline, std::string example_simple_info, std::string example_complex_cline,
+		std::string example_complex_info) {
 	getopt_option_descr_c *res;
 
 	if (short_option_name.empty() && long_option_name.empty()) {
@@ -186,14 +186,14 @@ getopt_option_descr_c *getopt_c::define(string short_option_name, string long_op
 	// separate names at commas
 	{
 		std::istringstream ss(fix_args_csv);
-		string token;
+		std::string token;
 		while (std::getline(ss, token, ','))
 			res->fix_args.push_back(token);
 		res->fix_arg_count = res->fix_args.size(); // obsolete
 	}
 	{
 		std::istringstream ss(opt_args_csv);
-		string token;
+		std::string token;
 		while (std::getline(ss, token, ','))
 			res->var_args.push_back(token);
 		res->max_arg_count = res->fix_args.size() + res->var_args.size(); // obsolete
@@ -206,7 +206,7 @@ getopt_option_descr_c *getopt_c::define(string short_option_name, string long_op
  is the last parsed option the one with short or longname "name" ?
  Use for switch-processing
  */
-bool getopt_c::isoption(string name) {
+bool getopt_c::isoption(std::string name) {
 	if (name.empty() && cur_option == &nonoption_descr)
 		return 1; // we're parsing the non-option args
 	if (!cur_option)
@@ -237,11 +237,11 @@ bool getopt_c::isoption(string name) {
  */
 
 // if clinearg is -name or --name or /name: return name, else NULL
-string get_dashed_option_name(string clinearg) {
+std::string get_dashed_option_name(std::string clinearg) {
 	if (clinearg.substr(0, 2) == "--")
-		return clinearg.substr(2, string::npos);
+		return clinearg.substr(2, std::string::npos);
 	else if (clinearg.substr(0, 1) == "-")
-		return clinearg.substr(1, string::npos);
+		return clinearg.substr(1, std::string::npos);
 #ifdef WIN32
 	else if ( clinearg.substr(0, 1) == "/")
 	return clinearg.substr(1, maxint);
@@ -251,7 +251,7 @@ string get_dashed_option_name(string clinearg) {
 }
 
 int getopt_c::parse_error(int error) {
-	stringstream ss;
+	std::stringstream ss;
 	curerror = error;
 	switch (error) {
 	case GETOPT_STATUS_ILLEGALOPTION:
@@ -278,9 +278,9 @@ int getopt_c::parse_error(int error) {
 	return error;
 }
 
-int getopt_c::arg_error(getopt_option_descr_c& odesc, int error, string& argname,
-		string argval) {
-	stringstream ss;
+int getopt_c::arg_error(getopt_option_descr_c& odesc, int error, std::string& argname,
+		std::string argval) {
+	std::stringstream ss;
 	curerror = error;
 	switch (error) {
 	case GETOPT_STATUS_ILLEGALARG:
@@ -304,7 +304,7 @@ int getopt_c::arg_error(getopt_option_descr_c& odesc, int error, string& argname
 }
 
 int getopt_c::next() {
-	string s, oname;
+	std::string s, oname;
 	int i;
 	int max_scan_arg_count;
 
@@ -317,7 +317,7 @@ int getopt_c::next() {
 
 	oname = get_dashed_option_name(s);
 	if (!oname.empty()) {
-		vector<getopt_option_descr_c>::iterator odesc;
+		std::vector<getopt_option_descr_c>::iterator odesc;
 		// odesc is an "-option": search options by name
 		cur_option = NULL;
 		for (odesc = option_descrs.begin(); odesc != option_descrs.end(); odesc++)
@@ -392,8 +392,8 @@ int getopt_c::first(int argc, char **argv) {
 	// so they are parsed first and overwritten later by actual values
 	{
 		// 1) build own cmdline
-		stringstream ss;
-		vector<getopt_option_descr_c>::iterator odesc;
+		std::stringstream ss;
+		std::vector<getopt_option_descr_c>::iterator odesc;
 		for (odesc = option_descrs.begin(); odesc != option_descrs.end(); odesc++)
 			if (!odesc->default_args.empty())
 				ss << "--" << odesc->long_name << " " << odesc->default_args << " ";
@@ -402,8 +402,8 @@ int getopt_c::first(int argc, char **argv) {
 
 	// 2) separate default cmdline buff into words and add to argv
 	{
-		stringstream ss(default_cmdline_buff);
-		string token;
+		std::stringstream ss(default_cmdline_buff);
+		std::string token;
 		while (ss >> token) {
 			cline_args.push_back(token);
 			cline_argcount++;
@@ -412,7 +412,7 @@ int getopt_c::first(int argc, char **argv) {
 
 	// 3) append user commandline tokens, so they are processed after defaults
 	for (i = 1; i < argc; i++) { // skip program name of
-		string arg(argv[i]); // convert char * to string
+		std::string arg(argv[i]); // convert char * to std::string
 		cline_args.push_back(arg);
 		cline_argcount++;
 	}
@@ -427,7 +427,7 @@ int getopt_c::first(int argc, char **argv) {
 // find argument position in list by name.
 // optargs[] are numbered behind fixargs[]
 // < 0: not found
-int getopt_c::optionargidx(getopt_option_descr_c& odesc, string& argname) {
+int getopt_c::optionargidx(getopt_option_descr_c& odesc, std::string& argname) {
 	unsigned i;
 	for (i = 0; i < odesc.fix_arg_count; i++)
 		if (!stringcmp(argname, odesc.fix_args[i]))
@@ -441,7 +441,7 @@ int getopt_c::optionargidx(getopt_option_descr_c& odesc, string& argname) {
 // argument of current option by name as string
 // Only to be used after first() or next()
 // result: < 0 = error, 0 = arg not set
-int getopt_c::arg_s(string argname, string& res) {
+int getopt_c::arg_s(std::string argname, std::string& res) {
 	int argidx;
 	if (cur_option == NULL)
 		return parse_error(GETOPT_STATUS_ILLEGALOPTION);
@@ -461,10 +461,10 @@ int getopt_c::arg_s(string argname, string& res) {
 
 // argument of current option by name as  integer, with optional prefixes "0x" or "0".
 // result: < 0 = error, 0 = arg not set
-int getopt_c::arg_i(string argname, int *val) {
+int getopt_c::arg_i(std::string argname, int *val) {
 	int res;
 	char *endptr;
-	string buff;
+	std::string buff;
 	res = arg_s(argname, buff);
 	if (res <= 0) // error or EOF
 		return res;
@@ -476,10 +476,10 @@ int getopt_c::arg_i(string argname, int *val) {
 
 // argument of current option by name as unsigned integer, with optional prefixes "0x" or "0".
 // result: < 0 = error, 0 = arg not set
-int getopt_c::arg_u(string argname, unsigned *val) {
+int getopt_c::arg_u(std::string argname, unsigned *val) {
 	int res;
 	char *endptr;
-	string buff;
+	std::string buff;
 	res = arg_s(argname, buff);
 	if (res <= 0) // error or EOF
 		return res;
@@ -491,10 +491,10 @@ int getopt_c::arg_u(string argname, unsigned *val) {
 
 // argument of current option by name as octal integer.
 // result: < 0 = error, 0 = arg not set
-int getopt_c::arg_o(string argname, int *val) {
+int getopt_c::arg_o(std::string argname, int *val) {
 	int res;
 	char *endptr;
-	string buff;
+	std::string buff;
 	res = arg_s(argname, buff);
 	if (res <= 0) // error or EOF
 		return res;
@@ -506,10 +506,10 @@ int getopt_c::arg_o(string argname, int *val) {
 
 // argument of current option by name as hex integer. No prefix "0x" allowed!
 // result: < 0 = error, 0 = arg not set
-int getopt_c::arg_h(string argname, int *val) {
+int getopt_c::arg_h(std::string argname, int *val) {
 	int res;
 	char *endptr;
-	string buff;
+	std::string buff;
 	res = arg_s(argname, buff);
 	if (res <= 0) // error or EOF
 		return res;
@@ -523,13 +523,13 @@ int getopt_c::arg_h(string argname, int *val) {
  * write the syntax and explanation out
  */
 
-// generate a string like "-option <arg1> <args> [<optarg>]"
+// generate a std::string like "-option <arg1> <args> [<optarg>]"
 // style 0: only --long_name, or (shortname)
 // style 1: "-short, --long .... "
-string getopt_c::getoptionsyntax(getopt_option_descr_c& odesc, int style)
+std::string getopt_c::getoptionsyntax(getopt_option_descr_c& odesc, int style)
 //	getopt_t *_this, getopt_option_descr_c *odesc)
 		{
-	stringstream buffer;
+	std::stringstream buffer;
 	unsigned i;
 
 	// mount a single "-option arg arg [arg arg]"
@@ -551,7 +551,7 @@ string getopt_c::getoptionsyntax(getopt_option_descr_c& odesc, int style)
 	}
 
 	{
-		vector<string>::iterator arg;
+		std::vector<std::string>::iterator arg;
 		for (arg = odesc.fix_args.begin(); arg != odesc.fix_args.end(); arg++)
 			buffer << " <" << *arg << ">";
 		i = 0;
@@ -568,15 +568,15 @@ string getopt_c::getoptionsyntax(getopt_option_descr_c& odesc, int style)
 	return buffer.str();
 }
 
-getopt_printer_c::getopt_printer_c(ostream& stream, unsigned linelen, unsigned indent) {
-	this->stream = &stream;
-	this->linelen = linelen;
-	this->indent = indent;
+getopt_printer_c::getopt_printer_c(std::ostream& _stream, unsigned _linelen, unsigned _indent) {
+	stream = &_stream;
+	linelen = _linelen;
+	indent = _indent;
 }
 
-// add as string to outline. if overflow, flush and continue with indent
+// add as std::string to outline. if overflow, flush and continue with indent
 // "stream": must be defined in call context
-void getopt_printer_c::append(string s, bool linebreak) {
+void getopt_printer_c::append(std::string s, bool linebreak) {
 	if (linebreak || (curline.length() > indent && (curline.length() + s.length()) > linelen)) {
 		// prevent the indent from prev line to be accounted for another line break
 		*stream << curline << "\n";
@@ -586,11 +586,11 @@ void getopt_printer_c::append(string s, bool linebreak) {
 	curline.append(s);
 }
 
-/* print a multine string separated by \n, with indent and line break
+/* print a multine std::string separated by \n, with indent and line break
  * linebuff may already contain some text */
-void getopt_printer_c::append_multilinestring(string text) {
+void getopt_printer_c::append_multilinestring(std::string text) {
 	std::istringstream ss(text);
-	string line;
+	std::string line;
 	unsigned i = 0;
 	// split multi lines into string at \n.
 	while (std::getline(ss, line, '\n')) {
@@ -604,10 +604,10 @@ void getopt_printer_c::flush() {
 	curline.clear();
 }
 
-void getopt_c::help_option_intern(getopt_option_descr_c& odesc, ostream& stream,
+void getopt_c::help_option_intern(getopt_option_descr_c& odesc, std::ostream& stream,
 		unsigned linelen, unsigned indent) {
 	getopt_printer_c printer(stream, linelen, indent);
-	string phrase;
+	std::string phrase;
 
 	// print syntax
 	phrase = getoptionsyntax(odesc, 1);
@@ -660,10 +660,10 @@ void getopt_c::help_option_intern(getopt_option_descr_c& odesc, ostream& stream,
 }
 
 // print cmdline syntax and help for all options
-void getopt_c::help(ostream& stream, unsigned linelen, unsigned indent, string commandname) {
+void getopt_c::help(std::ostream& stream, unsigned linelen, unsigned indent, std::string commandname) {
 	getopt_printer_c printer(stream, linelen, indent);
-	stringstream ss;
-	vector<getopt_option_descr_c>::iterator odesc;
+	std::stringstream ss;
+	std::vector<getopt_option_descr_c>::iterator odesc;
 	/*
 	 unsigned i;
 	 char linebuff[2 * GETOPT_MAX_LINELEN];
@@ -703,7 +703,7 @@ void getopt_c::help(ostream& stream, unsigned linelen, unsigned indent, string c
 }
 
 // display evaluated commandline (defaults and user)
-void getopt_c::help_commandline(ostream& stream, unsigned linelen, unsigned indent) {
+void getopt_c::help_commandline(std::ostream& stream, unsigned linelen, unsigned indent) {
 	// use printer for automatic linebreaks
 	getopt_printer_c printer(stream, linelen, indent);
 	unsigned i;
@@ -719,7 +719,7 @@ void getopt_c::help_commandline(ostream& stream, unsigned linelen, unsigned inde
 }
 
 // print help for current option
-void getopt_c::help_option(ostream& stream, unsigned linelen, unsigned indent) {
+void getopt_c::help_option(std::ostream& stream, unsigned linelen, unsigned indent) {
 	if (cur_option)
 		help_option_intern(*cur_option, stream, linelen, indent);
 }

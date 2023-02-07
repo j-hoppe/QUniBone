@@ -49,9 +49,10 @@
 
 #include "devexer_rl.hpp"
 
-void application_c::menu_device_exercisers(const char *menu_code) {
+void application_c::menu_device_exercisers(const char *menu_code) 
+{
 	bool ready = false;
-	bool show_help = true;
+	bool show_help = true ;
 	bool memory_installed = false;
 	devexer::devexer_c *cur_exerciser = NULL;
 	unsigned n_fields;
@@ -62,6 +63,11 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 	// QBUS/UNIBUS activity
 	hardware_startup(pru_c::PRUCODE_EMULATION);
 	buslatches.output_enable(true);
+
+    qunibus->set_cpu_bus_activity(0); // QBUS: even HALTed CPU does ODT traffic, stop it
+
+	// Neither emulated nor physical CPU:
+	// PRU must grant all DMA requests immediately
 	qunibus->set_arbitrator_active(false) ;
 
 	// instantiate different device exercisers
@@ -72,12 +78,19 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 
 	cur_exerciser = NULL;
 
+    // PRUCODE_UNIBUS can raise events (INIT,ACLO,DCLO)
+    // handle & clear these
+    qunibusadapter->enabled.set(true);
+	
 	while (!ready) {
+        // sync pagetable
+        ddrmem->set_range(emulated_memory_start_addr, emulated_memory_end_addr);
 
-		if (show_help) {
+		// no menu display when reading script
+		if (show_help && !script_active()) {
 			show_help = false; // only once
 			printf("\n");
-			printf("*** Exercise (= work with) installed " QUNIBUS_NAME " decives.\n");
+			printf("*** Exercise (= work with) installed " QUNIBUS_NAME " devices.\n");
 			print_arbitration_info("    ");
 			if (cur_exerciser) {
 				printf("    Current device is \"%s\" @ %s\n",
@@ -90,7 +103,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 			} else
 				printf("    NO " QUNIBUS_NAME " memory installed ... device test limited!\n");
 			printf("\n");
-			printf("m i              Install (emulate) max " QUNIBUS_NAME " memory\n");
+			printf("m i                  Install (emulate) max " QUNIBUS_NAME " memory\n");
 			if (memory_installed) {
 				printf("m f [word]       Fill " QUNIBUS_NAME " memory (with 0 or other octal value)\n");
 				printf("m d              Dump " QUNIBUS_NAME " memory to disk\n");
@@ -188,13 +201,13 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 					membuffer->save_binary(filename, end_addr + 2);
 				}
 			} else if (!strcasecmp(s_opcode, "le") && n_fields == 1) {
-				list<devexer::devexer_c *>::iterator it;
-				cout << "Registered exercisers:\n";
+				std::list<devexer::devexer_c *>::iterator it;
+				std::cout << "Registered exercisers:\n";
 				for (it = devexer::devexer_c::myexercisers.begin();
 						it != devexer::devexer_c::myexercisers.end(); ++it)
-					cout << "- " << (*it)->name.value << "\n";
+					std::cout << "- " << (*it)->name.value << "\n";
 			} else if (!strcasecmp(s_opcode, "se") && n_fields == 2) {
-				list<devexer::devexer_c *>::iterator it;
+				std::list<devexer::devexer_c *>::iterator it;
 				bool found = false;
 				for (it = devexer::devexer_c::myexercisers.begin();
 						it != devexer::devexer_c::myexercisers.end(); ++it)
@@ -203,7 +216,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 						cur_exerciser = *it;
 					}
 				if (!found)
-					cout << "Exerciser \"" << s_param[0] << "\" not found.\n";
+					std::cout << "Exerciser \"" << s_param[0] << "\" not found.\n";
 				else {
 					printf("Current exerciser is \"%s\" @ %s\n",
 							cur_exerciser->name.value.c_str(), qunibus->addr2text(cur_exerciser->base_addr.value));
@@ -211,25 +224,25 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 					show_help = true;
 				}
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 1) {
-				cout << "Parameters of device " << cur_exerciser->name.value << ":\n";
+				std::cout << "Parameters of device " << cur_exerciser->name.value << ":\n";
 				print_params(cur_exerciser, NULL);
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 2) {
 				// show selected
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_exerciser->param_by_name(pn);
 				if (p == NULL)
-					cout << "Exerciser \"" << cur_exerciser->name.value
+					std::cout << "Exerciser \"" << cur_exerciser->name.value
 							<< "\" has no parameter \"" << pn << "\".\n";
 				else
 					print_params(cur_exerciser, p);
 			} else if (cur_exerciser && !strcasecmp(s_opcode, "p") && n_fields == 3) {
-				string pn(s_param[0]);
+				std::string pn(s_param[0]);
 				parameter_c *p = cur_exerciser->param_by_name(pn);
 				if (p == NULL)
-					cout << "Exerciser \"" << cur_exerciser->name.value
+					std::cout << "Exerciser \"" << cur_exerciser->name.value
 							<< "\" has no parameter \"" << pn << "\".\n";
 				else {
-					string sval(s_param[1]);
+					std::string sval(s_param[1]);
 					p->parse(sval);
 					print_params(cur_exerciser, p);
 				}
@@ -238,6 +251,9 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				uint16_t wordbuffer;
 				// interpret as 18 bit address
 				qunibus->parse_addr(s_param[0], &addr);
+if (addr < 020)
+	addr += 0774400 ;
+				
 				qunibus->parse_word(s_param[1], &wordbuffer);
 				bool timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATO, addr,
 						&wordbuffer, 1);
@@ -250,6 +266,8 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				uint32_t addr;
 				if (n_fields == 2) { // single reg number given
 					qunibus->parse_addr(s_param[0], &addr); 	// interpret as 18 bit address
+if (addr < 020)
+	addr += 0774400 ;					
 					timeout = !qunibus->dma(true, QUNIBUS_CYCLE_DATI, addr,
 							&wordbuffer, 1);
 					printf("EXAM %s -> %06o\n", qunibus->addr2text(addr), wordbuffer);
@@ -263,7 +281,7 @@ void application_c::menu_device_exercisers(const char *menu_code) {
 				show_help = true;
 			}
 		} catch (bad_parameter& e) {
-			cout << "Error : " << e.what() << "\n";
+			std::cout << "Error : " << e.what() << "\n";
 		}
 	} // ready
 

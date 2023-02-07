@@ -62,16 +62,18 @@ static cpu_c *unibone_cpu = NULL;
 
 // route "trace()" to unibone_cpu->logger
 void unibone_log(unsigned msglevel, const char *srcfilename, unsigned srcline, const char *fmt,
-                 ...) {
+                 ...) 
+{
     va_list arg_ptr;
     va_start(arg_ptr, fmt);
     //vprintf(fmt, arg_ptr) ;
     //va_end(arg_ptr); va_start(arg_ptr, fmt);
-    logger->vlog(unibone_cpu, msglevel, srcfilename, srcline, fmt, arg_ptr);
+    logger->vlog(unibone_cpu, msglevel, /*late_evaluation*/true, srcfilename, srcline, fmt, arg_ptr);
     va_end(arg_ptr);
 }
 
-void unibone_logdump(void) {
+void unibone_logdump(void) 
+{
 //	logger->dump(logger->default_filepath);
     logger->dump(); // stdout
 }
@@ -79,7 +81,8 @@ void unibone_logdump(void) {
 // called before opcode fetch of next instruction
 // This is the point in time were INTR requests are checked and GRANTed
 // (PRU implementation may limit NPR GRANTs also to this time)
-void unibone_grant_interrupts(void) {
+void unibone_grant_interrupts(void) 
+{
     // after that the CPU should check for received INTR vectors
     // in its microcode service() step.c
     // allow PRU do to produce GRANT for device requests
@@ -104,7 +107,8 @@ void unibone_grant_interrupts(void) {
 #define UNIBUS_ACCESS_NS	1000
 // "real world" time for bus access. emulated timeout is stepped by this on every cycle.
 
-int unibone_dato(unsigned addr, unsigned data) {
+int unibone_dato(unsigned addr, unsigned data) 
+{
     bool success ;
 
     unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
@@ -131,7 +135,8 @@ int unibone_dato(unsigned addr, unsigned data) {
     return success;
 }
 
-int unibone_datob(unsigned addr, unsigned data) {
+int unibone_datob(unsigned addr, unsigned data) 
+{
     bool success ;
     unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATO) ; // register access for trigger system
     the_flexi_timeout_controller->emu_step_ns(UNIBUS_ACCESS_NS);
@@ -166,7 +171,8 @@ int unibone_datob(unsigned addr, unsigned data) {
     return success;
 }
 
-int unibone_dati(unsigned addr, unsigned *data) {
+int unibone_dati(unsigned addr, unsigned *data) 
+ {
     bool success ;
     uint16_t w;
     unibone_cpu->trigger.probe(addr, QUNIBUS_CYCLE_DATI) ; // register access for trigger system
@@ -203,23 +209,27 @@ int unibone_dati(unsigned addr, unsigned *data) {
 // if this is called as result of INTR fector PC and PSW fetch,
 // mailbox->arbitrator.cpu_priority_level was CPU_PRIORITY_LEVEL_FETCHING
 // In that case, PRU is allowed now to grant BGs again.
-void unibone_prioritylevelchange(uint8_t level) {
+void unibone_prioritylevelchange(uint8_t level) 
+{
     mailbox->arbitrator.ifs_priority_level = level;
 }
 
 // CPU executes RESET opcode -> pulses INIT line
-void unibone_bus_init() {
+void unibone_bus_init() 
+{
     qunibus->init();
 }
 
 
 // selective tracing of EXEC cycles
-bool unibone_trace_enabled() {
+bool unibone_trace_enabled() 
+{
     return unibone_cpu->tracer.enabled ;
 }
 
 // shell and address be traced?
-bool unibone_trace_addr(uint16_t a) {
+bool unibone_trace_addr(uint16_t a) 
+{
     return !unibone_cpu->tracer.enabled || unibone_cpu->tracer.addr[a] ;
 }
 
@@ -261,7 +271,8 @@ cpu_c::cpu_c() :
     unibone_cpu = this;	// Singleton
 }
 
-cpu_c::~cpu_c() {
+cpu_c::~cpu_c() 
+{
     // restore
     the_flexi_timeout_controller->set_mode(flexi_timeout_c::world_time);
     unibone_cpu = NULL;
@@ -269,7 +280,8 @@ cpu_c::~cpu_c() {
 
 // called when "enabled" goes true, before registers plugged to UNIBUS
 // result false: configuration error, do not install
-bool cpu_c::on_before_install(void) {
+bool cpu_c::on_before_install(void) 
+{
     halt_switch.value = false;
 // all other switches parsed synchronically in worker()
     start_switch.value = false;
@@ -279,7 +291,8 @@ bool cpu_c::on_before_install(void) {
     return true;
 }
 
-void cpu_c::on_after_uninstall(void) {
+void cpu_c::on_after_uninstall(void) 
+{
 // all other switches parsed synchronically in worker()
     start_switch.value = false;
     halt_switch.value = true;
@@ -287,7 +300,8 @@ void cpu_c::on_after_uninstall(void) {
     stop(NULL, show_none);
 }
 
-bool cpu_c::on_param_changed(parameter_c *param) {
+bool cpu_c::on_param_changed(parameter_c *param) 
+{
     if (param == &direct_memory) {
         // speed feedback, as measured
         // see cpu_c() also
@@ -299,8 +313,8 @@ bool cpu_c::on_param_changed(parameter_c *param) {
 }
 
 // start CPU logic on PRU and switch arbitration mode
-void cpu_c::start() {
-
+void cpu_c::start() 
+{
 // stop on an ZRXB test before error output starts, to watch CPU trace
     trigger.conditions_clear() ;
     /* Earlier use cases left as example: *
@@ -313,7 +327,8 @@ void cpu_c::start() {
 //trigger.condition_add(trigger_condition_c(0034500, TRIGGER_DATI)) ; // ZRXF, test 36 end
 //trigger.condition_add(trigger_condition_c(0010560, TRIGGER_DATI)) ; // for mov wc,rxdb
 //trigger.print(stdout) ;
-    /*
+*/
+#ifdef ENABLE_TRIGGERS
     	// code flow tracing: only trace EXEC in this range, when trace_exec_addr_from > 0
     //	tracer.enable(0177170,0177173) ; // RX01/02
     	tracer.enable(026276,026400) ; // ZRXF main level of test 17
@@ -321,7 +336,7 @@ void cpu_c::start() {
     	tracer.enable(010626,010742) ; // ZRXF EMPBUF subr
     	tracer.enable(011610,011632) ; // ZRXF WAIT
     //	tracer.enable(012032,012106) ; // ZRXF AWDN wait for done
-    /**/
+#endif
 
     runmode.value = true;
     mailbox->param = 1;
@@ -342,8 +357,8 @@ void cpu_c::start() {
 }
 
 // stop CPU logic on PRU and switch arbitration mode
-void cpu_c::stop(const char * info, int show_options) {
-
+void cpu_c::stop(const char * info, int show_options) 
+{
     // time base of all device emulators now based on "real world" time
     the_flexi_timeout_controller->set_mode(flexi_timeout_c::world_time);
 
@@ -370,7 +385,7 @@ void cpu_c::stop(const char * info, int show_options) {
 	}
 	if (show_options & show_state) {
 		ka11_printstate(&ka11) ;
-		ka11_tracestate(&ka11) ; // DEBUG log
+		ka11_tracestate(&ka11) ; // DEBUG_FAST log
 	}
 	if ((show_options & show_cycletrace) && !cycle_tracefilepath.value.empty()) {
 		cycle_trace_buffer.dump(cycle_tracefilepath.value) ;
@@ -380,7 +395,8 @@ void cpu_c::stop(const char * info, int show_options) {
 
 // background worker.
 // Started/stopped on param "enable"
-void cpu_c::worker(unsigned instance) {
+void cpu_c::worker(unsigned instance) 
+{
     UNUSED(instance); // only one
     timeout_c timeout;
 // bool nxm;
@@ -454,7 +470,7 @@ void cpu_c::worker(unsigned instance) {
         // serialize asynchronous power events
         // ACLO inactive & no HALT: reboot
         // ACLO inactive & HALT: boot on CONT
-//if (power_event)	DEBUG("power_event=%d", power_event) ;
+//if (power_event)	DEBUG_FAST("power_event=%d", power_event) ;
         // ACLO: power fail trap, if running.
         if (runmode.value && power_event_ACLO_active) {
             ka11_pwrfail_trap(&unibone_cpu->ka11);
@@ -505,7 +521,8 @@ void cpu_c::worker(unsigned instance) {
 // UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void cpu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-                                     uint8_t unibus_control) {
+                                     uint8_t unibus_control) 
+ {
 // nothing todo
     UNUSED(device_reg);
     UNUSED(unibus_control);

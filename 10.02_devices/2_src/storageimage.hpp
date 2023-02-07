@@ -33,54 +33,116 @@
 #ifndef _STORAGEIMAGE_HPP_
 #define _STORAGEIMAGE_HPP_
 
-using namespace std;
-
 #include <stdint.h>
 #include <string>
+#include <fstream>
+#include "logsource.hpp"
+#include "bytebuffer.hpp"
+
+class storagedrive_c ;
 
 // generic interface to emulated drive
 // storage is accessed as stream of bytes
-class storageimage_c {
+class storageimage_base_c: public logsource_c  {
 public:
-    // interface
-	storageimage_c()  { }
-	virtual ~storageimage_c()  { }
+	storagedrive_c	*drive ; // uplink to drive managing this image
+    // pure interface
+    virtual ~storageimage_base_c() {} ; // google for "abstract destructor" for fun
     virtual bool is_readonly() = 0 ;
-    virtual bool open(std::string imagefname, bool create) = 0;
+    virtual bool open(storagedrive_c *drive, bool create) = 0;
     virtual bool is_open(	void)= 0;
     virtual bool truncate(void)= 0 ;
     virtual void read(uint8_t *buffer, uint64_t position, unsigned len)=0;
     virtual void write(uint8_t *buffer, uint64_t position, unsigned len)= 0;
+    virtual void set_zero(uint64_t position, unsigned len) ;
+    virtual bool is_zero(uint64_t position, unsigned len) ;
+
     virtual uint64_t size(void)= 0;
     virtual void close(void)= 0;
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) = 0;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset)= 0 ;
+
+    //	bool image_load_from_disk(string host_filename, 		bool allowcreate, bool *filecreated) ;
+    virtual void save_to_file(std::string host_filename) = 0 ; // make a snapshot
+
 } ;
 
 
 
-// a monolitic binary file containing the byte stream, SimH compatible
-#include <fstream>
-#include "logsource.hpp"
-
-class storageimage_binfile_c: public storageimage_c, public logsource_c {
+// a monolitic binary disk file containing the byte stream, SimH compatible
+class storageimage_binfile_c: public storageimage_base_c {
 private:
     bool readonly ;
-    fstream f; // image file
+    std::fstream f; // image file
     std::string image_fname ;
 
 public:
-    virtual bool is_readonly() {
+    storageimage_binfile_c(std::string _image_fname) {
+        image_fname = _image_fname ;
+    }
+
+    // nothing to free
+    virtual ~storageimage_binfile_c() override {
+        // handle recreation via param change with open images
+        close() ;
+    }
+
+    virtual bool is_readonly() override {
         return readonly ;
     }
-    virtual bool open(std::string imagefname, bool create) ;
-    virtual bool is_open(	void) ;
-    virtual bool truncate(void) ;
-    virtual void read(uint8_t *buffer, uint64_t position, unsigned len) ;
-    virtual void write(uint8_t *buffer, uint64_t position, unsigned len) ;
-    virtual uint64_t size(void) ;
-    virtual void close(void) ;
+    virtual bool open(storagedrive_c *drive, bool create) override;
+    virtual bool is_open(	void) override;
+    virtual bool truncate(void) override;
+    virtual void read(uint8_t *buffer, uint64_t position, unsigned len) override;
+    virtual void write(uint8_t *buffer, uint64_t position, unsigned len) override;
+    virtual uint64_t size(void) override;
+    virtual void close(void) override;
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ;
+    virtual void save_to_file(std::string host_filename) override ;
+
 
 } ;
 
+// in-memory version of disk image file
+class storageimage_memory_c: public storageimage_base_c {
+private:
+    bool readonly ;
+    std::fstream f; // image file
+    // std::string image_fname ;
+    uint8_t 	*data ; // the disk image content
+    uint64_t	data_size ;
+    bool opened ; // between open() and close()
+
+public:
+    storageimage_memory_c(unsigned _capacity) {
+        opened = false;
+        data = nullptr ;
+        data_size = _capacity ;
+    }
+
+    // nothing to free
+    virtual ~storageimage_memory_c() override {
+        close() ;
+    }
+
+    virtual bool is_readonly() override {
+        return readonly ;
+    }
+    virtual bool open(storagedrive_c *drive, bool create) override;
+    virtual bool is_open(	void) override;
+    virtual bool truncate(void) override;
+    virtual void read(uint8_t *buffer, uint64_t position, unsigned len) override;
+    virtual void write(uint8_t *buffer, uint64_t position, unsigned len) override;
+    virtual uint64_t size(void) override;
+    virtual void close(void) override;
+    virtual void get_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset, uint32_t data_size) override;
+    virtual void set_bytes(byte_buffer_c *byte_buffer, uint64_t byte_offset) override ;
+    bool load_from_file(std::string _host_filename,  	 bool allowcreate, bool *result_file_created);
+    void save_to_file(std::string _host_filename) override ;
+
+
+} ;
 
 #endif
 
