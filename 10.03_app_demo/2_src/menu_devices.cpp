@@ -51,6 +51,7 @@
 #include "panel.hpp"
 #include "demo_io.hpp"
 #include "testcontroller.hpp"
+#include "rf11.hpp"
 #include "rl11.hpp"
 #include "rk11.hpp"
 #include "rx11211.hpp"
@@ -165,6 +166,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 #if defined(UNIBUS)
 	cpu_c *cpu = NULL;
 #endif
+        // create RF11 + RS11 drive
+        rf11_c *RF11 = new rf11_c();
+
 	// create RL11 +  also 4 RL01/02 drives
 #if defined(UNIBUS)
 	RL11_c *RL11 = new RL11_c();
@@ -625,6 +629,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
 	delete LTC;
 	DL11->enabled.set(false);
 	delete DL11;
+     
+        RF11->enabled.set(false);
+        delete RF11;
 
 	RL11->enabled.set(false);
 	delete RL11;
