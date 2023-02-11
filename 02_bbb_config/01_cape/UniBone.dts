@@ -53,6 +53,8 @@
          "P9.11",  // GPIO0_30: QBone activity LED
          "P9.12",  // GPIO1_28: I2C panel reset
 
+         "P8.9",    // GPIO2_5: Timer5 output
+
          // ip used
          "pru0", "pru1",
          "uart1", "uart2"  // UARTs necessary here?
@@ -97,6 +99,9 @@
                0x070 0x07 // LED output on P9.11: gpio0_30, pulldown, mode=7
                 // I2C panel reset
                0x078 0x17 // I2C panel reset on P9.12: gpio1_28, pullup, mode=7
+
+                // 50/60Hz generation on timer 5
+               0x09c  0x02 // Timer5 output on P8.09, pulldown, mode=2
 
             >;
          };

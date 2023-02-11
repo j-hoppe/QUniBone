@@ -51,15 +51,15 @@
 class codelabel_map_c: public std::map<std::string, unsigned> {
 public:
 	// clear()
-	void add(string label, unsigned address) {
+	void add(std::string label, unsigned address) {
 		insert(std::make_pair(label, address));
 	}
 
-	bool is_defined(string label) {
+	bool is_defined(std::string label) {
 		return count(label) > 0;
 	}
 
-	unsigned get_address(string label) {
+	unsigned get_address(std::string label) {
 		return at(label);
 	}
 

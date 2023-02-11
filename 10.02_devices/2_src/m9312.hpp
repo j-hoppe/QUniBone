@@ -27,8 +27,6 @@
 #ifndef _M9312_HPP_
 #define _M9312_HPP_
 
-using namespace std;
-
 #include "utils.hpp"
 #include "qunibusdevice.hpp"
 #include "memoryimage.hpp"

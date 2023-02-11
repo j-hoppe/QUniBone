@@ -272,7 +272,8 @@ buslatches_wire_info_t buslatches_wire_info[] = { //
 // register signals to standard
 // all outputs to standard:
 // init state
-void buslatches_c::setup() {
+void buslatches_c::setup() 
+{
 	// CPLD registers are all 8bit width, but not all input/outputs are
 	// connected to bidirectional terminated QBUS lines.
 	// see CPLD1+2 design!

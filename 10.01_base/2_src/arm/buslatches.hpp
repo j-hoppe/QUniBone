@@ -64,11 +64,11 @@ public:
 	bool read_inverted; // true:  read back inverted with respect to write levels
 	unsigned cur_reg_val; // content of output latches
 
-	buslatch_c(unsigned addr, unsigned bitmask) {
+	buslatch_c(unsigned _addr, unsigned _bitmask) {
 		// create with defaults
-		this->addr = addr;
-		this->bitmask = this->rw_bitmask = bitmask;
-		this->read_inverted = false;
+		addr = _addr;
+		bitmask = rw_bitmask = _bitmask;
+		read_inverted = false;
 	}
 	// PRU handles special DAL/ADDR demux logic
 	void setval(unsigned bitmask, unsigned val);

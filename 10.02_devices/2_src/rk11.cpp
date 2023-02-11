@@ -18,9 +18,7 @@
 #include "rk11.hpp"   
 #include "rk05.hpp"
 
-rk11_c::rk11_c() :
-    storagecontroller_c(),
-    _new_command_ready(false)
+rk11_c::rk11_c() :     storagecontroller_c(),  _new_command_ready(false)
 {
     // static config
     name.value = "rk";
@@ -119,7 +117,8 @@ rk11_c::~rk11_c()
 }
 
 // RLV11 is only 18 bit capable, and has an (unimplementedd) maintenance mode.
-rkv11_c::rkv11_c(): rk11_c() {
+rkv11_c::rkv11_c(): rk11_c() 
+{
 	is_rkv11 = true ;
 
     type_name.value = "RKV11";
@@ -132,7 +131,8 @@ rkv11_c::rkv11_c(): rk11_c() {
 
 // return false, if illegal parameter value.
 // verify "new_value", must output error messages
-bool rk11_c::on_param_changed(parameter_c *param) {
+bool rk11_c::on_param_changed(parameter_c *param) 
+{
 	// no own parameter or "enable" logic
 	if (param == &priority_slot) {
 		dma_request.set_priority_slot(priority_slot.new_value);
@@ -301,7 +301,7 @@ void rk11_c::worker(unsigned instance)
                                 // this one ASAP.
                                 if (_new_command_ready)
                                 {
-                                    DEBUG("Command canceled.");
+                                    DEBUG_FAST("Command canceled.");
                                     abort = true;
                                     continue;
                                 }
@@ -367,7 +367,7 @@ void rk11_c::worker(unsigned instance)
                                 DMARequest request = { 0 };
                                 request.address = current_address; 
                                 request.count = (!read_format) ? 
-                                    min(static_cast<int16_t>(256) , current_count) : 
+                                    std::min(static_cast<int16_t>(256) , current_count) : 
                                     1;
                                 request.write = !(write || write_check);  // Inverted sense from disk action
                                 request.timeout = false;
@@ -466,7 +466,7 @@ void rk11_c::worker(unsigned instance)
                             }
 
                             // timeout.wait_us(100);
-                            DEBUG("R/W: Complete.");
+                            DEBUG_FAST("R/W: Complete.");
                             _worker_state = Worker_Finish;
                         }
                         break;

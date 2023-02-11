@@ -52,23 +52,26 @@
 // uses global memory buffer "membuffer"
 
 // size if ROM in 16bit words
-rom_c::rom_c(string name, unsigned wordcount, uint32_t baseaddress) {
+rom_c::rom_c(std::string _name, unsigned _wordcount, uint32_t _baseaddress) 
+{
 	log_label = "ROM";
 
-	this->name = name;
-	this->wordcount = wordcount;
-	this->baseaddress = baseaddress;
-	cells.reserve(wordcount);
+	name = _name;
+	wordcount = _wordcount;
+	baseaddress = _baseaddress;
+	cells.reserve(_wordcount);
 }
 
 // fill ROM with pattern
-void rom_c::fill(uint16_t value) {
+void rom_c::fill(uint16_t value) 
+{
 	for (unsigned i = 0; i < wordcount; i++)
 		cells[i] = value;
 	codelabels.clear() ; // no code in ROM now
 }
 
-bool rom_c::load_macro11_listing(const char *fname) {
+bool rom_c::load_macro11_listing(const char *fname) 
+{
 	bool load_ok;
 	uint32_t lastaddr;
 
@@ -102,7 +105,8 @@ bool rom_c::load_macro11_listing(const char *fname) {
 	return load_ok;
 }
 
-void rom_c::dump(FILE *f) {
+void rom_c::dump(FILE *f) 
+{
 	unsigned addr;
 	fprintf(f, "Data of ROM \"%s\", baseaddress=%s, wordcount=%u:\n", name.c_str(),
 			qunibus->addr2text(baseaddress), wordcount);
@@ -112,7 +116,8 @@ void rom_c::dump(FILE *f) {
 }
 
 // get a cell, or exception
-uint16_t rom_c::get_data(uint32_t addr) {
+uint16_t rom_c::get_data(uint32_t addr) 
+{
 	if (addr < baseaddress || (addr >= baseaddress + 2 * wordcount)) {
 		ERROR("get_data(): illegal address %s", qunibus->addr2text(addr));
 		return 0;
@@ -121,7 +126,8 @@ uint16_t rom_c::get_data(uint32_t addr) {
 }
 
 // set a cell
-void rom_c::set_data(uint32_t addr, uint16_t value) {
+void rom_c::set_data(uint32_t addr, uint16_t value) 
+{
 	if (addr < baseaddress || (addr >= baseaddress + 2 * wordcount)) {
 		ERROR("set_data(): illegal address %s", qunibus->addr2text(addr));
 		return;
@@ -131,7 +137,8 @@ void rom_c::set_data(uint32_t addr, uint16_t value) {
 
 // move base address, correct code label map
 // must not be installed on QBUS/UNIBUS !
-void rom_c::relocate(uint32_t new_base_addr) {
+void rom_c::relocate(uint32_t new_base_addr) 
+{
 	if (new_base_addr + 2 * wordcount > qunibus->addr_space_byte_count) {
 		ERROR("Relocation to %s would exceed addressrange at %06o", qunibus->addr2text(new_base_addr), qunibus->addr_space_byte_count);
 		return;
@@ -143,11 +150,12 @@ void rom_c::relocate(uint32_t new_base_addr) {
 }
 
 // implemement on QBUS/UNIBUS
-void rom_c::install(void) {
+void rom_c::install(void) 
+{
 	// check whether all cells are in IOpage
 
 	// register onto QBUS/UNIBUS IOpage
-	// if a IOpage address is already marked as "devcie register"
+	// if a IOpage address is already marked as "device register"
 	// that address is silently NOT defined to be a ROM
 	// so ROM ranges may be superseded with registers 
 	// (M9312, 773024/26)
@@ -163,7 +171,8 @@ void rom_c::install(void) {
 }
 
 // remove from QBUS/UNIBUS
-void rom_c::uninstall(void) {
+void rom_c::uninstall(void) 
+{
 	for (unsigned i = 0; i < wordcount; i++) {
 		uint32_t addr = baseaddress + 2 * i;
 		qunibusadapter->unregister_rom(addr);

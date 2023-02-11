@@ -11,8 +11,6 @@
 #include <fstream>
 #include <cstdint>
 
-using namespace std;
-
 #include "utils.hpp"
 #include "qunibusadapter.hpp"
 #include "qunibusdevice.hpp"

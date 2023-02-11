@@ -61,7 +61,7 @@ private:
 	priority_request_level_c request_levels[PRIORITY_LEVEL_COUNT];
 
 	// access of master CPU to memory not handled via priority arbitration
-	dma_request_c 	*cpu_data_transfer_request ; // needs no link to CPU
+//	dma_request_c 	*cpu_data_transfer_request ; // needs no link to CPU
 
 	pthread_mutex_t requests_mutex;
 

@@ -73,8 +73,7 @@
 #include "qunibusdevice.hpp"	// definition of class device_c
 #include "m9312.hpp"
 
-m9312_c::m9312_c() :
-		qunibusdevice_c()  // super class constructor
+m9312_c::m9312_c() :	qunibusdevice_c()  // super class constructor
 {
 	// static config
 	name.value = "M9312";
@@ -117,7 +116,8 @@ m9312_c::m9312_c() :
 
 }
 
-m9312_c::~m9312_c() {
+m9312_c::~m9312_c() 
+{
 	// free loaded ROMs
 	for (unsigned i = 0; i < 5; i++)
 		if (rom[i] != NULL)
@@ -129,7 +129,8 @@ m9312_c::~m9312_c() {
 // 'rom_required_file_start_address': code start address in file,
 // is moved to rom[rom_idx]->baseaddress
 void m9312_c::plug_rom(parameter_string_c *filepath, unsigned rom_idx,
-		uint32_t rom_required_file_start_address) {
+		uint32_t rom_required_file_start_address) 
+{
 	assert(rom_idx < 5);
 
 	rom_c *r = rom[rom_idx]; // alias
@@ -147,8 +148,7 @@ void m9312_c::plug_rom(parameter_string_c *filepath, unsigned rom_idx,
 		uint32_t baseaddress_saved = r->baseaddress;
 
 		if (!r->load_macro11_listing(filepath->new_value.c_str())) {
-			ERROR("Loading %s from file %s failed.", r->name.c_str(),
-					filepath->new_value.c_str());
+			ERROR("Loading %s from file %s failed.", r->name.c_str(), filepath->new_value.c_str());
 			filepath->new_value = "";
 			empty_socket = true;
 		} else if (r->baseaddress != rom_required_file_start_address) {
@@ -169,8 +169,8 @@ void m9312_c::plug_rom(parameter_string_c *filepath, unsigned rom_idx,
 
 // Update dependencies from loaded ROMs and symbolic boot address.
 // Search symbolic auto boot address in installed and relocated ROMs
-void m9312_c::resolve() {
-
+void m9312_c::resolve() 
+{
 	/* 1. get boot address */
 	bootaddress = MEMORY_ADDRESS_INVALID;
 
@@ -222,7 +222,8 @@ void m9312_c::resolve() {
 	}
 }
 
-bool m9312_c::on_param_changed(parameter_c *param) {
+bool m9312_c::on_param_changed(parameter_c *param) 
+{
 	if (param == &consemurom_filepath) {
 		// must be assembled to 165000
 		// move to 18 bit IOpage address
@@ -257,8 +258,8 @@ bool m9312_c::on_param_changed(parameter_c *param) {
 // called when parameter "enabled" goes true
 // registers not yet linked to UNIBUS map.
 // result false: configuration error, not pluggable
-bool m9312_c::on_before_install() {
-
+bool m9312_c::on_before_install() 
+{
 	// Check ROM config
 	// console emulator is optional.
 	// BOOTROM1 is mandatory.
@@ -295,7 +296,8 @@ bool m9312_c::on_before_install() {
 }
 
 // called when parameter "enabled" goes false
-void m9312_c::on_after_uninstall() {
+void m9312_c::on_after_uninstall() 
+{
 	// disabled
 
 	// deinstall ROMs from UNIBUS
@@ -314,7 +316,8 @@ void m9312_c::on_after_uninstall() {
 
 // background worker.
 // udpate LEDS, poll switches direct to register flipflops
-void m9312_c::worker(unsigned instance) {
+void m9312_c::worker(unsigned instance) 
+{
 	UNUSED(instance); // only one
 	timeout_c timeout;
 	while (!workers_terminate) {
@@ -327,7 +330,7 @@ void m9312_c::worker(unsigned instance) {
 				bootaddress_timeout.start_ms(bootaddress_timeout_ms);
 			}
 			if (bootaddress_timeout.reached()) {
-				DEBUG("bootaddress_timeout.reached()");
+				DEBUG_FAST("bootaddress_timeout.reached()");
 				bootaddress_clear();
 			}
 		}
@@ -335,11 +338,12 @@ void m9312_c::worker(unsigned instance) {
 }
 
 // set UNIBUS ADDR lines to boot vector address overlay
-void m9312_c::bootaddress_set() {
+void m9312_c::bootaddress_set() 
+{
 	if (bootaddress != MEMORY_ADDRESS_INVALID) {
 		qunibus->set_address_overlay(0773000) ;
 		ddrmem->set_pmi_address_overlay(0773000) ; // emulated CPU booting from DDRRAM via PMI?
-		DEBUG("bootaddress_set");
+		DEBUG_FAST("bootaddress_set");
 		// remove vector after 300ms, if no  access to PC/PSW at 773024/26
 		bootaddress_timeout.start_ms(bootaddress_timeout_ms);
 		bootaddress_reg_trap_accesses = 0;
@@ -347,11 +351,12 @@ void m9312_c::bootaddress_set() {
 }
 
 // remove boot vector address overlay from UNIBUS ADDR lines
-void m9312_c::bootaddress_clear() {
+void m9312_c::bootaddress_clear() 
+{
 	if (qunibus->is_address_overlay_active()) {
 		qunibus->set_address_overlay(0) ;
 		ddrmem->set_pmi_address_overlay(0) ;
-		DEBUG("bootaddress_clr_event");
+		DEBUG_FAST("bootaddress_clr_event");
 	}
 }
 
@@ -363,7 +368,8 @@ void m9312_c::bootaddress_clear() {
 // UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void m9312_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) {
+		uint8_t unibus_control) 
+{
 	UNUSED(device_reg);
 	UNUSED(unibus_control);
 	// the value of reg_trap_PC and reg_trap_PSW never change at runtime.
@@ -375,25 +381,27 @@ void m9312_c::on_after_register_access(qunibusdevice_register_t *device_reg,
 	// bootring CPU accesses PC and PSW, then remove the boot vector
 	bootaddress_reg_trap_accesses++;
 	if (bootaddress_reg_trap_accesses == 2) {
-		DEBUG("2nd MSYN");
+		DEBUG_FAST("2nd MSYN");
 		bootaddress_clear();
 	}
 }
 
 // after UNIBUS install, device is reset by DCLO cycle
 void m9312_c::on_power_changed(signal_edge_enum aclo_edge,
-		signal_edge_enum dclo_edge) {
+		signal_edge_enum dclo_edge) 
+{
 	UNUSED(dclo_edge);
 	// !!! Detection of ACLO edges appears delayed against MSYN/SSYN activity,
 	// so don't use "ACLO edge falling"
 	if (aclo_edge == SIGNAL_EDGE_RAISING) { // ACLO leading edge: set BOOT vector ADDR
-		DEBUG("ACLO asserted");
+		DEBUG_FAST("ACLO asserted");
 		bootaddress_set();
 	}
 }
 
 // UNIBUS INIT: clear all registers
-void m9312_c::on_init_changed(void) {
+void m9312_c::on_init_changed(void) 
+{
 //	// write all registers to "reset-values"
 //	if (init_asserted) {
 //		reset_unibus_registers();

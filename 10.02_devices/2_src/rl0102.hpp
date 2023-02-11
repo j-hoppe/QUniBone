@@ -28,7 +28,6 @@
 
 #include <stdint.h>
 #include <string.h>
-using namespace std;
 
 #include "storagedrive.hpp"
 
@@ -89,13 +88,14 @@ public:
 	volatile unsigned head; // selected head
 //	unsigned seek_destination_head; // target for seek
 
+/*
 	unsigned cylinder_count;
 	unsigned head_count;
 	unsigned sector_count;
 	unsigned sector_size_bytes; // in byte
 	unsigned block_size_bytes; // in byte
 	unsigned block_count;
-
+*/
 	unsigned full_rpm = 2400; // normal rotation speed
 
 	// timeto spin up cartridge. Doc: 45 sec
@@ -112,8 +112,6 @@ public:
 	void update_status_word(bool new_drive_ready_line, bool new_drive_error_line);
 
 public:
-	unsigned drivetype; // 1 =RL01, 2 = RL02
-
 	// 1 = drive drive_ready_line to accept commands (flase while seeking, "get status" always allowed)
 	bool drive_ready_line; // interface cable wire
 	bool drive_error_line; // interface cable wire, drive signals ERROR
@@ -154,9 +152,8 @@ public:
 	void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;
 	void on_init_changed(void) override;
 
-	void set_image_filepath(string image_filepath);
 
-	void set_type(uint8_t drivetype);
+	void set_type(enum drive_type_e drivetype);
 
 	bool cmd_seek(unsigned destination_cylinder, unsigned destination_head);
 

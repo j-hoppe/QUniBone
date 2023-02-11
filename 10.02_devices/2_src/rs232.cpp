@@ -32,14 +32,16 @@
 
 #include "rs232.hpp"
 
-rs232_c::rs232_c() {
+rs232_c::rs232_c() 
+{
 	CharTransmissionTime_us = 0;
 }
 
 // devname without leading "/dev/"
 // returns 0 on success, else error
 int rs232_c::OpenComport(const char *devname, int baudrate, const char *mode,
-		bool par_and_break) {
+		bool par_and_break) 
+{
 	char full_devname[256];
 
 	int baudr;
@@ -300,7 +302,8 @@ int rs232_c::OpenComport(const char *devname, int baudrate, const char *mode,
 	return (0);
 }
 
-int rs232_c::PollComport(unsigned char *buf, int size) {
+int rs232_c::PollComport(unsigned char *buf, int size) 
+{
 	int n;
 
 	n = read(Cport, buf, size);
@@ -313,7 +316,8 @@ int rs232_c::PollComport(unsigned char *buf, int size) {
 	return (n);
 }
 
-int rs232_c::SendByte(unsigned char byte) {
+int rs232_c::SendByte(unsigned char byte) 
+{
 	int n = write(Cport, &byte, 1);
 	if (n < 0) {
 		if (errno == EAGAIN) {
@@ -325,7 +329,8 @@ int rs232_c::SendByte(unsigned char byte) {
 	return (0);
 }
 
-int rs232_c::SendBuf(unsigned char *buf, int size) {
+int rs232_c::SendBuf(unsigned char *buf, int size) 
+{
 	int n = write(Cport, buf, size);
 	if (n < 0) {
 		if (errno == EAGAIN) {
@@ -339,19 +344,22 @@ int rs232_c::SendBuf(unsigned char *buf, int size) {
 }
 
 // put byte in to rcv queue
-void rs232_c::LoopbackByte(unsigned char byte) {
+void rs232_c::LoopbackByte(unsigned char byte) 
+{
 	if (ioctl(Cport, TIOCSTI, &byte) == -1) {
 		perror("unable to insert byte into input queue");
 	}
 }
 
-void rs232_c::SetBreak(int break_state) {
+void rs232_c::SetBreak(int break_state) 
+{
 	if (ioctl(Cport, break_state ? TIOCSBRK : TIOCCBRK) == -1) {
 		perror("unable to set break status");
 	}
 }
 
-void rs232_c::CloseComport(void) {
+void rs232_c::CloseComport(void) 
+{
 	int status;
 	CharTransmissionTime_us = 0;
 
@@ -389,7 +397,8 @@ void rs232_c::CloseComport(void) {
  http://man7.org/linux/man-pages/man4/tty_ioctl.4.html
  */
 
-int rs232_c::IsDCDEnabled(void) {
+int rs232_c::IsDCDEnabled(void) 
+{
 	int status;
 
 	ioctl(Cport, TIOCMGET, &status);
@@ -400,7 +409,8 @@ int rs232_c::IsDCDEnabled(void) {
 		return (0);
 }
 
-int rs232_c::IsCTSEnabled(void) {
+int rs232_c::IsCTSEnabled(void) 
+{
 	int status;
 
 	ioctl(Cport, TIOCMGET, &status);
@@ -411,7 +421,8 @@ int rs232_c::IsCTSEnabled(void) {
 		return (0);
 }
 
-int rs232_c::IsDSREnabled(void) {
+int rs232_c::IsDSREnabled(void) 
+{
 	int status;
 
 	ioctl(Cport, TIOCMGET, &status);
@@ -422,7 +433,8 @@ int rs232_c::IsDSREnabled(void) {
 		return (0);
 }
 
-void rs232_c::enableDTR(void) {
+void rs232_c::enableDTR(void) 
+{
 	int status;
 
 	if (ioctl(Cport, TIOCMGET, &status) == -1) {
@@ -436,7 +448,8 @@ void rs232_c::enableDTR(void) {
 	}
 }
 
-void rs232_c::disableDTR(void) {
+void rs232_c::disableDTR(void) 
+{
 	int status;
 
 	if (ioctl(Cport, TIOCMGET, &status) == -1) {
@@ -450,21 +463,25 @@ void rs232_c::disableDTR(void) {
 	}
 }
 
-void rs232_c::enableRTS(void) {
+void rs232_c::enableRTS(void) 
+{
 	int status;
 
-	if (ioctl(Cport, TIOCMGET, &status) == -1) {
+	if (ioctl(Cport, TIOCMGET, &status) == -1) 
+		{
 		perror("unable to get portstatus");
 	}
 
 	status |= TIOCM_RTS; /* turn on RTS */
 
-	if (ioctl(Cport, TIOCMSET, &status) == -1) {
+	if (ioctl(Cport, TIOCMSET, &status) == -1) 
+		{
 		perror("unable to set portstatus");
 	}
 }
 
-void rs232_c::disableRTS(void) {
+void rs232_c::disableRTS(void) 
+{
 	int status;
 
 	if (ioctl(Cport, TIOCMGET, &status) == -1) {
@@ -478,15 +495,18 @@ void rs232_c::disableRTS(void) {
 	}
 }
 
-void rs232_c::flushRX(void) {
+void rs232_c::flushRX(void) 
+{
 	tcflush(Cport, TCIFLUSH);
 }
 
-void rs232_c::flushTX(void) {
+void rs232_c::flushTX(void) 
+{
 	tcflush(Cport, TCOFLUSH);
 }
 
-void rs232_c::flushRXTX(void) {
+void rs232_c::flushRXTX(void) 
+{
 	tcflush(Cport, TCIOFLUSH);
 }
 

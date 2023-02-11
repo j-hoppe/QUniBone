@@ -41,7 +41,8 @@
 volatile mailbox_t *mailbox = NULL;
 
 // Init all fields, most to 0's
-int mailbox_connect(void) {
+int mailbox_connect(void) 
+{
 	void *pru_shared_dataram;
 	// get pointer to RAM
 	if (prussdrv_map_prumem(PRU_MAILBOX_RAM_ID, &pru_shared_dataram)) {
@@ -63,7 +64,8 @@ int mailbox_connect(void) {
 	return 0;
 }
 
-void mailbox_print(void) {
+void mailbox_print(void) 
+{
 	printf("INFO: Content of mailbox to PRU:\n"
 			"arm2pru: req=0x%x\n", mailbox->arm2pru_req);
 }
@@ -73,7 +75,8 @@ void mailbox_print(void) {
  * result in "val"
  */
 static unsigned n = 0;
-void mailbox_test1() {
+void mailbox_test1() 
+{
 	unsigned reg_sel = 0;
 	for (reg_sel = 0; reg_sel < 8; reg_sel++) {
 		//TODO: memory barrier??
@@ -105,7 +108,8 @@ void mailbox_test1() {
 
 pthread_mutex_t arm2pru_mutex = PTHREAD_MUTEX_INITIALIZER ;
 
-bool  mailbox_execute(uint8_t request) {
+bool  mailbox_execute(uint8_t request) 
+{
 // write to arm2pru_req must be last memory operation
 	pthread_mutex_lock(&arm2pru_mutex) ;
 

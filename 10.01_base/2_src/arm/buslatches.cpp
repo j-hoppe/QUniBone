@@ -37,7 +37,8 @@
 #include "buslatches.hpp"
 
 // search a register bit by QUNIBUS signal name and direction
-buslatches_wire_info_t *buslatches_wire_info_get(const char *unibus_name, unsigned is_input) {
+buslatches_wire_info_t *buslatches_wire_info_get(const char *unibus_name, unsigned is_input) 
+{
 	unsigned i;
 	buslatches_wire_info_t *wi;
 
@@ -48,7 +49,8 @@ buslatches_wire_info_t *buslatches_wire_info_get(const char *unibus_name, unsign
 }
 
 // print info for a loop back mismatch bitmask
-static void buslatches_wire_info_print_path(buslatch_c *bl, unsigned mismatch_bitmask) {
+static void buslatches_wire_info_print_path(buslatch_c *bl, unsigned mismatch_bitmask) 
+{
 	unsigned bit;
 	unsigned bitmask;
 	unsigned i;
@@ -72,26 +74,29 @@ static void buslatches_wire_info_print_path(buslatch_c *bl, unsigned mismatch_bi
 }
 // enable=1: activate QBUS/UNIBUS drivers
 // activate AFTER RPU code started and reset bus latches values
-void buslatches_c::output_enable(bool enable) {
+void buslatches_c::output_enable(bool enable) 
+{
 	enable = !!enable;
 	GPIO_SETVAL(gpios->bus_enable, enable);
 
 	// tie LED to driver enable via software
-	if (gpios->qunibus_led) 
-		GPIO_SETVAL(gpios->qunibus_led, !enable);
+	if (gpios->qunibus_activity_led) 
+		GPIO_SETVAL(gpios->qunibus_activity_led, !enable);
 		
 	cur_output_enable = enable;
 }
 
 // QBUS: all H / BOK,DCOK in CPLD inverted.
 // PRU1 does it
-void buslatches_c::pru_reset() {
+void buslatches_c::pru_reset() 
+{
 	assert(pru->prucode_id == pru_c::PRUCODE_TEST);
 	mailbox_execute(ARM2PRU_BUSLATCH_INIT);
 }
 
 // read the REG_DATIN[0..7] pins
-unsigned buslatch_c::getval() {
+unsigned buslatch_c::getval() 
+{
 // PRU1 does it
 	mailbox->buslatch.addr = addr;
 	while (mailbox->buslatch.addr != addr)
@@ -104,7 +109,8 @@ unsigned buslatch_c::getval() {
 
 // write the REG_DATOUT[0..7] pins into one latch
 // only bits "valmask" are written. Other bits are cleared (PRU logic)
-void buslatch_c::setval(unsigned valmask, unsigned val) {
+void buslatch_c::setval(unsigned valmask, unsigned val) 
+{
 	// write value into latch
 	mailbox->buslatch.addr = addr;
 	mailbox->buslatch.bitmask = valmask & 0xff;
@@ -112,7 +118,8 @@ void buslatch_c::setval(unsigned valmask, unsigned val) {
 	mailbox_execute(ARM2PRU_BUSLATCH_SET);
 }
 
-bool buslatches_c::get_pin_val(buslatches_wire_info_t *wi) {
+bool buslatches_c::get_pin_val(buslatches_wire_info_t *wi) 
+{
 	// read register
 	assert(wi->is_input); // only input signals
 	buslatch_c *bl = at(wi->reg_sel);
@@ -125,7 +132,8 @@ bool buslatches_c::get_pin_val(buslatches_wire_info_t *wi) {
 }
 
 // write single signal wire
-void buslatches_c::set_pin_val(buslatches_wire_info_t *wi, unsigned val) {
+void buslatches_c::set_pin_val(buslatches_wire_info_t *wi, unsigned val) 
+{
 	// set single bit
 	assert(!wi->is_input); // only output signals
 	buslatch_c *bl = at(wi->reg_sel);
@@ -148,7 +156,8 @@ void buslatches_c::set_pin_val(buslatches_wire_info_t *wi, unsigned val) {
 // read back and compare values
 // stop with ^C
 // DOES TEST MUXED ADDR
-void buslatches_c::test_simple_pattern(unsigned pattern, buslatch_c *bl) {
+void buslatches_c::test_simple_pattern(unsigned pattern, buslatch_c *bl) 
+{
 	unsigned idx, setval = 0, chkval;
 	unsigned count;
 
@@ -230,7 +239,8 @@ void buslatches_c::test_simple_pattern(unsigned pattern, buslatch_c *bl) {
 }
 
 // shuffles entries in mailbox.exerciser work list
-void buslatches_c::exerciser_random_order() {
+void buslatches_c::exerciser_random_order() 
+{
 	for (unsigned i = 0; i < 2 * BUSLATCHES_COUNT; i++) {
 		unsigned reg_sel1 = rand() % BUSLATCHES_COUNT;
 		unsigned reg_sel2 = rand() % BUSLATCHES_COUNT;
@@ -245,7 +255,8 @@ void buslatches_c::exerciser_random_order() {
 // always reg0..7 are read&written, but muxed ADDR in 3,4,5 are ignored
 // because of "rw_bitmask" == 0
 // DOES NOT TEST MUXED ADDR
-void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_error) {
+void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_error) 
+{
 	unsigned pass_no; // global test number counter
 	uint64_t total_errors, total_tests;
 	unsigned reg_sel; // register address
@@ -422,7 +433,8 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_erro
  // ADDR<0:7>, ADDR <8:15>, DATA<0:7> and <DATA8:15>
  */
 void buslatches_c::test_timing(uint8_t addr_0_7, uint8_t addr_8_15, uint8_t data_0_7,
-		uint8_t data_8_15) {
+		uint8_t data_8_15) 
+{
 	timeout_c timeout;
 	printf("PRU generates max speed read/write sequences on 4 full 8bit\n");
 	printf("latches with these start patterns:\n");

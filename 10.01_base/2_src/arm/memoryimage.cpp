@@ -53,14 +53,16 @@
 memoryimage_c *membuffer;
 
 // add integer to all addresses
-void codelabel_map_c::relocate(int delta) {
+void codelabel_map_c::relocate(int delta) 
+{
 	for (codelabel_map_c::iterator it = begin(); it != end(); ++it) {
 		it->second += delta;
 	}
 }
 
 // print tabular listing of labels
-void codelabel_map_c::print(FILE *f) {
+void codelabel_map_c::print(FILE *f) 
+{
 	unsigned i = 1;
 	const char *sep = "Code labels:       "; // 15+4 long
 	for (codelabel_map_c::iterator it = begin(); it != end(); ++it) {
@@ -72,7 +74,8 @@ void codelabel_map_c::print(FILE *f) {
 	fprintf(f, "\n");
 }
 
-void memoryimage_c::init() {
+void memoryimage_c::init() 
+{
 	unsigned wordidx;
 	for (wordidx = 0; wordidx < MEMORY_WORD_COUNT; wordidx++) {
 		data.words[wordidx] = 0;
@@ -80,7 +83,8 @@ void memoryimage_c::init() {
 	}
 }
 // fill valid address range with constant word
-void memoryimage_c::fill(uint16_t fillword) {
+void memoryimage_c::fill(uint16_t fillword) 
+{
 	unsigned wordidx;
 	for (wordidx = 0; wordidx < MEMORY_WORD_COUNT; wordidx++)
 		if (valid[wordidx])
@@ -88,7 +92,8 @@ void memoryimage_c::fill(uint16_t fillword) {
 }
 
 // return # of valid words
-unsigned memoryimage_c::get_word_count(void) {
+unsigned memoryimage_c::get_word_count(void) 
+{
 	unsigned result = 0;
 	unsigned wordidx;
 	for (wordidx = 0; wordidx < MEMORY_WORD_COUNT; wordidx++)
@@ -99,7 +104,8 @@ unsigned memoryimage_c::get_word_count(void) {
 
 // return first and last valid adddres
 // first > last: no data set
-void memoryimage_c::get_addr_range(unsigned *first, unsigned* last) {
+void memoryimage_c::get_addr_range(unsigned *first, unsigned* last) 
+{
 	unsigned _first = 0x3ffff;
 	unsigned _last = 0;
 	unsigned wordidx;
@@ -119,7 +125,8 @@ void memoryimage_c::get_addr_range(unsigned *first, unsigned* last) {
 }
 
 // set valid address range to [first..last]
-void memoryimage_c::set_addr_range(unsigned first, unsigned last) {
+void memoryimage_c::set_addr_range(unsigned first, unsigned last) 
+{
 	unsigned wordidx;
 	assert(first <= last);
 	assert(last < 2*MEMORY_WORD_COUNT);
@@ -135,7 +142,8 @@ void memoryimage_c::set_addr_range(unsigned first, unsigned last) {
 /*
  * can set bytes at odd addresses
  */
-void memoryimage_c::put_byte(unsigned addr, unsigned b) {
+void memoryimage_c::put_byte(unsigned addr, unsigned b) 
+{
 	unsigned w;
 	unsigned baseaddr = addr & ~1; // clear bit 0
 	assert_address(addr);
@@ -154,7 +162,8 @@ void memoryimage_c::put_byte(unsigned addr, unsigned b) {
  * result: false = error, true = OK
  * caller must call init() first !
  */
-bool memoryimage_c::load_binary(const char *fname) {
+bool memoryimage_c::load_binary(const char *fname) 
+{
 	FILE *fin;
 	unsigned wordidx, n;
 	fin = fopen(fname, "rb");
@@ -170,7 +179,8 @@ bool memoryimage_c::load_binary(const char *fname) {
 	return true;
 }
 
-void memoryimage_c::save_binary(const char *fname, unsigned bytecount) {
+void memoryimage_c::save_binary(const char *fname, unsigned bytecount) 
+{
 	FILE *fout;
 	unsigned wordcount = (bytecount + 1) / 2;
 	unsigned n;
@@ -221,7 +231,8 @@ void memoryimage_c::save_binary(const char *fname, unsigned bytecount) {
  *
  * result: false = error, true = OK
  */
-bool memoryimage_c::load_addr_value_text(const char *fname) {
+bool memoryimage_c::load_addr_value_text(const char *fname) 
+{
 	FILE *fin;
 	char linebuff[1024];
 	char *s, *token, *endptr;
@@ -416,7 +427,8 @@ bool memoryimage_c::load_addr_value_text(const char *fname) {
  */
 
 // remove trailing white space by setting a new \0
-static void trim_trail(char *line) {
+static void trim_trail(char *line) 
+{
 	char *s = line + strlen(line) - 1;
 
 	while (s >= line && isspace(*s)) {
@@ -425,7 +437,8 @@ static void trim_trail(char *line) {
 	}
 }
 
-static int calc_lineno_width(char *line) {
+static int calc_lineno_width(char *line) 
+{
 	// determine end of
 	char *s = line;
 	while (*s && isspace(*s))
@@ -438,7 +451,8 @@ static int calc_lineno_width(char *line) {
 
 // return the next literal, opcode or label: alphanum, ".", "$"
 // tp "token pointer" is moved on
-static char *nxt_token(char **tp) {
+static char *nxt_token(char **tp) 
+{
 	static char buff[256];
 	char *w = buff; // write pointer
 	char *r = *tp; // read
@@ -453,7 +467,8 @@ static char *nxt_token(char **tp) {
 // result: false = error, true = OK
 // caller must call init() first !
 
-bool memoryimage_c::load_macro11_listing(const char *fname, codelabel_map_c *codelabels) {
+bool memoryimage_c::load_macro11_listing(const char *fname, codelabel_map_c *codelabels) 
+{
 	char map_label_pending[256]; // found label, wait for address in later lines
 	unsigned map_address_pending;
 	int lineno_fieldwidth = 0;
@@ -570,7 +585,8 @@ bool memoryimage_c::load_macro11_listing(const char *fname, codelabel_map_c *cod
  * caller must call init() first !
  * codelabels: contains single "entry" label, if given. or remains empty
  */
-bool memoryimage_c::load_papertape(const char *fname, codelabel_map_c *codelabels) {
+bool memoryimage_c::load_papertape(const char *fname, codelabel_map_c *codelabels) 
+{
 	FILE *fin;
 	int b;
 	int state = 0;
@@ -701,7 +717,8 @@ bool memoryimage_c::load_papertape(const char *fname, codelabel_map_c *codelabel
 
 // show range, count ,start
 // and symbols, if code labels are given
-void memoryimage_c::info(FILE *f) {
+void memoryimage_c::info(FILE *f) 
+{
 	if (!f)
 		return;
 	unsigned first_addr, last_addr, wordcount;
@@ -725,7 +742,8 @@ void memoryimage_c::info(FILE *f) {
 	}
 }
 
-void memoryimage_c::dump(FILE *f) {
+void memoryimage_c::dump(FILE *f) 
+{
 	unsigned addr;
 	for (addr = 0; addr < 2 * MEMORY_WORD_COUNT; addr += 2)
 		if (is_valid(addr))

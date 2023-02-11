@@ -55,8 +55,8 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
     uint16_t wordbuffer[WORDBUFFER_LEN];            // for exam/deposit
     bool testcontroller_enabled = true;
 //    bool testcontroller_enabled = false;
-    bool show_help = true;                          // show cmds on first screen, then only on error or request
-    bool active = false;                            // 1 if PRU executes slave&master logic
+    bool show_help = true ;                         // show cmds on first screen, then only on error or request
+    bool active = false;                            // true if PRU executes slave&master logic
     unsigned cur_addr = 0;
     bool ready;
     char * s_choice;
@@ -84,7 +84,8 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
     while (!ready) {
         // sync pagetable
         ddrmem->set_range(emulated_memory_start_addr, emulated_memory_end_addr);
-        if (show_help) {
+		// no menu display when reading script
+        if (show_help && !script_active()) {
             show_help = false;                      // only once
             printf("\n");
             print_arbitration_info("    ");
@@ -156,7 +157,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
             ready = true;
         }
         else if (!strcasecmp(s_opcode, "<")) {
-            if (inputline.openfile(s_param[0]))
+            if (inputline.open_file(s_param[0]))
                 printf("Now executing command from file \"%s\"\n", s_param[0]);
             else 
                 printf("%s\n", fileErrorText("Error opening command file \"%s\"!", s_param[0]));
@@ -171,9 +172,9 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
             qunibus->powercycle();
 #if defined(QBUS)				
 		} else if (!strcasecmp(s_opcode, "h") && n_fields == 2) {
-			uint16_t active ;
-			qunibus->parse_word(s_param[0], &active) ;				
-			qunibus->set_halt(active) ;
+			uint16_t _active ;
+			qunibus->parse_word(s_param[0], &_active) ;				
+			qunibus->set_halt(_active) ;
 #endif				
         }
         else if (!strcasecmp(s_opcode, "m") && n_fields == 3) {

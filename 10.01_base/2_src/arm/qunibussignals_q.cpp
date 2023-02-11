@@ -34,7 +34,7 @@
 // QBUS dal lines
 class qunibus_signal_dal_c: public qunibus_signal_c {
 public:
-	qunibus_signal_dal_c(const char *name):qunibus_signal_c(name,22) {};
+	qunibus_signal_dal_c(const char *_name):qunibus_signal_c(_name,22) {};
 	virtual void set_val(unsigned value) override {
 		buslatches[0]->setval(0xff, value); // DAL<0:7>
 		buslatches[1]->setval(0xff, value >> 8); // DAL<8:15>
@@ -55,8 +55,8 @@ class qunibus_signal_bit_sync_latched_c: public qunibus_signal_bit_c {
 	qunibus_signal_bit_c *sync_signal = nullptr;
 
 public:
-	qunibus_signal_bit_sync_latched_c(const char *name, qunibus_signal_bit_c *sync): qunibus_signal_bit_c(name) {
-		this->sync_signal = sync;
+	qunibus_signal_bit_sync_latched_c(const char *_name, qunibus_signal_bit_c *_sync): qunibus_signal_bit_c(_name) {
+		sync_signal = _sync;
 	}
 	virtual void set_val(unsigned value) override {
 		bool cur_sync_val = sync_signal->get_val() ;
@@ -80,7 +80,8 @@ public:
 
 // oscillate single bit of a multi-bit signal.
 // runs for timeout_ms or throws expection on ^C
-void qunibus_signal_c::oscillate_bit(unsigned bitmask, unsigned timeout_ms) {
+void qunibus_signal_c::oscillate_bit(unsigned bitmask, unsigned timeout_ms) 
+{
 	timeout_c timeout;
 	unsigned count;
 
@@ -106,7 +107,8 @@ void qunibus_signal_c::oscillate_bit(unsigned bitmask, unsigned timeout_ms) {
 /**** GPIO access to QBUS signals ****/
 qunibus_signals_c qunibus_signals; // singleton
 
-qunibus_signals_c::qunibus_signals_c() {
+qunibus_signals_c::qunibus_signals_c() 
+{
 // fill dictionary, order like in DEC manual
 
 	push_back(new qunibus_signal_dal_c("DAL"));
@@ -135,7 +137,8 @@ qunibus_signals_c::qunibus_signals_c() {
 	push_back(new qunibus_signal_bit_c("EVNT"));
 }
 
-unsigned qunibus_signals_c::max_name_len() {
+unsigned qunibus_signals_c::max_name_len() 
+{
 	return 4; // see above
 }
 
@@ -143,7 +146,8 @@ unsigned qunibus_signals_c::max_name_len() {
 
 
 // test QProbe LEDs, until ^C
-bool test_probe(unsigned timeout_ms) {
+bool test_probe(unsigned timeout_ms) 
+{
 	bool aborted = false ;
 		
 		try { 

@@ -59,7 +59,8 @@
 #include "logger.hpp"
 #include "rs232adapter.hpp"
 
-rs232adapter_c::rs232adapter_c() {
+rs232adapter_c::rs232adapter_c() 
+{
 	log_label = "ADP232";
 
 	rs232 = NULL;
@@ -81,8 +82,8 @@ rs232adapter_c::rs232adapter_c() {
 // If IGNPAR=0, PARMRK=1: error on <char> received as \377 \0 <char>
 // \377 received as \377 \377
 // result: true if data received
-bool rs232adapter_c::rs232byte_rcv_poll(rs232byte_t *rcvbyte) {
-
+bool rs232adapter_c::rs232byte_rcv_poll(rs232byte_t *rcvbyte) 
+{
 	bool result = false;
 	// mixing input streams, with RS232 priority
 
@@ -154,7 +155,8 @@ bool rs232adapter_c::rs232byte_rcv_poll(rs232byte_t *rcvbyte) {
 	return result;
 }
 
-void rs232adapter_c::rs232byte_xmt_send(rs232byte_t xmtbyte) {
+void rs232adapter_c::rs232byte_xmt_send(rs232byte_t xmtbyte) 
+{
 //	pthread_mutex_lock(&mutex);
 //		printf("%c >\n", xmtbyte) ;
 
@@ -180,7 +182,8 @@ void rs232adapter_c::rs232byte_xmt_send(rs232byte_t xmtbyte) {
 	pthread_mutex_unlock(&mutex);
 }
 
-void rs232adapter_c::rs232byte_loopback(rs232byte_t xmtbyte) {
+void rs232adapter_c::rs232byte_loopback(rs232byte_t xmtbyte) 
+{
 	pthread_mutex_lock(&mutex);
 	// not a queue, only single char (DL11 loopback)
 	// fill intermediate buffer with sequwnce to receive
@@ -188,9 +191,10 @@ void rs232adapter_c::rs232byte_loopback(rs232byte_t xmtbyte) {
 	pthread_mutex_unlock(&mutex);
 }
 
-void rs232adapter_c::set_pattern(char *pattern) {
+void rs232adapter_c::set_pattern(char *_pattern) 
+{
 	pthread_mutex_lock(&mutex);
-	strncpy(this->pattern, pattern, pattern_max_len);
+	strncpy(pattern, _pattern, pattern_max_len);
 	pattern_found = false;
 	pattern_stream_data[0] = 0;
 	pthread_mutex_unlock(&mutex);
