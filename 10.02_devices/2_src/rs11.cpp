@@ -16,8 +16,8 @@ using namespace std;
 #include "rs11.hpp"
 #include "rf11.hpp"
 
-rs11_c::rs11_c(storagecontroller_c *controller) :
-		storagedrive_c(controller)
+rs11_c::rs11_c(storagecontroller_c *parentController) :
+		storagedrive_c(parentController)
 {
    name.value = "RS11";
    type_name.value = "RS11";
@@ -34,17 +34,16 @@ bool rs11_c::on_param_changed(parameter_c *param)
          drive_reset();
       }
    }
-   else if (&image_filepath == param) 
-      {
-         if (image_open(image_filepath.new_value, true)) 
-         { 
-            INFO("IMAGE SET");
-            controller->on_drive_status_changed(this);
-            image_filepath.value = image_filepath.new_value;
-            return true;
-         }
-         INFO("WTAF");
+   else if (image_is_param(param)) 
+   {
+      if (image_recreate_on_param_change(param) &&
+          image_open(true)) 
+      { 
+          controller->on_drive_status_changed(this);
+          image_filepath.value = image_filepath.new_value;
+          return true;
       }
+   }
    
    return storagedrive_c::on_param_changed(param); 
 }
