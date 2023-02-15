@@ -976,8 +976,9 @@ void qunibusadapter_c::worker_deviceregister_event()
         // signal: changed by QBUS/UNIBUS
         device->log_register_event("DATI", device_reg);
 
-        device->on_after_register_access(device_reg, unibus_control);
+        device->on_after_register_access(device_reg, unibus_control, DATO_WORD);
     } else if (device_reg->active_on_dato && QUNIBUS_CYCLE_IS_DATO(unibus_control)) {
+        DATO_ACCESS dato_type = DATO_WORD;
         //		uint16_t reg_value_written = device_reg->pru_iopage_register->value;
         //	restore value accessible by DATI
         device_reg->pru_iopage_register->value = device_reg->active_dati_flipflops;
@@ -996,19 +997,23 @@ void qunibusadapter_c::worker_deviceregister_event()
             // convert all active registers accesses to 16 bit
             evt_data &= device_reg->writable_bits; // clear unused bits
             // save written value
-            if (evt_addr & 1) // odd address: bits 15:8 written
+            if (evt_addr & 1) { // odd address: bits 15:8 written
                 device_reg->active_dato_flipflops = (device_reg->active_dato_flipflops & 0x00ff)
                                                     | (evt_data & 0xff00);
-            else
+                dato_type = DATO_BYTEH; 
+            }
+            else {
                 // even address : bits 7:0 written
                 device_reg->active_dato_flipflops = (device_reg->active_dato_flipflops & 0xff00)
                                                     | (evt_data & 0x00ff);
+                dato_type = DATO_BYTEL;
+            }
             unibus_control = QUNIBUS_CYCLE_DATO; // simulate 16 bit access
             // signal: changed by QBUS/UNIBUS
             device->log_register_event("DATOB", device_reg);
             break;
         }
-        device->on_after_register_access(device_reg, unibus_control);
+        device->on_after_register_access(device_reg, unibus_control, dato_type);
         /*
          DEBUG_FAST(LL_DEBUG, LC_UNIBUS, "dev.reg=%d.%d, %s, addr %06o, data %06o->%06o",
          device_handle, evt_idx,

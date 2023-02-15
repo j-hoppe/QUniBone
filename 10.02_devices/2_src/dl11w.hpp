@@ -175,7 +175,7 @@ public:
 	void worker_xmt(void);
 
 	// called by qunibusadapter on emulated register access
-	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control)
+	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control, DATO_ACCESS access)
 			override;
 
 	bool on_param_changed(parameter_c *param) override;  // must implement
@@ -219,7 +219,7 @@ public:
 	void worker(unsigned instance) override;
 
 	// called by qunibusadapter on emulated register access
-	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control)
+	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control, DATO_ACCESS access)
 			override;
 
 	bool on_param_changed(parameter_c *param) override;  // must implement

@@ -368,10 +368,11 @@ void m9312_c::bootaddress_clear()
 // UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void m9312_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) 
+		uint8_t unibus_control, DATO_ACCESS access) 
 {
 	UNUSED(device_reg);
 	UNUSED(unibus_control);
+	UNUSED(access);
 	// the value of reg_trap_PC and reg_trap_PSW never change at runtime.
 	// just count MSYNs
 

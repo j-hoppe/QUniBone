@@ -521,11 +521,12 @@ void cpu_c::worker(unsigned instance)
 // UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void cpu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-                                     uint8_t unibus_control) 
+                                     uint8_t unibus_control, DATO_ACCESS access) 
  {
 // nothing todo
     UNUSED(device_reg);
     UNUSED(unibus_control);
+    UNUSED(access);
 }
 
 // CPU received interrupt vector from UNIBUS

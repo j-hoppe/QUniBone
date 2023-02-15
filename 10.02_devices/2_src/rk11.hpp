@@ -168,7 +168,8 @@ public:
     // called by qunibusadapter on emulated register access
     void on_after_register_access(
         qunibusdevice_register_t *device_reg,
-        uint8_t unibus_control) override;
+        uint8_t unibus_control,
+        DATO_ACCESS access) override;
 
 	bool on_param_changed(parameter_c *param) override;
 

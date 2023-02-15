@@ -118,6 +118,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/rs232adapter.o \
 	$(OBJDIR)/dl11w.o \
 	$(OBJDIR)/m9312.o \
+        $(OBJDIR)/ke11.o \
 	$(OBJDIR)/storageimage.o	\
     $(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
@@ -300,6 +301,9 @@ $(OBJDIR)/dl11w.o :  $(DEVICE_SRC_DIR)/dl11w.cpp $(DEVICE_SRC_DIR)/dl11w.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/m9312.o :  $(DEVICE_SRC_DIR)/m9312.cpp $(DEVICE_SRC_DIR)/m9312.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/ke11.o :   $(DEVICE_SRC_DIR)/ke11.cpp $(DEVICE_SRC_DIR)/ke11.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/storageimage.o :  $(DEVICE_SRC_DIR)/storageimage.cpp $(DEVICE_SRC_DIR)/storageimage.hpp

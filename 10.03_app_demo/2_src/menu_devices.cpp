@@ -58,6 +58,7 @@
 #include "rx11211.hpp"
 #include "uda.hpp"
 #include "dl11w.hpp"
+#include "ke11.hpp"
 #if defined(UNIBUS)
 #include "m9312.hpp"
 #endif
@@ -202,6 +203,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	ltc_c *LTC = new ltc_c();
 
+        ke11_c *KE11A = new ke11_c();
+
 #if defined(UNIBUS)
 	RX11_c *RX11 = new RX11_c() ;
 	RX211_c *RX211 = new RX211_c() ;
@@ -211,8 +214,6 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 #endif
 	//	//demo_regs.install();
 	//	//demo_regs.worker_start();
-	
-
 	
 #if defined(UNIBUS)
 	m9312_c *m9312 = new m9312_c();
@@ -658,6 +659,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	UDA50->enabled.set(false);
 	delete UDA50;
+
+        KE11A->enabled.set(false);
+        delete KE11A;
 
 	//test_controller->enabled.set(false);
 	//delete test_controller;

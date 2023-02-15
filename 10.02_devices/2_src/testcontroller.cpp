@@ -160,8 +160,9 @@ bool testcontroller_c::on_param_changed(parameter_c *param)
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void testcontroller_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-        uint8_t unibus_control) 
+        uint8_t unibus_control, DATO_ACCESS access) 
 {
+    UNUSED(access);
 
     // emulate a plain memory cell: written values can be read unchanged
     if (unibus_control == QUNIBUS_CYCLE_DATI) {

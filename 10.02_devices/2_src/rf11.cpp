@@ -286,9 +286,12 @@ void rf11_c::worker(unsigned instance)
 //      do not read back dati_flipflops.
 void rf11_c::on_after_register_access(
     qunibusdevice_register_t *device_reg,
-    uint8_t unibus_control)
+    uint8_t unibus_control,
+    DATO_ACCESS access)
 {
     UNUSED(unibus_control);
+    UNUSED(access);
+
     switch(device_reg->index)
     {
        case 0: // DCS

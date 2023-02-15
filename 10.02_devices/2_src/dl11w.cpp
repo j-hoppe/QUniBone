@@ -282,8 +282,9 @@ void slu_c::eval_xbuf_dato_value(void)
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void slu_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) 
+		uint8_t unibus_control, DATO_ACCESS access) 
 {
+	UNUSED(access);
 
 //	if (unibus_control == QUNIBUS_CYCLE_DATO) // bus write 
 //		set_register_dati_value(device_reg, device_reg->active_dato_flipflops, __func__);
@@ -538,8 +539,10 @@ void ltc_c::set_lks_dati_value_and_INTR(bool do_intr)
 
 // process DATI/DATO access to one of my "active" registers
 void ltc_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) 
+		uint8_t unibus_control, DATO_ACCESS access) 
 {
+	UNUSED(access);
+
 	pthread_mutex_lock(&on_after_register_access_mutex);
 // not necessary, not harmful?
 	if (unibus_control == QUNIBUS_CYCLE_DATO) // bus write
