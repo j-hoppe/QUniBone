@@ -1,5 +1,5 @@
 /* 
-    ke11_cpp: Extended Arithmetic Element
+    ke11_cpp: KE11-A/B Extended Arithmetic Element
 
     Copyright (c) 2023 J. Dersch.
     Contributed under the BSD 2-clause license.
@@ -27,7 +27,12 @@
 #include "qunibusdevice.hpp"
 #include "ke11.hpp"   
 
-ke11_c::ke11_c() : qunibusdevice_c()
+ke11_c::ke11_c() : 
+    qunibusdevice_c(), 
+    _ac(0), 
+    _mq(0),
+    _sr(0),
+    _sc(0)
 {
     // static config
     name.value = "ke";
@@ -109,11 +114,9 @@ ke11_c::~ke11_c()
 {
 }
 
-// return false, if illegal parameter value.
-// verify "new_value", must output error messages
 bool ke11_c::on_param_changed(parameter_c *param) 
 {
-   return qunibusdevice_c::on_param_changed(param) ; // more actions (for enable)
+   return qunibusdevice_c::on_param_changed(param);
 }
 
 //
@@ -142,37 +145,7 @@ void ke11_c::on_after_register_access(
 void ke11_c::read_register(qunibusdevice_register_t *device_reg, DATO_ACCESS access)
 {
     UNUSED(access);
-    
-    switch(device_reg->index)
-    {
-       case 1: // AC, MQ: no special behavior.
-       case 2:
-          INFO("WTF");
-          break;
-
-       case 4: // SC/SR
-          {
-             INFO("WTF2");
-             uint16_t sr = set_SR(get_register_dato_value(AC_reg), get_register_dato_value(MQ_reg), SCSR_reg->active_dato_flipflops >> 8);
-
-             set_register_dati_value(SCSR_reg, sr << 8 | (SCSR_reg->active_dato_flipflops & 0xff), "read_register");
-          }
-          break;
-
-       case 5: // NOR reads SC
-          {
-             INFO("WTF3");
-             uint16_t sc = get_register_dato_value(SCSR_reg) & 0xff;
-             INFO("sc %d", sc);
-             set_register_dati_value(NOR_reg, sc, "read_register");
-          }
-          break;
-
-       default:
-          // All other registers just return 0. 
-          set_register_dati_value(device_reg, 0, "read_register");
-          break;
-    }
+    set_register_dati_value(device_reg, 0, "read_register");
 }
 
 void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS access)
@@ -185,20 +158,16 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
       case 0:   // DIV
       {
           int32_t div = DIV_reg->active_dato_flipflops;
-          uint32_t ac = get_register_dato_value(AC_reg);
-          uint32_t mq = get_register_dato_value(MQ_reg);
-          uint16_t sc = get_register_dato_value(SCSR_reg) & 0xff;
-          uint16_t sr = (get_register_dato_value(SCSR_reg) & 0xff00) >> 8;
 
           if ((access == DATO_BYTEL) && get_sign_byte(div))    // byte write? 
           {
              div |= 0177400;                            // sext data to 16b
           }
 
-          sr = 0;					// N = V = C = 0
-          t32 = (ac << 16) | mq;                        // 32b divd
+          _sr = 0;					// N = V = C = 0
+          t32 = (_ac << 16) | _mq;                      // 32b divd
           
-          if (get_sign_word(ac))                        // sext (divd)
+          if (get_sign_word(_ac))                       // sext (divd)
           {
              t32 = t32 | ~017777777777;
           }
@@ -213,132 +182,128 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
 
           if ((absd >> 16) >= absr)                     // divide fails?
           {
-             sign = get_sign_word(ac ^ div) ^ 1;        // 1 if signs match 
-             ac = (ac << 1) | (mq >> 15);
-             ac = (sign ? ac - div : ac + div) & DMASK;
-             mq = ((mq << 1) | sign) & DMASK;
+             sign = get_sign_word(_ac ^ div) ^ 1;        // 1 if signs match 
+             _ac = (_ac << 1) | (_mq >> 15);
+             _ac = (sign ? _ac - div : _ac + div) & DMASK;
+             _mq = ((_mq << 1) | sign) & DMASK;
             
-             if (get_sign_word(ac ^ div) == 0)          // 0 if signs match
+             if (get_sign_word(_ac ^ div) == 0)          // 0 if signs match
              {
-                sr |= SR_C;
+                _sr |= SR_C;
              }           
  
-             sc = 15;                                   // SC clocked once
-             sr |= SR_NXV;                              // set overflow 
+             _sc = 15;                                   // SC clocked once
+             _sr |= SR_NXV;                              // set overflow 
           }
           else 
           {
-             sc = 0;    
+             _sc = 0;    
              quo = t32 / div;
-             mq = quo & DMASK;                          // MQ has quo
-             ac = (t32 % div) & DMASK;                  // AC has rem 
+             _mq = quo & DMASK;                          // MQ has quo
+             _ac = (t32 % div) & DMASK;                  // AC has rem 
              if ((quo > 32767) || (quo < -32768))       // quo overflow?
              { 
-                sr |= SR_NXV;                           // set overflow
+                _sr |= SR_NXV;                           // set overflow
              } 
           }
 
-          if (get_sign_word(mq))                        // result negative? 
+          if (get_sign_word(_mq))                        // result negative? 
           {
-              sr ^= (SR_N | SR_NXV);                    // N = 1, compl NXV 
+              _sr ^= (SR_N | SR_NXV);                    // N = 1, compl NXV 
           }
 
-          update_AC(ac);
-          update_MQ(mq);
-          update_SCSR(sc, set_SR(ac, mq, sr));
+          update_AC();
+          update_MQ();
+          update_SCSR();
        }
        break;
 
        case 1:   // AC
        {
-          uint16_t ac = AC_reg->active_dato_flipflops;
+          _ac = AC_reg->active_dato_flipflops;
 
           if (access == DATO_WORD)
           {
-              update_AC(ac);
+              update_AC();
           }
-          else if (access == DATO_BYTEL && get_sign_byte(ac))
+          else if (access == DATO_BYTEL && get_sign_byte(_ac))
           {
               // sign extend to 16b
-              ac |= 0177400;
-              update_AC(ac);
+              _ac |= 0177400;
+              update_AC();
           }
           else
           {
               // ac = (ac & 0377) | (ac << 8);  // should be a no-op
-              update_AC(ac);
+              update_AC();
           }
-          update_SCSR(get_register_dato_value(SCSR_reg), 
-            set_SR(ac, get_register_dato_value(MQ_reg), get_register_dato_value(SCSR_reg) >> 8));
+
+          update_SCSR();
        }
        break;
 
        case 2:   // MQ
        {
-          uint16_t mq = MQ_reg->active_dato_flipflops;
-          uint16_t ac = get_register_dato_value(AC_reg);
+          _mq = MQ_reg->active_dato_flipflops;
 
-          if (access == DATO_BYTEL && get_sign_byte(mq))
+          if (access == DATO_BYTEL && get_sign_byte(_mq))
           {
-             mq |= 0177400; 
+             _mq |= 0177400; 
           }
           else if (access == DATO_BYTEH)
           {
              // mq = (mq & 0377) | (mq << 8);  // should be a no-op 
           }
  
-          if (get_sign_word(mq))
+          if (get_sign_word(_mq))
           {
-             ac = 0177777;   // sign extend MQ to AC
+             _ac = 0177777;   // sign extend MQ to AC
           }
           else
           {
-             ac = 0;
+             _ac = 0;
           }
-          update_MQ(mq);
-          update_AC(ac);
-          update_SCSR(get_register_dato_value(SCSR_reg), 
-              set_SR(ac, mq, get_register_dato_value(SCSR_reg) >> 8));
+
+          update_MQ();
+          update_AC();
+          update_SCSR();
        }
        break;
    
        case 3:   // MUL
        {
           int32_t mul = MUL_reg->active_dato_flipflops;
-          uint32_t mq = get_register_dato_value(MQ_reg);
-          uint32_t ac = 0; 
-          uint16_t sr = 0;
-          uint16_t sc = 0;
+          _ac = 0; 
+          _sc = 0;
 
           if ((access == DATO_BYTEL) && get_sign_byte(mul))    // byte write?
           {
              mul |= 0177400;                            // sext data to 16b
           } 
-          sc = 0;
           if (get_sign_word (mul))                          // sext operands
           { 
              mul |= ~077777;
           }
-          t32 = mq;
+          t32 = _mq;
           if (get_sign_word (t32)) 
           {
              t32 |= ~077777;
           }
           t32 = t32 * mul;
-          ac = (t32 >> 16) & DMASK;
-          mq = t32 & DMASK;
-          if (get_sign_word (ac))                         // result negative?
+          _ac = (t32 >> 16) & DMASK;
+          _mq = t32 & DMASK;
+          if (get_sign_word (_ac))                         // result negative?
           {
-             sr = SR_N | SR_NXV;                	// N = 1, V = C = 0
+             _sr = SR_N | SR_NXV;                	// N = 1, V = C = 0
           }
           else 
           {
-             sr = 0;                                   // N = 0, V = C = 0
+             _sr = 0;                                   // N = 0, V = C = 0
           }
 
-          update_MQ(mq);
-          update_AC(ac);
-          update_SCSR(sc, set_SR(ac, mq, sr));
+          update_MQ();
+          update_AC();
+          update_SCSR();
        }
        break;
 
@@ -346,6 +311,8 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
           if (access == DATO_WORD)                    // Accept only word writes
           {
              uint16_t value = SCSR_reg->active_dato_flipflops & (((SR_NXV | SR_N | SR_C) << 8) | 0xff);
+             _sr = value >> 8;
+             _sc = value;
              set_register_dati_value(SCSR_reg, value, "write_register");
              set_register_dati_value(NOR_reg, value & 0xff, "write_register");
           }
@@ -353,51 +320,43 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
 
        case 5:   // NOR
        {
-          uint16_t sc;
-          uint16_t sr;
-          uint16_t ac = get_register_dato_value(AC_reg);
-          uint16_t mq = get_register_dato_value(MQ_reg);
-
-          for (sc = 0; sc < 31; sc++)                // Max 31 shifts
+          for (_sc = 0; _sc < 31; _sc++)                // Max 31 shifts
           {
-             if (((ac == 0140000) && (mq == 0)) ||
-                 get_sign_word(ac ^ (ac << 1)))       // AC<15> != AC<14>?
+             if (((_ac == 0140000) && (_mq == 0)) ||
+                 get_sign_word(_ac ^ (_ac << 1)))       // AC<15> != AC<14>?
              {
                 break;
              }
-             ac = ((ac << 1) | (mq >> 15)) & DMASK;
-             mq = (mq << 1) & DMASK;
+             _ac = ((_ac << 1) | (_mq >> 15)) & DMASK;
+             _mq = (_mq << 1) & DMASK;
           }
 
-          if (get_sign_word(ac))
+          if (get_sign_word(_ac))
           {
-             sr = SR_N | SR_NXV;
+             _sr = SR_N | SR_NXV;
           }
           else
           {
-             sr = 0;
+             _sr = 0;
           }
-          update_MQ(mq);
-          update_AC(ac);
-          update_SCSR(sc, set_SR(ac, mq, sr));
+
+          update_AC();
+          update_MQ();
+          update_SCSR();
        }
        break;
 
        case 6:  // LSH
        {
-          uint16_t sc = 0;
-          uint16_t sr = 0;                              // N = V = C = 0 
+          _sc = 0;
+          _sr = 0;                              // N = V = C = 0 
           uint16_t lsh = LSH_reg->active_dato_flipflops;
-          uint32_t ac = get_register_dato_value(AC_reg);
-          uint32_t mq = get_register_dato_value(MQ_reg);
           
           lsh = lsh & 077;                              // 6b shift count 
-          INFO("LSH: %o, ac %o, mq %o", lsh, ac, mq); 
           if (lsh != 0) 
           {
-             t32 = (ac << 16) | mq;                      // 32b operand
-             INFO("t32 initial %o", t32);
-             if ((sign = get_sign_word(ac)))             // sext operand
+             t32 = (_ac << 16) | _mq;                      // 32b operand
+             if ((sign = get_sign_word(_ac)))             // sext operand
              {
                 t32 = t32 | ~017777777777;
              }
@@ -408,53 +367,48 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
                 t32 = ((uint32_t)t32) << lsh;   // do shift (zext)
                 if (sout != (get_sign_long(t32) ? -1 : 0))   // bits lost = sext?
                 {
-                    sr |= SR_NXV;                       // no, V = 1
+                    _sr |= SR_NXV;                       // no, V = 1
                 }
                 if (sout & 1)                           // last bit lost = 1? 
                 {
-                    sr |= SR_C;                         // yes, C = 1 
+                    _sr |= SR_C;                         // yes, C = 1 
                 }
              }
              else 
              {                                           // [32,63] = -32,-1 
-                INFO("63-lsh %d", (63 - lsh));
                 if ((t32 >> (63 - lsh)) & 1)            // last bit lost = 1?
                 { 
-                    INFO("Carry out"); 
-                    sr |= SR_C;                         // yes, C = 1
+                    _sr |= SR_C;                         // yes, C = 1
                 }
                 t32 = (lsh != 32) ? ((uint32_t)t32) >> (64 - lsh) : 0;
-                INFO("t32 after %o", t32);
              }
            
-             ac = (t32 >> 16) & DMASK;
-             mq = t32 & DMASK;
+             _ac = (t32 >> 16) & DMASK;
+             _mq = t32 & DMASK;
          }
 
-         if (get_sign_word(ac))                     // result negative?
+         if (get_sign_word(_ac))                     // result negative?
          {
-            sr ^= (SR_N | SR_NXV);                  // N = 1, compl NXV 
+            _sr ^= (SR_N | SR_NXV);                  // N = 1, compl NXV 
          }
 
-         update_MQ(mq);
-         update_AC(ac);
-         update_SCSR(sc, set_SR(ac, mq, sr));
+         update_MQ();
+         update_AC();
+         update_SCSR();
        }
        break;
 
        case 7:   // ASH
        {
-          uint16_t sc = 0;
-          uint16_t sr = 0;
+          _sc = 0;
+          _sr = 0;
           uint16_t ash = ASH_reg->active_dato_flipflops;
-          uint32_t ac = get_register_dato_value(AC_reg);
-          uint32_t mq = get_register_dato_value(MQ_reg);
         
           ash = ash & 077;                              // 6b shift count 
           if (ash != 0) 
           {
-             t32 = (ac << 16) | mq;                     // 32b operand 
-             if ((sign = get_sign_word(ac)))            // sext operand
+             t32 = (_ac << 16) | _mq;                     // 32b operand 
+             if ((sign = get_sign_word(_ac)))            // sext operand
              { 
                 t32 = t32 | ~017777777777;
              }
@@ -464,18 +418,18 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
                 t32 = (t32 & 020000000000) | ((t32 << ash) & 017777777777);
                 if (sout != (get_sign_long(t32)? -1: 0))  // bits lost = sext?
                 {
-                    sr |= SR_NXV;                       // no, V = 1 
+                    _sr |= SR_NXV;                       // no, V = 1 
                 }
-                if (sout & 1)                           // last bit lost = 1? 
+                if (sout & 1)                            // last bit lost = 1? 
                 {
-                    sr |= SR_C;                         // yes, C = 1 
+                    _sr |= SR_C;                         // yes, C = 1 
                 }
             }
             else                                        // [32,63] = -32,-1 
             {
                 if ((t32 >> (63 - ash)) & 1)            // last bit lost = 1? 
                 {
-                    sr |= SR_C;                         // yes, C = 1 
+                    _sr |= SR_C;                         // yes, C = 1 
                 }
 
                 t32 = (ash != 32) ?                     // special case 32 
@@ -483,59 +437,22 @@ void ke11_c::write_register(qunibusdevice_register_t *device_reg, DATO_ACCESS ac
                     -sign;
             }
 
-            ac = (t32 >> 16) & DMASK;
-            mq = t32 & DMASK;
+            _ac = (t32 >> 16) & DMASK;
+            _mq = t32 & DMASK;
          }
         
-         if (get_sign_word(ac))                         // result negative? 
+         if (get_sign_word(_ac))                         // result negative? 
          {
-            sr ^= (SR_N | SR_NXV);                      // N = 1, compl NXV 
+            _sr ^= (SR_N | SR_NXV);                      // N = 1, compl NXV 
          }
    
-         update_MQ(mq);
-         update_AC(ac);
-         update_SCSR(sc, set_SR(ac, mq, sr));
+         update_MQ();
+         update_AC();
+         update_SCSR();
        }
        break;
    }
 }
-
-uint16_t ke11_c::set_SR(uint16_t ac, uint16_t mq, uint8_t sr)
-{
-   INFO("ac %o mq %o sr %o", ac, mq, sr);
-
-   sr &= ~SR_DYN;                                    // clr dynamic bits 
-   if (mq == 0)                                      // MQ == 0?
-   { 
-      sr |= SR_MQZ;
-   }
-
-   if (ac == 0)                                      // AC == 0?
-   {
-      sr |= SR_ACZ;
-      if (get_sign_word(mq) == 0)                    // MQ positive?
-      {
-         sr |= SR_SXT;
-      }
-
-      if (mq == 0)                                   // MQ zero?
-      {
-         sr |= SR_Z;
-      }
-   }
-
-   if (ac == 0177777)                                // AC == 177777?
-   {
-      sr |= SR_ACM1;
-      if (get_sign_word(mq) == 1)                    // MQ negative?
-      {
-         sr |= SR_SXT;
-      }
-   }
-
-   INFO("sr updated to %o", sr);
-   return sr;
-} 
 
 uint32_t ke11_c::get_sign_byte(uint8_t value)
 {
@@ -552,20 +469,49 @@ uint32_t ke11_c::get_sign_long(uint32_t value)
     return (value & 0x80000000) ? 1 : 0;
 }
 
-void ke11_c::update_AC(uint16_t value) 
+void ke11_c::update_AC() 
 {
-    set_register_dati_value(AC_reg, value, "update_AC");
+    set_register_dati_value(AC_reg, _ac, "update_AC");
 }
 
-void ke11_c::update_MQ(uint16_t value)
+void ke11_c::update_MQ()
 {
-    set_register_dati_value(MQ_reg, value, "update_MQ");
+    set_register_dati_value(MQ_reg, _mq, "update_MQ");
 }
 
-void ke11_c::update_SCSR(uint16_t sc, uint16_t sr)
+void ke11_c::update_SCSR()
 {
-    uint16_t value = (sr << 8) | (sc & 0xff); 
-    set_register_dati_value(SCSR_reg, value, "update_SCSR");
+   _sr &= ~SR_DYN;                                    // clr dynamic bits
+   if (_mq == 0)                                      // MQ == 0?
+   {
+      _sr |= SR_MQZ;
+   }
+
+   if (_ac == 0)                                      // AC == 0?
+   {
+      _sr |= SR_ACZ;
+      if (get_sign_word(_mq) == 0)                    // MQ positive?
+      {
+         _sr |= SR_SXT;
+      }
+
+      if (_mq == 0)                                   // MQ zero?
+      {
+         _sr |= SR_Z;
+      }
+   }
+
+   if (_ac == 0177777)                                // AC == 177777?
+   {
+      _sr |= SR_ACM1;
+      if (get_sign_word(_mq) == 1)                    // MQ negative?
+      {
+         _sr |= SR_SXT;
+      }
+   }
+
+   uint16_t value = ((uint16_t)_sr << 8) | (_sc & 0xff); 
+   set_register_dati_value(SCSR_reg, value, "update_SCSR");
 }
 
 void ke11_c::reset_controller(void)
@@ -573,6 +519,10 @@ void ke11_c::reset_controller(void)
     // This will reset the DATI values to their defaults.
     // We then need to reset our copy of the values to correspond.
     reset_unibus_registers();
+    _ac = 0;
+    _mq = 0;
+    _sr = 0;
+    _sc = 0;
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO/DCOK cycle

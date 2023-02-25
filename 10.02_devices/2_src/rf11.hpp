@@ -1,5 +1,5 @@
 /* 
-    rf11.hpp: RF11 DECdisk UNIBUS controller
+    rf11.hpp: RF11 DECdisk UNIBUS Fixed-Head Disk controller
 
     Copyright (c) 2023 J. Dersch.
     Contributed under the BSD 2-clause license.
@@ -91,7 +91,7 @@ private:
     } _dae;
 
     uint16_t _dbr;
-    uint16_t _mar;   // TODO: implement only if necessary
+    uint16_t _mar; 
     uint16_t _ads;
 
     volatile bool _new_command_ready;

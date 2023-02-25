@@ -1,5 +1,5 @@
 /* 
-    rs11.hpp: implementation of RS11 disk unit, used with RF11 controller. 
+    rs11.hpp: Implementation of RS11 DECdisk Fixed-Head Disk unit, used with RF11 controller. 
 
     Copyright (c) 2023 J. Dersch.
     Contributed under the BSD 2-clause license.

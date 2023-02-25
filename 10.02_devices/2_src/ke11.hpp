@@ -1,5 +1,5 @@
 /* 
-    ke11.hpp: KE11 Arithmetic Element
+    ke11.hpp: KE11-A/B Arithmetic Element
 
     Copyright (c) 2023 J. Dersch.
     Contributed under the BSD 2-clause license.
@@ -38,13 +38,16 @@ private:
     uint32_t get_sign_word(uint16_t value);
     uint32_t get_sign_long(uint32_t value); 
 
-    uint16_t set_SR(uint16_t ac, uint16_t mq, uint8_t sr);
-
-    void update_AC(uint16_t value); 
-    void update_MQ(uint16_t value);
-    void update_SCSR(uint16_t sc, uint16_t sr);
+    void update_AC(); 
+    void update_MQ();
+    void update_SCSR();
   
     const uint32_t DMASK = 0xffff;
+
+    uint16_t _ac;
+    uint16_t _mq;
+    uint8_t _sr;
+    uint8_t _sc;
 
     enum SR_FLAGS
     {

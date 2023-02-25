@@ -1,7 +1,7 @@
 /* 
-    rf11_cpp: RF11 UNIBUS controller 
+    rf11_cpp: RF11 UNIBUS Fixed-Head Disk Controller 
 
-    Copyright (c) 2013 J. Dersch.
+    Copyright (c) 2023 J. Dersch.
     Contributed under the BSD 2-clause license.
 
  */
@@ -109,8 +109,8 @@ rf11_c::rf11_c() :
     //
     _drive = new rs11_c(this);
     _drive->unitno.value = 0;
-    _drive->activity_led.value = 0 ; // default: LED = unitno
-    _drive->name.value = name.value + std::to_string(0);
+    _drive->activity_led.value = 0; 
+    _drive->name.value = "rs0";
     _drive->log_label = _drive->name.value;
     _drive->parent = this;
     storagedrives.push_back(_drive);
@@ -141,14 +141,14 @@ bool rf11_c::on_param_changed(parameter_c *param)
    {
       _intr_request.set_vector(intr_vector.new_value);
    }	
-   return storagecontroller_c::on_param_changed(param) ; // more actions (for enable)
+   return storagecontroller_c::on_param_changed(param);
 }
 
 // Background worker.
 // Handle device operations.
 void rf11_c::worker(unsigned instance) 
 {
-    UNUSED(instance) ; // only one
+    UNUSED(instance); 
 
     worker_init_realtime_priority(rt_device);
     _worker_state = Worker_Idle;
@@ -177,9 +177,7 @@ void rf11_c::worker(unsigned instance)
           break;
 
           case Worker_Execute:
-             // Do the transfer one word at a time, pacing things approximately as the original
-             // hardware did.
-             {
+          {
              _wc = get_register_dato_value(WC_reg);
              uint16_t wordCount = ~_wc + 1;
              uint16_t buffer[wordCount]; 
@@ -188,8 +186,8 @@ void rf11_c::worker(unsigned instance)
  
              if (_dcs.Flags.FR == READ || _dcs.Flags.FR == WRITE_CHECK)
                 {
-                   // Either a Read (which just reads a word into memory from disk)
-                   // or a Write Check (which reads a word and compares it to the one in memory)
+                   // Either a Read (which just reads data into memory from disk)
+                   // or a Write Check (which reads data and compares it to data in memory)
                    if (!_drive->read(currentDiskAddress, buffer, wordCount))
                    {
                       // Invalid address:
@@ -252,7 +250,8 @@ void rf11_c::worker(unsigned instance)
                 _wc = 0;
                 update_WC();
 
-                // wait 16uS per word to simulate the delay of the platter rotation:
+                // wait 16uS per word to simulate the delay of the platter rotation (should also factor in
+                // avg. rotational latency to get to the start of data...)
                 timeout.wait_us(16 * wordCount);      
                 _worker_state = Worker_Finish;
              }
@@ -276,11 +275,6 @@ void rf11_c::worker(unsigned instance)
     }
 }
 
-//
-// process DATI/DATO access to the RF11's "active" registers.
-// !! called asynchronuously by PRU, with SSYN/RPLY asserted and blocking QBUS/UNIBUS.
-// The time between PRU event and program flow into this callback
-// is determined by ARM Linux context switch
 //
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
@@ -320,11 +314,11 @@ void rf11_c::on_after_register_access(
               }
               else if (_dcs.Flags.FR != NOP)
               {
-                  _new_command_ready = true;
-
                   // Controller will be busy until the worker completes.
                   _dcs.Flags.RDY = 0;
                   _dcs.Flags.ERR = 0;
+
+                  _new_command_ready = true;
               }
 
               pthread_cond_signal(&on_after_register_access_cond);
@@ -336,14 +330,12 @@ void rf11_c::on_after_register_access(
        case 4: // DAE
            _dae.Value =
              (_dae.Value & ~DAE_reg->writable_bits) | (DAE_reg->active_dato_flipflops & DAE_reg->writable_bits);
-          INFO("DAE %o", _dae.Value); 
           update_DAE();
           break;
 
        case 6: // MAR
           _mar = MAR_reg->active_dato_flipflops;
           // TODO: do something if we plan on actually emulating maintenance stuff.
-          INFO("MAR %o", _mar);
           break;
 
        default:
@@ -448,6 +440,7 @@ void rf11_c::update_ADS()
 
 void rf11_c::on_drive_status_changed(storagedrive_c *drive)
 {
+    UNUSED(drive);
 }
 
 void rf11_c::reset_controller(void)

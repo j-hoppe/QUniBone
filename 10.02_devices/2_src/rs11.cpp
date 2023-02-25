@@ -1,5 +1,5 @@
 /* 
- rs11.cpp: implementation of RS11 disk unit, attached to RF11 controller
+ rs11.cpp: implementation of RS11 disk units, attached to RF11 controller
 
  Copyright (c) 2023 J. Dersch.
  Contributed under the BSD 2-clause license.
@@ -74,7 +74,7 @@ void rs11_c::on_init_changed(void)
 }
 
 //
-// Disk actions (read/write/write check)
+// Disk actions (read/write)
 //
 bool rs11_c::read(uint32_t wordAddress, uint16_t* buffer, size_t count)
 {
