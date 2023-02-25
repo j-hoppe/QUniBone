@@ -650,9 +650,11 @@ void rk11_c::increment_RKDA()
 //      do not read back dati_flipflops.
 void rk11_c::on_after_register_access(
     qunibusdevice_register_t *device_reg,
-    uint8_t unibus_control)
+    uint8_t unibus_control,
+    DATO_ACCESS access)
 {
     UNUSED(unibus_control);
+    UNUSED(access);
 
     // The RK11 has only one "active" register, RKCS.
     // When "GO" bit is set, kick off an operation and clear the

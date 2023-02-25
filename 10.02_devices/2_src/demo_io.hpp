@@ -59,7 +59,7 @@ public:
 	void worker(unsigned instance) override;
 
 	// called by qunibusadapter on emulated register access
-	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control)
+	void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control, DATO_ACCESS access)
 			override;
 
 	void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;

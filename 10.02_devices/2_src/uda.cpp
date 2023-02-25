@@ -331,9 +331,12 @@ void uda_c::worker(unsigned instance)
 void
 uda_c::on_after_register_access(
     qunibusdevice_register_t *device_reg,
-    uint8_t unibus_control
+    uint8_t unibus_control,
+    DATO_ACCESS access
 )
 {
+    UNUSED(access);
+
     switch (device_reg->index)
     {
         case 0:  // IP - read / write

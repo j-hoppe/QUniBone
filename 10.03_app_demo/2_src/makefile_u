@@ -105,6 +105,8 @@ OBJECTS = $(OBJDIR)/application.o	\
     $(OBJDIR)/rl11.o	\
     $(OBJDIR)/rk11.o        \
     $(OBJDIR)/rk05.o        \
+    $(OBJDIR)/rf11.o    \
+    $(OBJDIR)/rs11.o    \
 	$(OBJDIR)/uda.o         \
 	$(OBJDIR)/mscp_server.o \
 	$(OBJDIR)/mscp_drive.o \
@@ -116,6 +118,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/rs232adapter.o \
 	$(OBJDIR)/dl11w.o \
 	$(OBJDIR)/m9312.o \
+        $(OBJDIR)/ke11.o \
 	$(OBJDIR)/storageimage.o	\
     $(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
@@ -261,6 +264,12 @@ $(OBJDIR)/rk05.o :  $(DEVICE_SRC_DIR)/rk05.cpp $(DEVICE_SRC_DIR)/rk05.hpp
 $(OBJDIR)/rk11.o :  $(DEVICE_SRC_DIR)/rk11.cpp $(DEVICE_SRC_DIR)/rk11.hpp
 	$(CC) $(CCFLAGS) -Wno-missing-field-initializers $< -o $@
 
+$(OBJDIR)/rs11.o :  $(DEVICE_SRC_DIR)/rs11.cpp $(DEVICE_SRC_DIR)/rs11.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/rf11.o :  $(DEVICE_SRC_DIR)/rf11.cpp $(DEVICE_SRC_DIR)/rf11.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
 $(OBJDIR)/rx11.o :  $(DEVICE_SRC_DIR)/rx11.cpp $(DEVICE_SRC_DIR)/rx11211.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
@@ -292,6 +301,9 @@ $(OBJDIR)/dl11w.o :  $(DEVICE_SRC_DIR)/dl11w.cpp $(DEVICE_SRC_DIR)/dl11w.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/m9312.o :  $(DEVICE_SRC_DIR)/m9312.cpp $(DEVICE_SRC_DIR)/m9312.hpp
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/ke11.o :   $(DEVICE_SRC_DIR)/ke11.cpp $(DEVICE_SRC_DIR)/ke11.hpp
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/storageimage.o :  $(DEVICE_SRC_DIR)/storageimage.cpp $(DEVICE_SRC_DIR)/storageimage.hpp

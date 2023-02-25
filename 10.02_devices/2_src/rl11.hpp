@@ -119,7 +119,7 @@ public:
 
     // called by qunibusadapter after DATI/DATO access to active emulated register
     // Runs at 100% RT priority, WBUS/UNIBUS is stopped by SSYN/RPLY while this is running.
-    void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control)
+    void on_after_register_access(qunibusdevice_register_t *device_reg, uint8_t unibus_control, DATO_ACCESS access)
     override;
 
     void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;

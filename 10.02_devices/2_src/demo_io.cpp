@@ -230,11 +230,12 @@ void demo_io_c::worker(unsigned instance)
 // QBUS/UNIBUS DATO cycles let dati_flipflops "flicker" outside of this proc:
 //      do not read back dati_flipflops.
 void demo_io_c::on_after_register_access(qunibusdevice_register_t *device_reg,
-		uint8_t unibus_control) 
+		uint8_t unibus_control, DATO_ACCESS access) 
 {
 	// nothing todo
 	UNUSED(device_reg);
 	UNUSED(unibus_control);
+	UNUSED(access);
 }
 
 // after QBUS/UNIBUS install, device is reset by DCLO cycle

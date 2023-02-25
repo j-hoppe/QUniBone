@@ -80,7 +80,8 @@ public:
 
     void on_after_register_access(
         qunibusdevice_register_t *device_reg,
-        uint8_t unibus_control) override;
+        uint8_t unibus_control,
+        DATO_ACCESS access) override;
 
     void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override;
     void on_init_changed(void) override;
