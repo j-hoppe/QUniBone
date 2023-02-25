@@ -34,8 +34,8 @@ rf11_c::rf11_c() :
     type_name.value = "RF11";
     log_label = "rf";
 
-    // base addr, intr-vector, intr level
-    set_default_bus_params(0777460, 10, 0204, 5) ;
+    // base addr, slot, intr-vector, intr level
+    set_default_bus_params(0777460, 12, 0204, 5) ;
 
     // The RF11 controller has eight registers,
     register_count = 8;
@@ -409,7 +409,6 @@ void rf11_c::update_DCS()
 
 void rf11_c::update_DAE()
 {
-    INFO("DAE %o", _dae.Value);
     set_register_dati_value(DAE_reg, _dae.Value, "update_DAE");
 }
 
