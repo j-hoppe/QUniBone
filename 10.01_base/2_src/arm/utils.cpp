@@ -70,7 +70,7 @@ rolling_text_buffers_c rolling_text_buffers ;
 void strcpy_s(char *dest, int len, const char *src)
 {
     strncpy(dest, src, len - 1);
-    dest[len - 1] = 0; // termiante if truncated
+    dest[len - 1] = 0; // terminate if truncated
 }
 
 /*********************************
