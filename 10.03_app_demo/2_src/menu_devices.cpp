@@ -174,8 +174,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 #if defined(UNIBUS)
 	cpu_c *cpu = NULL;
 #endif
-        // create RF11 + RS11 drive
-        rf11_c *RF11 = new rf11_c();
+    // create RF11 + RS11 drive
+    rf11_c *RF11 = new rf11_c();
 
 	// create RL11 +  also 4 RL01/02 drives
 #if defined(UNIBUS)
@@ -203,8 +203,6 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	ltc_c *LTC = new ltc_c();
 
-        ke11_c *KE11A = new ke11_c();
-
 #if defined(UNIBUS)
 	RX11_c *RX11 = new RX11_c() ;
 	RX211_c *RX211 = new RX211_c() ;
@@ -215,8 +213,11 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	//	//demo_regs.install();
 	//	//demo_regs.worker_start();
 	
+
+	
 #if defined(UNIBUS)
 	m9312_c *m9312 = new m9312_c();
+    ke11_c *KE11A = new ke11_c();
 
 	if (with_emulated_CPU) {
 		cpu = new cpu_c();
@@ -632,9 +633,11 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 		cpu->enabled.set(false);
 		delete cpu;
 	}
-
 	m9312->enabled.set(false) ;
 	delete m9312 ;
+    KE11A->enabled.set(false);
+    delete KE11A;
+
 #endif
 
 	RX11->enabled.set(false) ;
@@ -647,9 +650,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	delete LTC;
 	DL11->enabled.set(false);
 	delete DL11;
-     
-        RF11->enabled.set(false);
-        delete RF11;
+
+    RF11->enabled.set(false);
+    delete RF11;
 
 	RL11->enabled.set(false);
 	delete RL11;
@@ -660,10 +663,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	UDA50->enabled.set(false);
 	delete UDA50;
 
-        KE11A->enabled.set(false);
-        delete KE11A;
-
-	//test_controller->enabled.set(false);
+    //test_controller->enabled.set(false);
 	//delete test_controller;
 
 	demo_io->enabled.set(false);
