@@ -22,7 +22,7 @@
 
  16-Nov-2018  JH      created
  16-Oct-2022  MR      Copied the "m lt file" option from other menu to here
- 27-Feb-2023  JD/JH   RS11/RF11 new. KE11 EAE for UNIBUS
+ 27-Feb-2023  JD/JH   RS11/RF11 new. KE11 EAE for UNIBUS.
  */
 
 #include <stdio.h>
