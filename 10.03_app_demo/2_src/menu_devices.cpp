@@ -22,6 +22,7 @@
 
  16-Nov-2018  JH      created
  16-Oct-2022  MR      Copied the "m lt file" option from other menu to here
+ 27-Feb-2023  JD/JH   RS11/RF11 new. KE11 EAE for UNIBUS
  */
 
 #include <stdio.h>
@@ -69,7 +70,7 @@ static char memory_filename[PATH_MAX + 1];
 
 // entry_label is program start, typically "start"
 // format: 0 = macrop11, 1 = papertape
-static void load_memory(memory_fileformat_t format, char *fname, const char *entry_label) 
+static void load_memory(memory_fileformat_t format, char *fname, const char *entry_label)
 {
 	codelabel_map_c codelabels ;
 	uint32_t firstaddr, lastaddr;
@@ -115,7 +116,7 @@ static void load_memory(memory_fileformat_t format, char *fname, const char *ent
 	}
 }
 
-static void print_device(device_c *device) 
+static void print_device(device_c *device)
 {
 	qunibusdevice_c *ubdevice = dynamic_cast<qunibusdevice_c *>(device);
 	if (ubdevice)
@@ -126,7 +127,7 @@ static void print_device(device_c *device)
 				device->type_name.value.c_str());
 }
 
-void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU) 
+void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 {
 	/** list of usable devices ***/
 	bool with_storage_file_test = false;
@@ -149,13 +150,13 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	// now PRU executing QBUS/UNIBUS master/slave code, physical PDP-11 CPU as arbitrator required.
 	gpios->drive_activity_led.enabled = !gpios->leds_for_debug ;
 	buslatches.output_enable(true);
-	
-	// devices need physical or emulated CPU Arbitrator 
+
+	// devices need physical or emulated CPU Arbitrator
 	// to answer BR and NPR requests.
 	if (with_emulated_CPU)
 		// not yet active, switches to CLIENT when emulated CPU started
 		qunibus->set_arbitrator_active(false) ;
-	else 
+	else
 		qunibus->set_arbitrator_active(true) ;
 
 	// without PDP-11 CPU no INIT after power ON was generated.
@@ -212,9 +213,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 #endif
 	//	//demo_regs.install();
 	//	//demo_regs.worker_start();
-	
 
-	
+
+
 #if defined(UNIBUS)
 	m9312_c *m9312 = new m9312_c();
     ke11_c *KE11A = new ke11_c();
@@ -301,9 +302,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 			printf("dbg c|s|f            Debug log: Clear, Show on console, dump to File.\n");
 			printf("                       (file = %s)\n", logger->default_filepath.c_str());
 			printf("init                 Pulse " QUNIBUS_NAME " INIT\n");
-#if defined(UNIBUS)			
+#if defined(UNIBUS)
 			printf("pwr                  Simulate UNIBUS power cycle (ACLO/DCLO)\n");
-#elif defined(QBUS)			
+#elif defined(QBUS)
 			printf("h <1|0>              Set/release QBUS HALT, like front panel toggle switch\n");
 			printf("pwr                  Simulate QBUS power cycle (DCOK/POK) like front panel RESTART\n");
 #endif
@@ -321,12 +322,12 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 				qunibus->init();
 			} else if (!strcasecmp(s_opcode, "pwr")) {
 				qunibus->powercycle() ;
-#if defined(QBUS)				
+#if defined(QBUS)
 			} else if (!strcasecmp(s_opcode, "h") && n_fields == 2) {
 				uint16_t active ;
-				qunibus->parse_word(s_param[0], &active) ;				
+				qunibus->parse_word(s_param[0], &active) ;
 				qunibus->set_halt(active) ;
-#endif				
+#endif
 			} else if (!strcasecmp(s_opcode, "dbg") && n_fields == 2) {
 				if (!strcasecmp(s_param[0], "c")) {
 					logger->clear();
