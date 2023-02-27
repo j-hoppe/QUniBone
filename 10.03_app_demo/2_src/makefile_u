@@ -118,7 +118,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/rs232adapter.o \
 	$(OBJDIR)/dl11w.o \
 	$(OBJDIR)/m9312.o \
-        $(OBJDIR)/ke11.o \
+    $(OBJDIR)/ke11.o \
 	$(OBJDIR)/storageimage.o	\
     $(OBJDIR)/storagedrive.o	\
     $(OBJDIR)/storagecontroller.o	\
