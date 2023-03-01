@@ -341,30 +341,42 @@ void slu_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_e
 {
 	UNUSED(aclo_edge);
 	UNUSED(dclo_edge);
+	reset() ;
 }
+
 
 // QBUS/UNIBUS INIT: clear all registers
 void slu_c::on_init_changed(void) 
 {
 	// write all registers to "reset-values"
 	if (init_asserted) {
-		reset_unibus_registers();
-		rcv_active = 0;
-		rcv_done = 0;
-		rcv_intr_enable = 0;
-		rcv_or_err = 0;
-		rcv_fr_err = 0;
-		rcv_p_err = 0;
-		rcv_buffer = 0;
-		xmt_ready = 1;
-		xmt_intr_enable = 0;
-		xmt_maint = 0;
-		xmt_break = 0;
-		rcvintr_request.edge_detect_reset();
-		xmtintr_request.edge_detect_reset();
-		// INFO("slu_c::on_init()");
+		reset() ;
 	}
 }
+
+
+// reset controller, after installation, on power and on INIT
+void slu_c::reset(void) 
+{
+	reset_unibus_registers();
+	rcv_active = 0;
+	rcv_done = 0;
+	rcv_intr_enable = 0;
+	rcv_or_err = 0;
+	rcv_fr_err = 0;
+	rcv_p_err = 0;
+	rcv_buffer = 0;
+	xmt_ready = 1;
+	xmt_intr_enable = 0;
+	xmt_maint = 0;
+	xmt_break = 0;
+	rcvintr_request.edge_detect_reset();
+	xmtintr_request.edge_detect_reset();
+	// INFO("slu_c::on_init()");
+}
+
+
+
 
 // background worker.
 void slu_c::worker_rcv(void) 
@@ -578,6 +590,7 @@ void ltc_c::on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_e
 {
 	UNUSED(aclo_edge);
 	UNUSED(dclo_edge);
+	reset() ;
 }
 
 // QBUS/UNIBUS INIT: clear all registers
@@ -585,16 +598,23 @@ void ltc_c::on_init_changed(void)
 {
 	// write all registers to "reset-values"
 	if (init_asserted) {
-		reset_unibus_registers();
-		intr_enable = 0;
-		line_clock_monitor = 1;
-		intr_request.edge_detect_reset(); // but edge_detect() not used
-		// initial condition is "not signaled"
-		// INFO("ltc_c::on_init()");
-		world_time_since_init.start_ns(0);
-		clock_ticks_produced_since_init = 0;
+		reset() ;
 	}
 }
+
+// reset controller, after installation, on power and on INIT
+void ltc_c::reset(void) 
+{
+	reset_unibus_registers();
+	intr_enable = 0;
+	line_clock_monitor = 1;
+	intr_request.edge_detect_reset(); // but edge_detect() not used
+	// initial condition is "not signaled"
+	// INFO("ltc_c::on_init()");
+	world_time_since_init.start_ns(0);
+	clock_ticks_produced_since_init = 0;
+}
+
 
 /*
  Adpative clock period.
