@@ -103,7 +103,7 @@ void qunibus_c::assert_addr_width(void)
 {
 #if defined(QBUS)
     if (!addr_width) {
-        FATAL("Select address width of CPU via global parameter\n(command line -aw 16/28/22)") ;
+        FATAL("Select address width of CPU via global parameter\n(command line -aw 16/18/22)") ;
     }
 #endif
 }
