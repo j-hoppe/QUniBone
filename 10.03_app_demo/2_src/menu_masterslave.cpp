@@ -113,7 +113,7 @@ void application_c::menu_masterslave(const char * menu_code, bool with_cpu_arbit
             }
             printf("sz                          Size memory: scan addresses from 0, show valid range\n");
             if (qunibus->addr_width) {
-                // QBUS: only scan for 16/28/22 allowed
+                // QBUS: only scan for 16/18/22 allowed
                 printf("m [<startaddr> <endaddr>]   memory range emulated by " QUNIBONE_NAME ". No args = all upper. [octal]\n");
                 printf("e <addr> [n]                EXAMINE the next <n> words at <addr>. [octal]\n");
                 printf("e                           EXAMINE single word from next <addr>\n");
