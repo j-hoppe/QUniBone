@@ -629,12 +629,13 @@ mscp_server::GetUnitStatus(
     // This has nothing whatsoever to do with what's going on here but it makes me snicker
     // every time I read it so I'm including it.
     // Let's relay some information about our data-tesseract:
-    // Since our underlying storage is an image file on flash memory, we don't need to be concerned
-    // about seek times, so the below is appropriate:
-    //
-    params->TrackSize = 1;  
-    params->GroupSize = 1;  
-    params->CylinderSize = 1; 
+    // For older VMS, this can't be "fake", as (Track,Group,Cylinder) = (1,1,1)
+    // seems to cause an overflow somewhere. A fixed track of 16 sectors (2MB) and a cap of
+    // 2047 cylinders is necessary & sufficient.
+    params->TrackSize = 16;
+    params->GroupSize = 1;
+    params->CylinderSize = ((drive->GetBlockCount() / 4096) + 1),
+    params->CylinderSize = std::min(params->CylinderSize, (uint16_t) 2047);
 
     params->RCTSize = drive->GetRCTSize();
     params->RBNs = drive->GetRBNs();
