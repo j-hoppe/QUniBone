@@ -629,12 +629,11 @@ mscp_server::GetUnitStatus(
     // This has nothing whatsoever to do with what's going on here but it makes me snicker
     // every time I read it so I'm including it.
     // Let's relay some information about our data-tesseract:
-    // Since our underlying storage is an image file on flash memory, we don't need to be concerned
-    // about seek times, so the below is appropriate:
+    // For older VMS, this has to match actual drive parameters.
     //
-    params->TrackSize = 1;  
-    params->GroupSize = 1;  
-    params->CylinderSize = 1; 
+    params->TrackSize = drive->GetSectsPerTrack();
+    params->GroupSize = drive->GetTracksPerGroup();
+    params->CylinderSize = drive->GetGroupsPerCylinder();
 
     params->RCTSize = drive->GetRCTSize();
     params->RBNs = drive->GetRBNs();

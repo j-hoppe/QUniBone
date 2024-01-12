@@ -124,6 +124,31 @@ uint32_t mscp_drive_c::GetDeviceNumber()
 }
 
 //
+// GetSectsPerTrack():
+//  Returns the sectors per track for this drive.
+//
+uint16_t mscp_drive_c::GetSectsPerTrack()
+{
+    return _driveInfo.SectsPerTrack;
+}
+//
+// GetTracksPerGroup():
+//  Returns the tracks per group for this drive.
+//
+uint16_t mscp_drive_c::GetTracksPerGroup()
+{
+    return _driveInfo.TracksPerGroup;
+}
+//
+// GetGroupsPerCylinder():
+//  Returns the groups per cylinder for this drive.
+//
+uint16_t mscp_drive_c::GetGroupsPerCylinder()
+{
+    return _driveInfo.GroupsPerCylinder;
+}
+
+//
 // GetClassModel():
 //  Returns the class and model information for this drive.
 //
