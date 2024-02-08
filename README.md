@@ -14,9 +14,4 @@ As UNIBUS and QBUS are quite similar, only one software project compiles for bot
 In-source differentiation is done via "#define UNIBUS" or "#define QBUS".
 Source files special to only one bus are marked with suffix "_u" respective "_q".
 
-
-The "UNIBUS" part of project "QUniBone" is now the active development branch of project [UniBone](https://github.com/j-hoppe/UniBone).
-
-The "QBUS" part of project "QUniBone" is under heavy development.
-
-See [project page at retrocmp.com](http://retrocmp.com/projects/unibone/).
+See project pages  at retrocmp.com [for UniBone](http://retrocmp.com/projects/unibone/) and [for QBone](http://retrocmp.com/projects/qbone/)
