@@ -1,0 +1,163 @@
+      1						.title	M9312 'DU' BOOT prom for MSCP compatible controller
+      2					; This source code is a mdified copy of the DEC M9312 23-767A9 boot PROM.
+      3					;
+      4					; This boot PROM is for any MSCP compatible controller
+      5					; (DEC UDA50, EMULEX UC17/UC18)
+      6					;
+      7					; Multiple units and/or CSR addresses are supported via different entry points.
+      8					;
+      9					; Revision history:
+     10					; August 2024: Mark Matlock - add ability to boot secondary controller
+     11					; April 2022: Mark Matlock - add retrys to boot 11/83 more consistently
+     12					; On 11/83 & 11/73 two digit LED display will show retries needed
+     13					; Remove LEDCSR writes if used on other systems
+     14					;
+     15					; May 2017: Joerg Hoppe
+     16					; 198?:  DEC
+     17					;      Original ROM 23-767A9 for M9312.
+     18					;
+     19
+     20		172150 				mscsr	=172150 		; std MSCP csrbase
+     21		172154 				mscsr2	=172154			; sec MSCP csrbase
+     22		000000 				msip	=+0			; IP register
+     23		000002 				mssa	=+2			; SA register
+     24		177524 				ledcsr = 177524
+     25
+     26	000000				       	.asect
+     27					       	; ---- Simple boot drive 0 from 0
+     28		000000 			       	. = 0
+     29	000000	000137 	010000 		       	jmp	@#start0
+     30
+     31					       	; ---- Reboot drive 0 on power event
+     32		000024 			       	. = 24				; Power ON/OFF
+     33	000024	010000 			       	.word	     start0		; PC
+     34	000026	000340 			       	.word	     340		; PSW priority level 7
+     35
+     36
+     37					       	; ----- Main boot addresses
+     38		010000 			       	.=10000 			;  arbitrary position > 3000
+     39
+     40
+     41		001004 			       rpkt	=1004	; rpkt structure
+     42		001070 			       cpkt	=1070	; cpkt structure
+     43		001200 			       comm	=1200	; comm structure
+     44					       ;comm	 =2404	 ; comm structure (at 'blt .+12')
+     45
+     46					       	; register usage:
+     47					       	; r0: unit number 0..3
+     48					       	; r1: MSCP csrbase
+     49					       	; r2: moving buffer pointer
+     50					       	; r3: moving buffer pointer
+     51						; r4: counter for retries
+     52					       	; r5: init mask
+     53
+     54					       	; 4 unit numbers => 4 entry addresses
+     55	010000				start0:
+     56	010000	012700 	000000 		       	mov	#0,r0
+     57	010004	000435 			       	br	csrA
+     58	010006	000240 			       	nop
+     59	010010				start1:
+     60	010010	012700 	000001 		       	mov	#1,r0
+     61	010014	000431 			       	br	csrA
+     62	010016	000240 			       	nop
+     63	010020				start2:
+     64	010020	012700 	000002 		       	mov	#2,r0
+     65	010024	000425 			       	br	csrA
+     66	010026	000240 			       	nop
+     67	010030				start3:
+     68	010030	012700 	000003 		       	mov	#3,r0
+     69	010034	000421 			       	br	csrA
+     70	010036	000240 			       	nop
+     71
+     72	010040				start4:
+     73	010040	012700 	000000 		       	mov	#0,r0
+     74	010044	000422 			       	br	csrB
+     75	010046	000240 			       	nop
+     76	010050				start5:
+     77	010050	012700 	000001 		       	mov	#1,r0
+     78	010054	000416 			       	br	csrB
+     79	010056	000240 			       	nop
+     80	010060				start6:
+     81	010060	012700 	000002 		       	mov	#2,r0
+     82	010064	000412 			       	br	csrB
+     83	010066	000240 			       	nop
+     84	010070				start7:
+     85	010070	012700 	000003 		       	mov	#3,r0
+     86	010074	000406 			       	br	csrB
+     87	010076	000240 			       	nop
+     88
+     89	010100	012701 	172150 		csrA:	mov	#mscsr,r1		; boot std csr, unit <R0>
+     90	010104	010137 	010306 			mov	r1,@#csrpt		; save csr selection
+     91	010110	000404 				br	duNr
+     92	010112	012701 	172154 		csrB:	mov	#mscsr2,r1		; boot sec csr, unit <R0>
+     93	010116	010137 	010306 			mov	r1,@#csrpt		; save csr selection
+     94
+     95					       	; retry entry
+     96	010122	005337 	010304 		duNr:	dec	@#lpcnt			; MGM lpcnt = 177777 @ start
+     97	010126	013704 	010304 			mov	@#lpcnt,R4		; MGM dec lpcnt to advance LEDs
+     98					;	mov     R4,@#ledcsr		; MGM Comment this if no LEDCSR exists
+     99	010132	012704 	010000 			mov	#10000,r4		; MGM loop 10000 times then retry
+    100	010136	013701 	010306 			mov	@#csrpt,r1		; load selected csr to R1, unit <R0>
+    101	010142	010021 			go:	mov	r0,(r1)+		; init controller (write IP), bump ptr
+    102	010144	012705 	004000 		       	mov	#4000,r5		; S1 state bitmask
+    103	010150	012703 	010310 		       	mov	#mscpdt,r3		; point to data
+    104
+    105					       	; write 4 init words, with r5 mask from 4000 to 40000
+    106	010154	005304 			3$:	dec	r4			; MGM count loops in r4
+    107	010156	001761 				beq	duNr			; if too many, goto retry
+    108	010160	005711 				tst	(r1)			; error bit set ?
+    109	010162	100757 			       	bmi	duNr			; yes, fail back to begin to retry
+    110	010164	031105 			       	bit	(r1),r5 		; step bit set ?
+    111	010166	001772 			       	beq	3$			; not yet, wait loop
+    112	010170	012311 			       	mov	(r3)+,(r1)		; yes, send next init data
+    113	010172	006305 			       	asl	r5			; next mask
+    114	010174	100367 			       	bpl	3$			; s4 done? br if not yet
+    115
+    116	010176	005002 			4$:	clr	r2			; set bufptr to 0
+    117	010200	005022 			5$:	clr	(r2)+			; clear buffer [0..2403]
+    118	010202	020227 	001200 		       	cmp	r2,#comm		; check for end of buffer
+    119	010206	001374 			       	bne	5$			; loop if not done
+    120
+    121	010210	010237 	001064 		       	mov	r2,@#cpkt-4		; set lnt -- R2=2404
+    122	010214	112337 	001100 		       	movb	(r3)+,@#cpkt+10 	; set command
+    123	010220	111337 	001105 		       	movb	(r3),@#cpkt+15		; set bytecnt(hi)
+    124	010224	010037 	001074 		       	mov	r0,@#cpkt+4		; set unit
+    125	010230	012722 	001004 		       	mov	#rpkt,(r2)+		; rq desc addr
+    126	010234	010522 			       	mov	r5,(r2)+		; rq own bit15
+    127	010236	012722 	001070 		       	mov	#cpkt,(r2)+		; cp desc addr
+    128	010242	010522 			       	mov	r5,(r2)+		; cq own bit15
+    129	010244	016102 	177776 		       	mov	-2(r1),r2		; wake controller (read IP)
+    130
+    131	010250	012704 	010000 			mov	#10000,r4		; MGM loop 10000 times then retry
+    132
+    133	010254	005304 			6$:	dec	r4			; MGM count loops in r4
+    134	010256	001721 				beq	duNr			; if too many, go to start
+    135	010260	005737 	001202 			tst	@#comm+2		; rq own controller ?
+    136	010264	100773 			       	bmi	6$			; loop if not done
+    137
+    138	010266	105737 	001016 		       	tstb	@#rpkt+12		; check for error ?
+    139	010272	001313 			       	bne	duNr			; yup, fail back to begin to retry
+    140
+    141	010274	105723 			       	tstb	(r3)+			; check end of table ?
+    142	010276	001737 			       	beq	4$			; br if not yet
+    143
+    144	010300	005041 			       	clr	-(r1)			; init controller (write IP)
+    145	010302	005007 			       	clr	pc			; jmp to bootstrap at zero
+    146
+    147	010304	177777 			lpcnt:	.word	177777			; LED display = .
+    148	010306	172150 			csrpt:	.word	172150			; store csr choice for retries
+    149
+    150					       	; MSCP init and command data
+    151					       	; pointed to by r3
+    152	010310				mscpdt:
+    153	010310	100000 			       	.word	100000			; S1: 100000 = no int, ring size 1, no vector
+    154	010312	001200 			       	.word	comm			; S2: 002404 = ringbase lo addr
+    155	010314	000000 			       	.word	000000			; S3: 000000 = no purge/poll, ringbase hi addr
+    156	010316	000001 			       	.word	000001			; S4: 000001 = go bit
+    157					       	;
+    158					       	; MSCP command data
+    159					       	;
+    160	010320	   011 	   000 		       	.byte	011,000 		; cmd=011(online), bytecnt_hi=000(0)
+    161	010322	   041 	   002 		       	.byte	041,002 		; cmd=041(read), bytecnt_hi=002(512)
+    162
+    163		000001 			       	.end
