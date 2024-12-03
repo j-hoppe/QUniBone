@@ -441,7 +441,73 @@ step(KA11 *cpu)
 		NZ; WR; SVC;
 
 	/* Reserved instructions */
-	case 0170000: case 0070000: goto ri;
+	case 0170000:
+        goto ri;
+
+	case 0070000:
+    	if(cpu->extended_instr) {
+        	switch(cpu->ir & 0177000) {
+              	default:
+                	goto ri;
+
+				case 0070000:
+                // MUL
+
+				case 0071000:
+                // DIV
+
+				case 0072000:		TR(ASH);
+                	// ASH
+					RD_U;
+					CLC;
+					CLNZ;
+					if(sgn(DR)) {		// -ve?
+        	        	int sh = (~DR + 1) & 0x3f;	// 1..63
+						b = cpu->r[(cpu->ir >> 8) & 07];
+                        if(sh > 15) {
+                			b = 0;
+                			CLC;
+                			SEZ;
+                		} else {
+                			int mask = sgn(b) ? 0xffff : 0x0;
+							if(b & (1 << (sh - 1)))
+								SEC;
+							b >>= sh;
+							mask <<= (16 - sh);
+							b |= mask;					// Sign extend
+							NZ;
+							if(b & B15)
+								SEN;
+                		}
+						cpu->r[(cpu->ir >> 8) & 07] = b;
+                	} else {
+						int sh = (DR & 0x3f);
+						if(sh > 15) {
+							b = 0;
+							CLC;
+							SEZ;
+						} else if(sh > 0) {
+							if(b & (1 << (16 - 1))) {	// Get bit shifted out & left
+								SEC;
+							}
+							b <<= sh;
+							NZ;
+							if(b & B15)
+								SEN;
+						}
+                	}
+					SVC;
+
+              	case 0073000:
+                	// ASHC
+
+              	case 0074000:
+                	// XOR
+
+			}
+		}
+        // All else, or not extended instr
+       	goto ri;
 	}
 
 	/* Unary */

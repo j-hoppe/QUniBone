@@ -32,6 +32,9 @@ struct KA11
 
 	word sw;
 	int swab_vbit;
+
+    // jal extended instruction set
+    int extended_instr;
 };
 
 
