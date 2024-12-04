@@ -446,30 +446,34 @@ step(KA11 *cpu)
 
 	case 0070000:
     	if(cpu->extended_instr) {
+    		printf("-- ext: %o\n", cpu->ir);
         	switch(cpu->ir & 0177000) {
               	default:
                 	goto ri;
 
 				case 0070000:
                 // MUL
+                break;
 
 				case 0071000:
                 // DIV
+                break;
 
 				case 0072000:		TR(ASH);
                 	// ASH
 					RD_U;
 					CLC;
 					CLNZ;
+					b = cpu->r[(cpu->ir >> 6) & 07];
+					printf("ASH: reg=%d, in=%o, shift=%o\n", (cpu->ir >> 6) & 07, b, DR);
 					if(sgn(DR)) {		// -ve?
         	        	int sh = (~DR + 1) & 0x3f;	// 1..63
-						b = cpu->r[(cpu->ir >> 8) & 07];
                         if(sh > 15) {
                 			b = 0;
                 			CLC;
                 			SEZ;
                 		} else {
-                			int mask = sgn(b) ? 0xffff : 0x0;
+                			mask = sgn(b) ? 0xffff : 0x0;
 							if(b & (1 << (sh - 1)))
 								SEC;
 							b >>= sh;
@@ -479,7 +483,6 @@ step(KA11 *cpu)
 							if(b & B15)
 								SEN;
                 		}
-						cpu->r[(cpu->ir >> 8) & 07] = b;
                 	} else {
 						int sh = (DR & 0x3f);
 						if(sh > 15) {
@@ -496,16 +499,20 @@ step(KA11 *cpu)
 								SEN;
 						}
                 	}
+					printf("ASH: out=%o\n", b);
+					cpu->r[(cpu->ir >> 6) & 07] = b;
 					SVC;
 
               	case 0073000:
                 	// ASHC
+                	break;
 
               	case 0074000:
                 	// XOR
-
+                	break;
 			}
 		}
+
         // All else, or not extended instr
        	goto ri;
 	}
