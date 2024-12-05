@@ -327,6 +327,7 @@ step(KA11 *cpu)
 	word mask, sign;
 	int inhov;
 	byte oldpsw;
+	uint reg;
 
 //	printf("fetch from %06o\n", cpu->r[7]);
 //	printstate(cpu);
@@ -445,27 +446,60 @@ step(KA11 *cpu)
         goto ri;
 
 	case 0070000:
+		reg = (cpu->ir >> 6) & 07;
     	if(cpu->extended_instr) {
-    		printf("-- ext: %o\n", cpu->ir);
         	switch(cpu->ir & 0177000) {
               	default:
+		    		printf("-- ext: %o\n", cpu->ir);
                 	goto ri;
 
-				case 0070000:
-                // MUL
-                break;
+				case 0070000:		TR(MUL);
+					RD_U;
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
+              		int32_t prod = (int32_t) DR * (int32_t) cpu->r[reg];
+					if(prod < 32768 || prod > 32767)
+						SEC;
+					if(prod == 0)
+						SEZ;
+					if(prod < 0)
+						SEN;
 
-				case 0071000:
-                // DIV
-                break;
+              		if(reg & 0x1) {
+              			//-- Odd register: store only lower 16 bits
+						cpu->r[reg] = (word) prod;
+              		} else {
+              			cpu->r[reg] = prod & 0xffff;
+              			cpu->r[reg + 1] = (word) (prod >> 16);
+              		}
+					SVC;
+
+				case 0071000:		TR(DIV);
+					RD_U;
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V|PSW_C);
+					if(reg & 0x1) goto ri;			// for div register must be even
+					prod = (int32_t) cpu->r[reg] | ((int32_t) cpu->r[reg + 1] << 16);	// 32bit signed r, r+1
+					if(DR == 0) {
+						SEC;
+						SEV;
+					} else {
+						uint32_t quot = prod / (int32_t) DR;
+						uint32_t rem = prod % (int32_t) DR;
+						if(quot < 32768 || quot > 32767) {
+							SEV;
+						} else {
+							cpu->r[reg] = (word) quot;
+							cpu->r[reg + 1] = (word) (rem);
+						}
+					}
+					SVC;
 
 				case 0072000:		TR(ASH);
                 	// ASH
 					RD_U;
 					CLC;
 					CLNZ;
-					b = cpu->r[(cpu->ir >> 6) & 07];
-					printf("ASH: reg=%d, in=%o, shift=%o\n", (cpu->ir >> 6) & 07, b, DR);
+					b = cpu->r[reg];
+//					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
 					if(sgn(DR)) {		// -ve?
         	        	int sh = (~DR + 1) & 0x3f;	// 1..63
                         if(sh > 15) {
@@ -499,8 +533,8 @@ step(KA11 *cpu)
 								SEN;
 						}
                 	}
-					printf("ASH: out=%o\n", b);
-					cpu->r[(cpu->ir >> 6) & 07] = b;
+//					printf("ASH: out=%o\n", b);
+					cpu->r[reg] = b;
 					SVC;
 
               	case 0073000:
@@ -510,15 +544,26 @@ step(KA11 *cpu)
               	case 0074000:		TR(XOR);
               		RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
-					b = cpu->r[(cpu->ir >> 6) & 07];
-					printf("XOR: reg=%d, in=%o, val=%o\n", (cpu->ir >> 6) & 07, b, DR);
+					b = cpu->r[reg];
+//					printf("XOR: reg=%d, in=%o, val=%o\n", (cpu->ir >> 6) & 07, b, DR);
 					b = DR ^ b;
-					printf("- result=%o\n", b);
+//					printf("- result=%o\n", b);
 					if(sgn(b)) {
 						SEN;
 					}
 					NZ;
 					WR; SVC;
+
+				case 0077000:		TR(SOB);
+					b = --(cpu->r[reg]);		// decrement reg
+//					printf("SOB: reg=%d, val after dec=%o, off=%o\n", (cpu->ir >> 6) & 07, b, (cpu->ir & 077) << 1);
+					if(b != 0) {
+						//-- Jump
+						mask = (cpu->ir & 077) << 1;			// Get jump offset (*2)
+						cpu->r[7] -= mask;						// Decrement by offset
+//						printf("- jmp to %o\n", cpu->r[7]);
+					}
+					SVC;
 			}
 		}
 
