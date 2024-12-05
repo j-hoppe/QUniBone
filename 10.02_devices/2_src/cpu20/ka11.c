@@ -500,8 +500,9 @@ step(KA11 *cpu)
 					CLNZ;
 					b = cpu->r[reg];
 //					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
-					if(sgn(DR)) {		// -ve?
-        	        	int sh = (~DR + 1) & 0x3f;	// 1..63
+					word sh = (DR & 0x3f);				// Extract 6 bits
+					if(sh & 0x20) {		// -ve?
+						sh = 0x40 - sh;					// +ve shift, 1..62
                         if(sh > 15) {
                 			b = 0;
                 			CLC;
@@ -518,7 +519,6 @@ step(KA11 *cpu)
 								SEN;
                 		}
                 	} else {
-						int sh = (DR & 0x3f);
 						if(sh > 15) {
 							b = 0;
 							CLC;
