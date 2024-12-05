@@ -496,8 +496,7 @@ step(KA11 *cpu)
 				case 0072000:		TR(ASH);
                 	// ASH
 					RD_U;
-					CLC;
-					CLNZ;
+              		cpu->psw &= ~(PSW_N|PSW_Z);
 					b = cpu->r[reg];
 //					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
 					word sh = (DR & 0x3f);				// Extract 6 bits
@@ -505,12 +504,14 @@ step(KA11 *cpu)
 						sh = 0x40 - sh;					// +ve shift, 1..62
                         if(sh > 15) {
                 			b = 0;
-                			CLC;
+//                			CLC;				// not clear whether this gets cleared
                 			SEZ;
                 		} else {
                 			mask = sgn(b) ? 0xffff : 0x0;
 							if(b & (1 << (sh - 1)))
 								SEC;
+							else
+								CLC;
 							b >>= sh;
 							mask <<= (16 - sh);
 							b |= mask;					// Sign extend
@@ -521,11 +522,13 @@ step(KA11 *cpu)
                 	} else {
 						if(sh > 15) {
 							b = 0;
-							CLC;
+//							CLC;
 							SEZ;
 						} else if(sh > 0) {
 							if(b & (1 << (16 - 1))) {	// Get bit shifted out & left
 								SEC;
+							} else {
+								CLC;
 							}
 							b <<= sh;
 							NZ;
