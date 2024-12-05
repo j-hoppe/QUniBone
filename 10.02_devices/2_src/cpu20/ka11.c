@@ -328,6 +328,8 @@ step(KA11 *cpu)
 	int inhov;
 	byte oldpsw;
 	uint reg;
+	int32_t prod;
+	word sh;
 
 //	printf("fetch from %06o\n", cpu->r[7]);
 //	printstate(cpu);
@@ -456,7 +458,7 @@ step(KA11 *cpu)
 				case 0070000:		TR(MUL);
 					RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
-              		int32_t prod = (int32_t) DR * (int32_t) cpu->r[reg];
+              		prod = (int32_t) DR * (int32_t) cpu->r[reg];
 					if(prod < 32768 || prod > 32767)
 						SEC;
 					if(prod == 0)
@@ -499,7 +501,7 @@ step(KA11 *cpu)
               		cpu->psw &= ~(PSW_N|PSW_Z);
 					b = cpu->r[reg];
 //					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
-					word sh = (DR & 0x3f);				// Extract 6 bits
+					sh = (DR & 0x3f);				// Extract 6 bits
 					if(sh & 0x20) {		// -ve?
 						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
@@ -545,56 +547,58 @@ step(KA11 *cpu)
               	case 0073000:		TR(ASHC);
 					RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z);
-              		uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
+              		{
+              			uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
 
-//					printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
-					sh = (DR & 0x3f);					// Extract 6 bits
-					if(sh & 0x20) {		// -ve?
-						// we shift right
-						sh = 0x40 - sh;					// +ve shift, 1..62
-                        if(sh > 31) {
-                			val = 0;
-//                			CLC;						// not clear whether this gets cleared
-                			SEZ;
-                		} else {
-                			uint32_t mask = val & 0x80000000L ? 0xffffffffL : 0x0;
-							if(val & (1 << (sh - 1)))
-								SEC;
-							else
-								CLC;
-							val >>= sh;
-							mask <<= (32 - sh);
-							val |= mask;				// Sign extend
-							if(val == 0)
+//						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
+						sh = (DR & 0x3f);					// Extract 6 bits
+						if(sh & 0x20) {		// -ve?
+							// we shift right
+							sh = 0x40 - sh;					// +ve shift, 1..62
+                    	    if(sh > 31) {
+                				val = 0;
+//                				CLC;						// not clear whether this gets cleared
+	                			SEZ;
+    	            		} else {
+        	        			uint32_t msk = val & 0x80000000L ? 0xffffffffL : 0x0;
+								if(val & (1 << (sh - 1)))
+									SEC;
+								else
+									CLC;
+								val >>= sh;
+								msk <<= (32 - sh);
+								val |= msk;				// Sign extend
+								if(val == 0)
+									SEZ;
+								if(val & 0x80000000L)
+									SEN;
+                			}
+	                	} else {
+    	            		//-- We shift left
+							if(sh > 31) {
+								val = 0;
+//								CLC;
 								SEZ;
-							if(val & 0x80000000L)
-								SEN;
-                		}
-                	} else {
-                		//-- We shift left
-						if(sh > 31) {
-							val = 0;
-//							CLC;
-							SEZ;
-						} else if(sh > 0) {
-							if(val & (1 << (32 - sh))) {	// Get bit shifted out & left
-								SEC;
-							} else {
-								CLC;
+							} else if(sh > 0) {
+								if(val & (1 << (32 - sh))) {	// Get bit shifted out & left
+									SEC;
+								} else {
+									CLC;
+								}
+								val <<= sh;
+								if(val == 0)
+									SEZ;
+								if(val & 0x80000000L)
+									SEN;
 							}
-							val <<= sh;
-							if(val == 0)
-								SEZ;
-							if(val & 0x80000000L)
-								SEN;
+            	    	}
+//						printf("ASH: out=%o\n", b);
+						if(reg & 0x1) {
+							cpu->r[reg] = (word) val;		// Truncated result
+						} else {
+							cpu->r[reg] = (word) (val >> 16);
+							cpu->r[reg + 1] = (word) val;
 						}
-                	}
-//					printf("ASH: out=%o\n", b);
-					if(reg & 0x1) {
-						cpu->r[reg] = (word) val;		// Truncated result
-					} else {
-						cpu->r[reg] = (word) (val >> 16);
-						cpu->r[reg + 1] = (word) val;
 					}
 					SVC;
                 	break;
