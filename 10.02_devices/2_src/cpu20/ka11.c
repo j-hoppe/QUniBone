@@ -507,9 +507,18 @@ step(KA11 *cpu)
                 	// ASHC
                 	break;
 
-              	case 0074000:
-                	// XOR
-                	break;
+              	case 0074000:		TR(XOR);
+              		RD_U;
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
+					b = cpu->r[(cpu->ir >> 6) & 07];
+					printf("XOR: reg=%d, in=%o, val=%o\n", (cpu->ir >> 6) & 07, b, DR);
+					b = DR ^ b;
+					printf("- result=%o\n", b);
+					if(sgn(b)) {
+						SEN;
+					}
+					NZ;
+					WR; SVC;
 			}
 		}
 
