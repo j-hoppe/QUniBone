@@ -501,6 +501,7 @@ step(KA11 *cpu)
 //					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
 					word sh = (DR & 0x3f);				// Extract 6 bits
 					if(sh & 0x20) {		// -ve?
+						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
                         if(sh > 15) {
                 			b = 0;
@@ -520,12 +521,13 @@ step(KA11 *cpu)
 								SEN;
                 		}
                 	} else {
+                		// we shift left
 						if(sh > 15) {
 							b = 0;
 //							CLC;
 							SEZ;
 						} else if(sh > 0) {
-							if(b & (1 << (16 - 1))) {	// Get bit shifted out & left
+							if(b & (1 << (16 - sh))) {	// Get bit shifted out @ left
 								SEC;
 							} else {
 								CLC;
@@ -540,8 +542,61 @@ step(KA11 *cpu)
 					cpu->r[reg] = b;
 					SVC;
 
-              	case 0073000:
-                	// ASHC
+              	case 0073000:		TR(ASHC);
+					RD_U;
+              		cpu->psw &= ~(PSW_N|PSW_Z);
+              		uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
+
+//					printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
+					sh = (DR & 0x3f);					// Extract 6 bits
+					if(sh & 0x20) {		// -ve?
+						// we shift right
+						sh = 0x40 - sh;					// +ve shift, 1..62
+                        if(sh > 31) {
+                			val = 0;
+//                			CLC;						// not clear whether this gets cleared
+                			SEZ;
+                		} else {
+                			uint32_t mask = val & 0x80000000L ? 0xffffffffL : 0x0;
+							if(val & (1 << (sh - 1)))
+								SEC;
+							else
+								CLC;
+							val >>= sh;
+							mask <<= (32 - sh);
+							val |= mask;				// Sign extend
+							if(val == 0)
+								SEZ;
+							if(val & 0x80000000L)
+								SEN;
+                		}
+                	} else {
+                		//-- We shift left
+						if(sh > 31) {
+							val = 0;
+//							CLC;
+							SEZ;
+						} else if(sh > 0) {
+							if(val & (1 << (32 - sh))) {	// Get bit shifted out & left
+								SEC;
+							} else {
+								CLC;
+							}
+							val <<= sh;
+							if(val == 0)
+								SEZ;
+							if(val & 0x80000000L)
+								SEN;
+						}
+                	}
+//					printf("ASH: out=%o\n", b);
+					if(reg & 0x1) {
+						cpu->r[reg] = (word) val;		// Truncated result
+					} else {
+						cpu->r[reg] = (word) (val >> 16);
+						cpu->r[reg + 1] = (word) val;
+					}
+					SVC;
                 	break;
 
               	case 0074000:		TR(XOR);
