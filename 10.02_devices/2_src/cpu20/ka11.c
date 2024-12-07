@@ -392,6 +392,13 @@ step(KA11 *cpu)
 		}	
 	}
 
+	if(cpu->r[7] == 01616) {
+	 	cpu->state = KA11_STATE_HALTED;
+	 	printf("\nUB BREAKPOINT\n");
+	 	printf("R0 %06o R1 %06o R2 %06o R3 %06o R4 %06o R5 %06o R6 %06o R7 %06o\n", cpu->r[0], cpu->r[1], cpu->r[2], cpu->r[3], cpu->r[4], cpu->r[5], cpu->r[6], cpu->r[7]);
+	 	printf("ba %06o ir %06o psw %06o\n", cpu->ba, cpu->ir, cpu->psw);
+	 	return;
+	}
 
 	oldpsw = PSW;
 	INA(PC, cpu->ir);
@@ -500,7 +507,7 @@ step(KA11 *cpu)
 					RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z);
 					b = cpu->r[reg];
-//					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
+					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
 					sh = (DR & 0x3f);				// Extract 6 bits
 					if(sh & 0x20) {		// -ve?
 						// we shift right
@@ -540,7 +547,7 @@ step(KA11 *cpu)
 								SEN;
 						}
                 	}
-//					printf("ASH: out=%o\n", b);
+					printf("ASH: out=%o, psw=%o\n", b, cpu->psw);
 					cpu->r[reg] = b;
 					SVC;
 
@@ -550,7 +557,7 @@ step(KA11 *cpu)
               		{
               			uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
 
-//						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
+						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
 						sh = (DR & 0x3f);					// Extract 6 bits
 						if(sh & 0x20) {		// -ve?
 							// we shift right
@@ -592,7 +599,7 @@ step(KA11 *cpu)
 									SEN;
 							}
             	    	}
-//						printf("ASH: out=%o\n", b);
+						printf("ASH: out=%o\n", val);
 						if(reg & 0x1) {
 							cpu->r[reg] = (word) val;		// Truncated result
 						} else {
@@ -713,8 +720,11 @@ step(KA11 *cpu)
 		if(!cpu->allow_mxps || !by)
 			goto ri;
 		TR(MFPS);
-		RD_U;
+		by = 0;
+		if(addrop(cpu, dst, 0)) goto be;
+//		RD_U;
 		b = cpu->psw & 0377;
+		printf("mfps: res=%o\n", b);
 		WR; SVC;
 	}
 
