@@ -632,6 +632,7 @@ step(KA11 *cpu)
         // All else, or not extended instr
        	goto ri;
 	}
+	//-- remaining here is ir=x0xxxx
 
 	/* Unary */
 	switch(cpu->ir & 0007700){
@@ -695,11 +696,23 @@ step(KA11 *cpu)
 		WR; SVC;
 
 	case 0006400:
+		// mtps
+		if(!cpu->allow_mxps || !by)
+			goto ri;
+		RD_U;
+		cpu->psw = (cpu->psw & 0xff00) | (DR & 0377);
+		SVC;
+
 	case 0006500:
 	case 0006600:
-	case 0006700:
 		goto ri;
 
+	case 0006700:
+		// mfps
+		if(!cpu->allow_mxps || !by)
+			goto ri;
+		b = cpu->psw & 0377;
+		WR; SVC;
 	}
 
 	switch(cpu->ir & 0107400){

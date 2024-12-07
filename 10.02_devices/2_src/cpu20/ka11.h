@@ -35,6 +35,7 @@ struct KA11
 
     // jal extended instruction set
     int extended_instr;
+    int allow_mxps;
 };
 
 
