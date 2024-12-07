@@ -507,11 +507,11 @@ step(KA11 *cpu)
 					RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z);
 					b = cpu->r[reg];
-					printf("ASH: reg=%d, in=%o, shift=%o\n", reg, b, DR);
 					sh = (DR & 0x3f);				// Extract 6 bits
 					if(sh & 0x20) {		// -ve?
 						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
+						printf("ASH: reg=%d, in=%o, shift=-%d (%o)\n", reg, b, sh, DR);
                         if(sh > 15) {
                 			b = 0;
 //                			CLC;				// not clear whether this gets cleared
@@ -530,8 +530,10 @@ step(KA11 *cpu)
 								SEN;
                 		}
                 	} else {
+						printf("ASH: reg=%d, in=%o, shift=%d (%o)\n", reg, b, sh, DR);
+
                 		// we shift left
-						if(sh > 15) {
+						if(sh > 15 || b == 0) {
 							b = 0;
 //							CLC;
 							SEZ;
@@ -582,7 +584,7 @@ step(KA11 *cpu)
                 			}
 	                	} else {
     	            		//-- We shift left
-							if(sh > 31) {
+							if(sh > 31 || sh == 0) {
 								val = 0;
 //								CLC;
 								SEZ;
