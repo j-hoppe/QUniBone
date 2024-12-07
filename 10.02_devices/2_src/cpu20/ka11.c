@@ -699,6 +699,7 @@ step(KA11 *cpu)
 		// mtps
 		if(!cpu->allow_mxps || !by)
 			goto ri;
+		TR(MTPS);
 		RD_U;
 		cpu->psw = (cpu->psw & 0xff00) | (DR & 0377);
 		SVC;
@@ -711,6 +712,8 @@ step(KA11 *cpu)
 		// mfps
 		if(!cpu->allow_mxps || !by)
 			goto ri;
+		TR(MFPS);
+		RD_U;
 		b = cpu->psw & 0377;
 		WR; SVC;
 	}
