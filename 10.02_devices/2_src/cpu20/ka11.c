@@ -392,13 +392,13 @@ step(KA11 *cpu)
 		}	
 	}
 
-	if(cpu->r[7] == 01616) {
-	 	cpu->state = KA11_STATE_HALTED;
-	 	printf("\nUB BREAKPOINT\n");
-	 	printf("R0 %06o R1 %06o R2 %06o R3 %06o R4 %06o R5 %06o R6 %06o R7 %06o\n", cpu->r[0], cpu->r[1], cpu->r[2], cpu->r[3], cpu->r[4], cpu->r[5], cpu->r[6], cpu->r[7]);
-	 	printf("ba %06o ir %06o psw %06o\n", cpu->ba, cpu->ir, cpu->psw);
-	 	return;
-	}
+//	if(cpu->r[7] == 016440) {
+//	 	cpu->state = KA11_STATE_HALTED;
+//	 	printf("\nUB BREAKPOINT\n");
+//	 	printf("R0 %06o R1 %06o R2 %06o R3 %06o R4 %06o R5 %06o R6 %06o R7 %06o\n", cpu->r[0], cpu->r[1], cpu->r[2], cpu->r[3], cpu->r[4], cpu->r[5], cpu->r[6], cpu->r[7]);
+//	 	printf("ba %06o ir %06o psw %06o\n", cpu->ba, cpu->ir, cpu->psw);
+//	 	return;
+//	}
 
 	oldpsw = PSW;
 	INA(PC, cpu->ir);
@@ -425,6 +425,8 @@ step(KA11 *cpu)
 	case 0120000: case 0020000:	TRB(CMP);
 		RD_B; CLCV;
 		b = SR + W(~DR) + 1; NC; BXT;
+		if(cpu->ir == 021527)
+			printf("cmp (r5),xx -> %o vs %o\n", SR, DR);
 		if(sgn((SR ^ DR) & ~(DR ^ b))) SEV;
 		NZ; SVC;
 	case 0130000: case 0030000:	TRB(BIT);
@@ -529,6 +531,7 @@ step(KA11 *cpu)
 							b >>= sh;
 							mask <<= (16 - sh);
 							b |= mask;					// Sign extend
+							b &= 0xffff;
 							NZ;
 							if(b & B15)
 								SEN;
@@ -554,8 +557,13 @@ step(KA11 *cpu)
 							}
 							uint ob = b;
 							b <<= sh;
-							if(sgn(b) != sgn(ob))
+							b &= 0xffff;
+
+							printf("--- b=%o, ob=%o, sgn(b)=%o, sgn(ob)=%o\n", b, ob, sgn(b), sgn(ob));
+							if(sgn(b) != sgn(ob)) {
+								printf("SEV\n");
 								SEV;
+							}
 							NZ;
 							if(b & B15)
 								SEN;
