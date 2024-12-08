@@ -494,18 +494,20 @@ step(KA11 *cpu)
 					RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V|PSW_C);
 					if(reg & 0x1) goto ri;			// for div register must be even
-					prod = (int32_t) cpu->r[reg] | ((int32_t) cpu->r[reg + 1] << 16);	// 32bit signed r, r+1
-					if(DR == 0) {
-						SEC;
-						SEV;
-					} else {
-						uint32_t quot = prod / (int32_t) DR;
-						uint32_t rem = prod % (int32_t) DR;
-						if(quot < 32768 || quot > 32767) {
+					{
+						prod = (uint32_t) cpu->r[reg] | ((uint32_t) cpu->r[reg + 1] << 16);	// 32bit signed r, r+1
+						if(DR == 0) {
+							SEC;
 							SEV;
 						} else {
-							cpu->r[reg] = (word) quot;
-							cpu->r[reg + 1] = (word) (rem);
+							int32_t quot = prod / (int32_t) DR;
+							int32_t rem = prod % (int32_t) DR;
+							if(quot < -32768 || quot > 32767) {
+								SEV;
+							} else {
+								cpu->r[reg] = (word) quot;
+								cpu->r[reg + 1] = (word) (rem);
+							}
 						}
 					}
 					SVC;
