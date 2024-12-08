@@ -512,12 +512,16 @@ step(KA11 *cpu)
 						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
 						printf("ASH: reg=%d, in=%o, shift=-%d (%o)\n", reg, b, sh, DR);
-                        if(sh > 15) {
-                			b = 0;
-//                			CLC;				// not clear whether this gets cleared
-                			SEZ;
+               			mask = sgn(b) ? 0xffff : 0x0;
+                        if(sh >= 17) {
+                        	//-- Really shifted out completely.
+                			b = mask;
+                			if(mask)
+                				SEC;
+                			else
+                				CLC;
+                			NZ;
                 		} else {
-                			mask = sgn(b) ? 0xffff : 0x0;
 							if(b & (1 << (sh - 1)))
 								SEC;
 							else
@@ -533,17 +537,25 @@ step(KA11 *cpu)
 						printf("ASH: reg=%d, in=%o, shift=%d (%o)\n", reg, b, sh, DR);
 
                 		// we shift left
-						if(sh > 15 || b == 0) {
+                		if(sh == 0) {
+                			//-- Nothing -> only set Z and N flags
+                			NZ;
+                		} else if(sh >= 17) {
+                			if(sgn(b))
+                				SEV;
 							b = 0;
-//							CLC;
+							CLC;
 							SEZ;
-						} else if(sh > 0) {
+						} else {
 							if(b & (1 << (16 - sh))) {	// Get bit shifted out @ left
 								SEC;
 							} else {
 								CLC;
 							}
+							uint ob = b;
 							b <<= sh;
+							if(sgn(b) != sgn(ob))
+								SEV;
 							NZ;
 							if(b & B15)
 								SEN;
