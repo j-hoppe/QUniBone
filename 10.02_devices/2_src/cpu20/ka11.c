@@ -466,21 +466,27 @@ step(KA11 *cpu)
 
 				case 0070000:		TR(MUL);
 					RD_U;
-              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
-              		prod = (int32_t) DR * (int32_t) cpu->r[reg];
-					if(prod < 32768 || prod > 32767)
-						SEC;
-					if(prod == 0)
-						SEZ;
-					if(prod < 0)
-						SEN;
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V|PSW_C);
+              		{
+              			int32_t v1 = (int16_t) DR;
+              			int32_t v2 = (int16_t) cpu->r[reg];
+        	      		prod = v1 * v2;
+//    	          		printf("mul: r[%d]=%o (%d), dr=%o (%d), prod=%o (%d)\n", reg, v2, v2, v1, v1, prod, prod);
+						if(prod < -32768 || prod > 32767) {
+							SEC;
+						}
+						if(prod == 0)
+							SEZ;
+						if(prod & B31)
+							SEN;
 
-              		if(reg & 0x1) {
-              			//-- Odd register: store only lower 16 bits
-						cpu->r[reg] = (word) prod;
-              		} else {
-              			cpu->r[reg] = prod & 0xffff;
-              			cpu->r[reg + 1] = (word) (prod >> 16);
+              			if(reg & 0x1) {
+              				//-- Odd register: store only lower 16 bits
+							cpu->r[reg] = (word) prod;
+            	  		} else {
+        	      			cpu->r[reg + 1] = prod & 0xffff;
+    	          			cpu->r[reg] = (word) (prod >> 16);
+	              		}
               		}
 					SVC;
 
@@ -537,7 +543,7 @@ step(KA11 *cpu)
 								SEN;
                 		}
                 	} else {
-						printf("ASH: reg=%d, in=%o, shift=%d (%o)\n", reg, b, sh, DR);
+//						printf("ASH: reg=%d, in=%o, shift=%d (%o)\n", reg, b, sh, DR);
 
                 		// we shift left
                 		if(sh == 0) {
@@ -569,7 +575,7 @@ step(KA11 *cpu)
 						}
                 	}
                 	b &= 0xffff;
-					printf("ASH: out=%o, psw=%o\n", b, cpu->psw);
+//					printf("ASH: out=%o, psw=%o\n", b, cpu->psw);
 					cpu->r[reg] = b;
 					SVC;
 
@@ -579,7 +585,7 @@ step(KA11 *cpu)
               		{
               			uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
 
-						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
+//						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
 						sh = (DR & 0x3f);					// Extract 6 bits
 						if(sh & 0x20) {						// -ve?
 							// we shift right
@@ -616,7 +622,7 @@ step(KA11 *cpu)
 							if(val & B31)
 								SEN;
             	    	}
-						printf("ASHC: out=%o\n", val);
+//						printf("ASHC: out=%o\n", val);
 						if(reg & 0x1) {
 							cpu->r[reg] = (word) val;		// Truncated result
 						} else {
