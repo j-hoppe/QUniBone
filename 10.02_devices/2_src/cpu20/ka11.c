@@ -507,14 +507,14 @@ step(KA11 *cpu)
 				case 0072000:		TR(ASH);
                 	// ASH
 					RD_U;
-              		cpu->psw &= ~(PSW_N|PSW_Z);
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
 					b = cpu->r[reg];
 					sh = (DR & 0x3f);				// Extract 6 bits
 					if(sh & 0x20) {		// -ve?
 						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
-						printf("ASH: reg=%d, in=%o, shift=-%d (%o)\n", reg, b, sh, DR);
-               			mask = sgn(b) ? 0xffff : 0x0;
+//						printf("ASH: reg=%d, in=%o, shift=-%d (%o)\n", reg, b, sh, DR);
+               			mask = sgn(b) ? 0xffff : 0x0;	// The previous sign gets shifted in
                         if(sh >= 17) {
                         	//-- Really shifted out completely.
                 			b = mask;
@@ -550,78 +550,73 @@ step(KA11 *cpu)
 							CLC;
 							SEZ;
 						} else {
-							if(b & (1 << (16 - sh))) {	// Get bit shifted out @ left
-								SEC;
-							} else {
-								CLC;
-							}
-							uint ob = b;
-							b <<= sh;
-							b &= 0xffff;
-
-							printf("--- b=%o, ob=%o, sgn(b)=%o, sgn(ob)=%o\n", b, ob, sgn(b), sgn(ob));
-							if(sgn(b) != sgn(ob)) {
-								printf("SEV\n");
-								SEV;
+							//-- Loop, to handle overflow correctly: overflow is part of the last step!
+							while(sh-- > 0) {
+								if(b & B15) {
+									SEC;
+								} else {
+									CLC;
+								}
+								uint ob = b;
+								b <<= 1;
+								ob ^= b;
+//								printf("- sh=%d, b=%o, ob=%o, xor=%d\n", sh, b & 0xffff, ob & 0xffff, (ob & B15));
+								if(ob & B15) {					// Sign changed?
+									SEV;
+								}
 							}
 							NZ;
-							if(b & B15)
-								SEN;
 						}
                 	}
+                	b &= 0xffff;
 					printf("ASH: out=%o, psw=%o\n", b, cpu->psw);
 					cpu->r[reg] = b;
 					SVC;
 
               	case 0073000:		TR(ASHC);
 					RD_U;
-              		cpu->psw &= ~(PSW_N|PSW_Z);
+              		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
               		{
               			uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
 
 						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
 						sh = (DR & 0x3f);					// Extract 6 bits
-						if(sh & 0x20) {		// -ve?
+						if(sh & 0x20) {						// -ve?
 							// we shift right
 							sh = 0x40 - sh;					// +ve shift, 1..62
-                    	    if(sh > 31) {
-                				val = 0;
-//                				CLC;						// not clear whether this gets cleared
-	                			SEZ;
-    	            		} else {
-        	        			uint32_t msk = val & 0x80000000L ? 0xffffffffL : 0x0;
-								if(val & (1 << (sh - 1)))
-									SEC;
-								else
-									CLC;
-								val >>= sh;
-								msk <<= (32 - sh);
-								val |= msk;				// Sign extend
-								if(val == 0)
-									SEZ;
-								if(val & 0x80000000L)
-									SEN;
-                			}
-	                	} else {
-    	            		//-- We shift left
-							if(sh > 31 || sh == 0) {
-								val = 0;
-//								CLC;
+        	        		uint32_t msk = val & B31 ? 0xffffffffL : 0x0;
+							if(val & (1 << (sh - 1)))
+								SEC;
+							else
+								CLC;
+							val >>= sh;
+							msk <<= (32 - sh);
+							val |= msk;				// Sign extend
+							if(val == 0)
 								SEZ;
-							} else if(sh > 0) {
-								if(val & (1 << (32 - sh))) {	// Get bit shifted out & left
+							if(val & B31)
+								SEN;
+	                	} else {
+							while(sh-- > 0) {
+								if(val & B31) {
 									SEC;
 								} else {
 									CLC;
 								}
-								val <<= sh;
-								if(val == 0)
-									SEZ;
-								if(val & 0x80000000L)
-									SEN;
+								uint32_t ob = val;
+								val <<= 1;
+								ob ^= val;
+//								printf("- sh=%d, b=%o, ob=%o, xor=%d\n", sh, b & 0xffff, ob & 0xffff, (ob & B15));
+								if(ob & B31) {					// Sign changed?
+									SEV;
+								}
 							}
+							if(val == 0)
+								SEZ;
+							if(val & B31)
+								SEN;
             	    	}
-						printf("ASH: out=%o\n", val);
+						printf("ASHC: out=%o\n", val);
 						if(reg & 0x1) {
 							cpu->r[reg] = (word) val;		// Truncated result
 						} else {
