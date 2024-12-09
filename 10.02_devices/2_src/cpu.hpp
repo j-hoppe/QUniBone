@@ -150,7 +150,7 @@ public:
                                  false, "SWAB instruction does not(=0) or does(=1) modify psw v-bit (=0 is standard 11/20 behavior)");
 
     parameter_bool_c extended_instr = parameter_bool_c(this, "extended_inst", "exti",/*readonly*/
-                             false, "Enable extended instruction set (ASH, MUL, DIV etc) (=0 is standard 11/20 behavior)");
+                             false, "Enable extended instruction set (ASH, ASHC, MUL, DIV, XOR, SOB) (=0 is standard 11/20 behavior)");
 
     parameter_bool_c allow_mxps = parameter_bool_c(this, "allow_mxps", "mxps",/*readonly*/
                              false, "Allow mtps and mfps instructions (1=11/34, LSI11, 0=standard 11/20 behavior)");

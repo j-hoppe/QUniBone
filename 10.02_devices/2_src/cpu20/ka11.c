@@ -471,7 +471,6 @@ step(KA11 *cpu)
               			int32_t v1 = (int16_t) DR;
               			int32_t v2 = (int16_t) cpu->r[reg];
         	      		prod = v1 * v2;
-//    	          		printf("mul: r[%d]=%o (%d), dr=%o (%d), prod=%o (%d)\n", reg, v2, v2, v1, v1, prod, prod);
 						if(prod < -32768 || prod > 32767) {
 							SEC;
 						}
@@ -496,7 +495,7 @@ step(KA11 *cpu)
 					if(reg & 0x1) goto ri;			// for div register must be even
 					{
 						int32_t dv = (int16_t) DR;
-						prod = (uint32_t) cpu->r[reg + 1] | ((uint32_t) cpu->r[reg] << 16);	// 32bit signed r, r+1
+						prod = (uint32_t) cpu->r[reg + 1] | ((uint32_t) cpu->r[reg] << 16);
 						if(DR == 0) {
 							SEC;
 							SEV;
@@ -522,13 +521,12 @@ step(KA11 *cpu)
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
 					b = cpu->r[reg];
 					sh = (DR & 0x3f);				// Extract 6 bits
-					if(sh & 0x20) {		// -ve?
+					if(sh & 0x20) {					// -ve?
 						// we shift right
 						sh = 0x40 - sh;					// +ve shift, 1..62
-//						printf("ASH: reg=%d, in=%o, shift=-%d (%o)\n", reg, b, sh, DR);
                			mask = sgn(b) ? 0xffff : 0x0;	// The previous sign gets shifted in
                         if(sh >= 17) {
-                        	//-- Really shifted out completely.
+                        	// Really shifted out completely.
                 			b = mask;
                 			if(mask)
                 				SEC;
@@ -549,8 +547,6 @@ step(KA11 *cpu)
 								SEN;
                 		}
                 	} else {
-//						printf("ASH: reg=%d, in=%o, shift=%d (%o)\n", reg, b, sh, DR);
-
                 		// we shift left
                 		if(sh == 0) {
                 			//-- Nothing -> only set Z and N flags
@@ -572,7 +568,6 @@ step(KA11 *cpu)
 								uint ob = b;
 								b <<= 1;
 								ob ^= b;
-//								printf("- sh=%d, b=%o, ob=%o, xor=%d\n", sh, b & 0xffff, ob & 0xffff, (ob & B15));
 								if(ob & B15) {					// Sign changed?
 									SEV;
 								}
@@ -581,7 +576,6 @@ step(KA11 *cpu)
 						}
                 	}
                 	b &= 0xffff;
-//					printf("ASH: out=%o, psw=%o\n", b, cpu->psw);
 					cpu->r[reg] = b;
 					SVC;
 
@@ -591,7 +585,6 @@ step(KA11 *cpu)
               		{
               			uint32_t val = ((uint32_t) cpu->r[reg] << 16) | cpu->r[reg | 1];	// The bitwise OR is intentional!
 
-//						printf("ASHC: reg=%d, in=%o, shift=%o\n", reg, val, DR);
 						sh = (DR & 0x3f);					// Extract 6 bits
 						if(sh & 0x20) {						// -ve?
 							// we shift right
@@ -618,7 +611,6 @@ step(KA11 *cpu)
 								uint32_t ob = val;
 								val <<= 1;
 								ob ^= val;
-//								printf("- sh=%d, b=%o, ob=%o, xor=%d\n", sh, b & 0xffff, ob & 0xffff, (ob & B15));
 								if(ob & B31) {					// Sign changed?
 									SEV;
 								}
@@ -628,7 +620,6 @@ step(KA11 *cpu)
 							if(val & B31)
 								SEN;
             	    	}
-//						printf("ASHC: out=%o\n", val);
 						if(reg & 0x1) {
 							cpu->r[reg] = (word) val;		// Truncated result
 						} else {
@@ -643,9 +634,7 @@ step(KA11 *cpu)
               		RD_U;
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V);
 					b = cpu->r[reg];
-//					printf("XOR: reg=%d, in=%o, val=%o\n", (cpu->ir >> 6) & 07, b, DR);
 					b = DR ^ b;
-//					printf("- result=%o\n", b);
 					if(sgn(b)) {
 						SEN;
 					}
@@ -654,12 +643,10 @@ step(KA11 *cpu)
 
 				case 0077000:		TR(SOB);
 					b = --(cpu->r[reg]);		// decrement reg
-//					printf("SOB: reg=%d, val after dec=%o, off=%o\n", (cpu->ir >> 6) & 07, b, (cpu->ir & 077) << 1);
 					if(b != 0) {
 						//-- Jump
 						mask = (cpu->ir & 077) << 1;			// Get jump offset (*2)
 						cpu->r[7] -= mask;						// Decrement by offset
-//						printf("- jmp to %o\n", cpu->r[7]);
 					}
 					SVC;
 			}
