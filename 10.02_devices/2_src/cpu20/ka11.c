@@ -316,8 +316,6 @@ setnz(KA11 *cpu, word w)
 	if(w == 0) cpu->psw |= PSW_Z;
 }
 
-int32_t _quot;
-
 void
 step(KA11 *cpu)
 {
@@ -497,36 +495,22 @@ step(KA11 *cpu)
               		cpu->psw &= ~(PSW_N|PSW_Z|PSW_V|PSW_C);
 					if(reg & 0x1) goto ri;			// for div register must be even
 					{
-						printf("DIV: r[%d]=%o, r[%d]=%o, divider=%o\n", reg, cpu->r[reg], reg + 1, cpu->r[reg + 1], (int32_t)(int16_t)DR);
-
-						printf("TEST DIVIDE: %d\n", -9 / 3);
 						int32_t dv = (int16_t) DR;
 						prod = (uint32_t) cpu->r[reg + 1] | ((uint32_t) cpu->r[reg] << 16);	// 32bit signed r, r+1
-						printf("DIV: prod=%o (%d) div=%o (%d)\n", prod, prod, dv, dv);
 						if(DR == 0) {
 							SEC;
 							SEV;
 						} else {
-							if(prod == -9)
-								printf("MINUS9\n");
-							if(dv == 3)
-								printf("DIV3\n");
-							_quot = prod / dv;
-							printf("prod %d / %d = %d\n", prod, dv, prod/dv);
-							int32_t rem = prod % dv;
-							printf("- quot=%o (%d), rem=%o (%d)\n", _quot, _quot, rem, rem);
-
-//							ldiv_t d = ldiv(prod, dv);
-//							printf("LDIV %ld %ld\n", d.quot, d.rem);
-							if(_quot < -32768 || _quot > 32767) {
+							ldiv_t d = ldiv(prod, dv);
+							if(d.quot < -32768 || d.quot > 32767) {
 								SEV;
 							} else {
-								cpu->r[reg] = (word) _quot;
-								cpu->r[reg + 1] = (word) (rem);
+								cpu->r[reg] = (word) d.quot;
+								cpu->r[reg + 1] = (word) (d.rem);
 							}
-							if(sgn(_quot))
+							if(sgn(d.quot))
 								SEN;
-							if(0 == (_quot & 0xffff))
+							if(0 == (d.quot & 0xffff))
 								SEZ;
 						}
 					}
