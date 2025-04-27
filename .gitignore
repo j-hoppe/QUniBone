@@ -3,3 +3,11 @@
 cmake-build-debug
 CMakeLists.txt
 
+/.metadata/
+.vscode
+**/4_deploy_u/**
+*.log
+*.swp
+91_3rd_party/**
+
+

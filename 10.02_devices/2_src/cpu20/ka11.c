@@ -1,5 +1,6 @@
 #include "11.h"
 #include "ka11.h"
+#include <stdlib.h>
 
 #include "gpios.hpp" // ARM_DEBUG_PIN*
 
@@ -11,7 +12,6 @@ void unibone_prioritylevelchange(uint8_t level);
 void unibone_bus_init() ;
 
 bool unibone_trace_addr(uint16_t a) ;
-
 
 int
 dati_bus(Bus *bus)
@@ -838,7 +838,7 @@ be:	if(cpu->be > 1){
 	TRAP(4);
 
 trap:
-	if (unibone_trace_addr(PC-2)) 
+	if (unibone_trace_addr(PC-2))
 	trace("TRAP %o\n", TV);
 	PUSH; OUT(SP, PSW);
 	PUSH; OUT(SP, PC);
