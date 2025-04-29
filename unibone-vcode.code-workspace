@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"**/frontmatter.json": "jsonc",
+			"**/.frontmatter/config/*.json": "jsonc",
+			"gpios.hpp": "c",
+			"stdint.h": "c",
+			"vector": "c",
+			"assert.h": "c"
+		},
+		"makefile.makefilePath": "10.03_app_demo/2_src/makefile"
+	}
+}

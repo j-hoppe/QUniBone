@@ -18,6 +18,7 @@ typedef uint32_t uint32;
 #define M16 0177777
 #define B7  0000200
 #define B15 0100000
+#define B31 0x80000000L
 #define nil NULL
 
 #define SETMASK(l, r, m) l = (((l)&~(m)) | ((r)&(m)))
