@@ -184,13 +184,17 @@ void application_c::parse_commandline(int argc, char **argv)
                          "\"debug\": LEDs not used, free for internal debugging.", "",
                          "", "", "");
 
+    
 	// test options
 
-    getopt_parser.define("t", "test", "iarg1,iarg2", "soptarg", "8 15",
-                         "Tests the new c++ getop2.cpp\n"
-                         "Multiline info, fix and optional args, short and long examples", "1,2",
-                         "simple sets both mandatory int args", "1 2 hello",
-                         "Sets integer args and option string arg");
+    // getopt_parser.define("t", "test", "iarg1,iarg2", "soptarg", "8 15",
+    //                      "Tests the new c++ getop2.cpp\n"
+    //                      "Multiline info, fix and optional args, short and long examples", "1,2",
+    //                      "simple sets both mandatory int args", "1 2 hello",
+    //                      "Sets integer args and option string arg");
+
+    getopt_parser.define("", "", "cmdfile", "", "", "File with statements", "Lines", "testseq", "", "");
+
 //	if (argc < 2)
 //		help(); // at least 1 required
     logger->default_level = LL_WARNING;
@@ -241,6 +245,9 @@ void application_c::parse_commandline(int argc, char **argv)
             if (getopt_parser.arg_s("soptarg", s))
                 std::cout << ", soptarg=" << s;
             std::cout << "\n";
+        } else if(getopt_parser.isoption("")) {
+            if (getopt_parser.arg_s("cmdfile", opt_cmdfilename) < 0)
+                commandline_option_error(NULL);
         }
         res = getopt_parser.next();
     }
