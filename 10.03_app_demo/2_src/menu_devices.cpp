@@ -196,6 +196,20 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	uda_c *UDA50 = new uda_c();
 	// Create SLU+ LTC
 	slu_c *DL11 = new slu_c();
+	slu_c *DL11b = new slu_c();
+	// 2nd UART different parameters, default for TU58 interface
+	// !!! disable Linux usage, agetty !!!
+	DL11b->name.value = "DL11b";
+	log_label = "slub";
+	DL11b->priority_slot.value = DL11->priority_slot.value +1 ; // next to 1st uart
+	DL11b->base_addr.value = 0176500 ; //  AK6DN boot loader listing
+	DL11b->intr_vector.value = 0300 ;  // PDP-11/44 doc
+	DL11b->intr_level.value = 4 ; // PDP-11/44 doc
+	DL11b->serialport.value = "ttyS1" ; // well, cross-over 2nd UART == UART1 on board
+	DL11b->baudrate.value = 38400 ;
+	DL11b->mode.value = "8N1";
+	DL11b->error_bits_enable.value = false ; // M7856 SW4-7 ?
+	DL11b->break_enable.value = true ; // TU58 needs BREAK
 	// to inject characters into DL11 receiver
 	std::stringstream dl11_rcv_stream(std::ios::app | std::ios::in | std::ios::out);
 	DL11->rs232adapter.stream_rcv = &dl11_rcv_stream;
@@ -649,6 +663,8 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	LTC->enabled.set(false);
 	delete LTC;
+	DL11b->enabled.set(false);
+	delete DL11b;
 	DL11->enabled.set(false);
 	delete DL11;
 
