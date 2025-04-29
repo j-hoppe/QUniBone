@@ -234,20 +234,23 @@ void application_c::parse_commandline(int argc, char **argv)
                     commandline_option_error((char *)"4 LEDs can only display values 0..15");
                 gpios->cmdline_leds = n ;
             }
-        } else if (getopt_parser.isoption("test")) {
-            int i1, i2;
-            std::string s;
-            if (getopt_parser.arg_i("iarg1", &i1) < 0)
+        // } else if (getopt_parser.isoption("test")) {
+        //     int i1, i2;
+        //     std::string s;
+        //     if (getopt_parser.arg_i("iarg1", &i1) < 0)
+        //         commandline_option_error(NULL);
+        //     if (getopt_parser.arg_i("iarg2", &i2) < 0)
+        //         commandline_option_error(NULL);
+        //     std::cout << "iarg1=" << i1 << ", iarg2=" << i2;
+        //     if (getopt_parser.arg_s("soptarg", s))
+        //         std::cout << ", soptarg=" << s;
+        //     std::cout << "\n";
+        } else if(getopt_parser.isoption("")) {                 // Non-option?
+            if (getopt_parser.arg_s("cmdfile", opt_cmdfilename) < 0) {
                 commandline_option_error(NULL);
-            if (getopt_parser.arg_i("iarg2", &i2) < 0)
-                commandline_option_error(NULL);
-            std::cout << "iarg1=" << i1 << ", iarg2=" << i2;
-            if (getopt_parser.arg_s("soptarg", s))
-                std::cout << ", soptarg=" << s;
-            std::cout << "\n";
-        } else if(getopt_parser.isoption("")) {
-            if (getopt_parser.arg_s("cmdfile", opt_cmdfilename) < 0)
-                commandline_option_error(NULL);
+            } else {
+                opt_changedir = true;
+            }
         }
         res = getopt_parser.next();
     }
@@ -331,6 +334,19 @@ int application_c::run(int argc, char *argv[])
                                  opt_cmdfilename.c_str()));
             return -1;
         }
+
+        if(opt_changedir) {
+            // Make the cwd the dir where the command file resides
+            // Needs to come after opening the cmdfile because the
+            // cmd will cause the open to fail (as the relative path)
+            // changes)
+            int pos = opt_cmdfilename.find_last_of('/');
+            if(pos > 0) {
+                std::string wd = opt_cmdfilename.substr(0, pos);
+                chdir(wd.c_str());
+            }
+        }
+
     }
 
     std::cout << version << "\n";
