@@ -261,12 +261,17 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_erro
 	uint64_t total_errors, total_tests;
 	unsigned reg_sel; // register address
 	unsigned testval[BUSLATCHES_COUNT]; // test data for all latches
+	unsigned ignoremasks[BUSLATCHES_COUNT] ; // bit set: do no read-write compare
 	const char * stop_phrase = stop_on_error? "stops on error or by ^C":"stop with ^C" ;
 #if defined(UNIBUS)
 #define QUPHRASE ""
 #else
 #define QUPHRASE " (including demuxed ADDR)"
 #endif
+	memset(ignoremasks, 0, sizeof(ignoremasks)); // test all bits
+	//memset(ignoremasks, 0xffffffff, sizeof(ignoremasks)); // ignore all bits
+	//ignoremasks[7] &= ~0x30 ; // test only bits 4=ACLO, 5=DCLO
+
 	switch (pattern) {
 //	case 1:
 //		printf("Highspeed count register latch %d, stop with ^C.\n", reg_sel);
@@ -376,12 +381,14 @@ void buslatches_c::test_simple_pattern_multi(unsigned pattern, bool stop_on_erro
 			buslatch_c *bl = buslatches[reg_sel];
 			unsigned writeval = mailbox->buslatch_exerciser.writeval[i];
 			unsigned readval = mailbox->buslatch_exerciser.readval[i];
+			unsigned ignoremask = ignoremasks[reg_sel] ; // bit set = ignore in test
 			total_tests++;
 //			assert (!bl->read_inverted ||reg_sel==0) ;
 			if (bl->read_inverted)
 				readval = ~readval; // input latches invert
 			readval &= bl->rw_bitmask; // mask out untestable bits
-			if (readval != writeval) {
+			if (((readval ^ writeval) & ~ignoremask) != 0)  {
+//			if (readval != writeval) {
 				total_errors++;
 				printf(
 						"Error buslatches_test_simple_pattern_multi(pattern=%d), pass %u, PRU exerciser pattern=%d:\n",
