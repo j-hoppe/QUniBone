@@ -73,97 +73,101 @@ struct ControlMessageHeader
 // Size in bytes of the non-parameter portion of a ControlMessageHeader
 #define HEADER_SIZE  12
 
-enum Opcodes
-{
-    ABORT = 0x1,
-    ACCESS = 0x10,
-    AVAILABLE = 0x8,
-    COMPARE_HOST_DATA = 0x20,
-    DETERMINE_ACCESS_PATHS = 0x0b,
-    ERASE = 0x12,
-    GET_COMMAND_STATUS = 0x2,
-    GET_UNIT_STATUS = 0x3,
-    ONLINE = 0x9,
-    READ = 0x21,
-    REPLACE = 0x14,
-    SET_CONTROLLER_CHARACTERISTICS = 0x4,
-    SET_UNIT_CHARACTERISTICS = 0xa,
-    WRITE = 0x22
-};
-
-enum Endcodes
-{
-    END = 0x80,
-    SERIOUS_EXCEPTION = 0x7,
-};
-
-enum Status
-{
-    SUCCESS = 0x0,
-    INVALID_COMMAND = 0x1,
-    COMMAND_ABORTED = 0x2,
-    UNIT_OFFLINE = 0x3,
-    UNIT_AVAILABLE = 0x4,
-    MEDIA_FORMAT_ERROR = 0x5,
-    WRITE_PROTECTED = 0x6,
-    COMPARE_ERROR = 0x7,
-    DATA_ERROR = 0x8,
-    HOST_BUFFER_ACCESS_ERROR = 0x9,
-    CONTROLLER_ERROR = 0xa,
-    DRIVE_ERROR = 0xb,
-    DIAGNOSTIC_MESSAGE = 0x1f
-};
-
-enum SuccessSubcodes
-{
-    NORMAL = 0x0,
-    SPIN_DOWN_IGNORED = 0x20,
-    STILL_CONNECTED = 0x40,
-    DUPLICATE_UNIT_NUMBER = 0x80,
-    ALREADY_ONLINE = 0x100,
-    STILL_ONLINE = 0x200,
-};
-
-enum UnitOfflineSubcodes
-{
-    UNIT_UNKNOWN = 0x0,
-    NO_VOLUME = 0x1,
-    UNIT_INOPERATIVE = 0x2,
-    DUPLICATE_UNIT = 0x4,
-    UNIT_DISABLED = 0x8,
-    EXCLUSIVE = 0x10,
-};
-
-enum HostBufferAccessSubcodes
-{
-    CAUSE_UNAVAILABLE = 0x0,
-    ODD_TRANSFER_ADDRESS = 0x1,
-    ODD_BYTE_COUNT = 0x2,
-    NXM = 0x3,
-    HOST_PARITY_ERROR = 0x4,
-    INVALID_PTE = 0x5,
-    INVALID_BUFFER_NAME = 0x6,
-    BUFFER_LENGTH_VIOLATION = 0x7,
-    ACL_VIOLATION = 0x8,
-};
-
-enum MessageTypes
-{
-    Sequential = 0,
-    Datagram = 1,
-    CreditNotification = 2,
-    Maintenance = 15,
-};
-
 //
 // This inherits from device_c solely so the logging macros work.
 //
 class mscp_server : public device_c
 {
+	// enums scoped to mscp_server
+    enum Opcodes
+    {
+        ABORT = 0x1,
+        ACCESS = 0x10,
+        AVAILABLE = 0x8,
+        COMPARE_HOST_DATA = 0x20,
+        DETERMINE_ACCESS_PATHS = 0x0b,
+        ERASE = 0x12,
+        GET_COMMAND_STATUS = 0x2,
+        GET_UNIT_STATUS = 0x3,
+        ONLINE = 0x9,
+        READ = 0x21,
+        REPLACE = 0x14,
+        SET_CONTROLLER_CHARACTERISTICS = 0x4,
+        SET_UNIT_CHARACTERISTICS = 0xa,
+        WRITE = 0x22
+    };
+
+    enum Endcodes
+    {
+        END = 0x80,
+        SERIOUS_EXCEPTION = 0x7,
+    };
+
+    enum Status
+    {
+        SUCCESS = 0x0,
+        INVALID_COMMAND = 0x1,
+        COMMAND_ABORTED = 0x2,
+        UNIT_OFFLINE = 0x3,
+        UNIT_AVAILABLE = 0x4,
+        MEDIA_FORMAT_ERROR = 0x5,
+        WRITE_PROTECTED = 0x6,
+        COMPARE_ERROR = 0x7,
+        DATA_ERROR = 0x8,
+        HOST_BUFFER_ACCESS_ERROR = 0x9,
+        CONTROLLER_ERROR = 0xa,
+        DRIVE_ERROR = 0xb,
+        DIAGNOSTIC_MESSAGE = 0x1f
+    };
+
+    enum SuccessSubcodes
+    {
+        NORMAL = 0x0,
+        SPIN_DOWN_IGNORED = 0x20,
+        STILL_CONNECTED = 0x40,
+        DUPLICATE_UNIT_NUMBER = 0x80,
+        ALREADY_ONLINE = 0x100,
+        STILL_ONLINE = 0x200,
+    };
+
+    enum UnitOfflineSubcodes
+    {
+        UNIT_UNKNOWN = 0x0,
+        NO_VOLUME = 0x1,
+        UNIT_INOPERATIVE = 0x2,
+        DUPLICATE_UNIT = 0x4,
+        UNIT_DISABLED = 0x8,
+        EXCLUSIVE = 0x10,
+    };
+
+    enum HostBufferAccessSubcodes
+    {
+        CAUSE_UNAVAILABLE = 0x0,
+        ODD_TRANSFER_ADDRESS = 0x1,
+        ODD_BYTE_COUNT = 0x2,
+        NXM = 0x3,
+        HOST_PARITY_ERROR = 0x4,
+        INVALID_PTE = 0x5,
+        INVALID_BUFFER_NAME = 0x6,
+        BUFFER_LENGTH_VIOLATION = 0x7,
+        ACL_VIOLATION = 0x8,
+    };
+
+    enum MessageTypes
+    {
+        Sequential = 0,
+        Datagram = 1,
+        CreditNotification = 2,
+        Maintenance = 15,
+    };
+
 public:
+
+
+
     mscp_server(uda_c *port);
     ~mscp_server();
-	bool on_param_changed(parameter_c *param) override ;
+    bool on_param_changed(parameter_c *param) override ;
 
 public:
     void Reset(void);
@@ -172,9 +176,9 @@ public:
 
 public:
     void on_power_changed(signal_edge_enum aclo_edge, signal_edge_enum dclo_edge) override {
-		UNUSED(aclo_edge) ;
-		UNUSED(dclo_edge) ;
-		}
+        UNUSED(aclo_edge) ;
+        UNUSED(dclo_edge) ;
+    }
     void on_init_changed(void) override {}
 
 private:
