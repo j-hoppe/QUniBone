@@ -51,6 +51,7 @@
 
 #include "storagedrive.hpp"
 #include "panel.hpp"
+#include "blinkenbone.hpp"
 #include "demo_io.hpp"
 #include "testcontroller.hpp"
 #include "rf11.hpp"
@@ -86,7 +87,7 @@ static void load_memory(memory_fileformat_t format, char *fname, const char *ent
 		break;
 	case fileformat_papertape:
 		load_ok = membuffer->load_papertape(fname, &codelabels);
-		if (codelabels.size() > 0)
+		if (codelabels.size() > 0) // only one possbile label: "entry"
 			entry_address = codelabels.begin()->second;
 		break;
 	case fileformat_addr_value_text:
@@ -165,9 +166,13 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	qunibusadapter->enabled.set(true);
 
+	// memory mapped blinkenbone panels
+	blinkenbone_c *blinkenbone = new blinkenbone_c();
+
 	// 2 demo controller
 	cur_device = NULL;
 	demo_io_c *demo_io = new demo_io_c();
+
 
 	// uses all slot resource, can onyl run alone
 	//testcontroller_c *test_controller = new testcontroller_c();
@@ -194,7 +199,7 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	// Create UDA50
 	uda_c *UDA50 = new uda_c();
-	// Create SLU+ LTC
+	// Create 2 SLUs + LTC
 	slu_c *DL11 = new slu_c();
 	slu_c *DL11b = new slu_c();
 	// 2nd UART different parameters, default for TU58 interface
@@ -210,7 +215,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 	DL11b->mode.value = "8N1";
 	DL11b->error_bits_enable.value = false ; // M7856 SW4-7 ?
 	DL11b->break_enable.value = true ; // TU58 needs BREAK
+		
 	// to inject characters into DL11 receiver
+	// only 1st SLU, use this for console
 	std::stringstream dl11_rcv_stream(std::ios::app | std::ios::in | std::ios::out);
 	DL11->rs232adapter.stream_rcv = &dl11_rcv_stream;
 	DL11->rs232adapter.stream_xmt = NULL; // do not echo output to stdout
@@ -685,6 +692,9 @@ void application_c::menu_devices(const char *menu_code, bool with_emulated_CPU)
 
 	demo_io->enabled.set(false);
 	delete demo_io;
+
+	blinkenbone->enabled.set(false);
+	delete blinkenbone;
 
 	gpios->drive_activity_led.enabled = false ;
 

@@ -17,6 +17,7 @@ PRU_DEPLOY_DIR=$(QUNIBONE_ROOT)/10.01_base/4_deploy_u
 BASE_SRC_DIR= $(QUNIBONE_ROOT)/10.01_base/2_src/arm
 DEVICE_SRC_DIR= $(QUNIBONE_ROOT)/10.02_devices/2_src
 SHAREDFILESYSTEM_SRC_DIR= $(QUNIBONE_ROOT)/10.02_devices/2_src/sharedfilesystem
+BLINKENBONE_SRC_DIR= $(QUNIBONE_ROOT)/10.02_devices/2_src/blinkenbone
 DEVEXER_SRC_DIR= $(QUNIBONE_ROOT)/10.04_device_exerciser/2_src
 
 # PRUSSDRV includes
@@ -57,21 +58,22 @@ CCFLAGS= \
 	-I$(PRUSS_INCLUDE_DIR)	\
 	-I.	\
 	-I$(SHARED_SRC_DIR)	\
+	-I$(BLINKENBONE_SRC_DIR)	\
 	-I$(COMMON_SRC_DIR)	\
 	-I$(BASE_SRC_DIR)	\
 	-I$(DEVICE_SRC_DIR)	\
 	-I$(DEVEXER_SRC_DIR)	\
 	-I$(OBJDIR)	\
 	-I$(PRU_DEPLOY_DIR)	\
-        -DUNIBUS        \
+	-DUNIBUS        \
+	-DBLINKENLIGHT_CLIENT        \
 	-c	\
 	$(CCDEFS) $(CC_DBG_FLAGS) $(OS_CCDEFS)
 # OBJDIR in includes because of $(PRU_CODE)
 # no -std=c99
 
-
 # PRU program code library. Binaries as C arrays
-# ! Path to PRU_DEPLOY_DIR MUST NOT CONTAIn SPACES !
+# ! Path to PRU_DEPLOY_DIR MUST NOT CONTAIN SPACES !
 # ! dont use wildcards, as .../4_deploy/.. may be empty !
 PRU0_CODE_LIST=	\
 	$(PRU_DEPLOY_DIR)/pru0_code_all_array.c
@@ -129,6 +131,11 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/sharedfilesystem/filesystem_dec.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_rt11.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_xxdp.o \
+	$(OBJDIR)/blinkenbone/blinkenbone.o \
+	$(OBJDIR)/blinkenbone/blinkenlight_api_client.o \
+	$(OBJDIR)/blinkenbone/blinkenlight_panels.o \
+	$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_clnt.o \
+	$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_xdr.o \
     $(OBJDIR)/demo_io.o	\
     $(OBJDIR)/testcontroller.o	\
     $(OBJDIR)/device.o	\
@@ -174,7 +181,7 @@ pru:	$(PRU0_CODE_LIST) $(PRU1_CODE_LIST)
 
 clean:
 	rm -f $(OBJDIR)/$(PROG) $(OBJECTS) $(PRU_DEPLOY_DIR)/*
-	rm -rf $(OBJDIR)/*  
+	rm -rf $(OBJDIR)/*
 
 .PHONY: all pru clean
 
@@ -322,7 +329,7 @@ $(OBJDIR)/sharedfilesystem/storageimage_partition.o :  $(SHAREDFILESYSTEM_SRC_DI
 $(OBJDIR)/sharedfilesystem/storageimage_shared.o :  $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.cpp $(SHAREDFILESYSTEM_SRC_DIR)/storageimage_shared.hpp
 	mkdir -p $(OBJDIR)/sharedfilesystem
 	$(CC) $(CCFLAGS) $< -o $@
-	
+
 $(OBJDIR)/sharedfilesystem/filesystem_base.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.hpp
 	mkdir -p $(OBJDIR)/sharedfilesystem
 	$(CC) $(CCFLAGS) $< -o $@
@@ -341,6 +348,26 @@ $(OBJDIR)/sharedfilesystem/filesystem_rt11.o :  $(SHAREDFILESYSTEM_SRC_DIR)/file
 
 $(OBJDIR)/sharedfilesystem/filesystem_xxdp.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_xxdp.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_xxdp.hpp
 	mkdir -p $(OBJDIR)/sharedfilesystem
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/blinkenbone.o :  $(BLINKENBONE_SRC_DIR)/blinkenbone.cpp $(BLINKENBONE_SRC_DIR)/blinkenbone.hpp
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/blinkenlight_api_client.o :  $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.cpp $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.h
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/blinkenlight_panels.o :  $(BLINKENBONE_SRC_DIR)/blinkenlight_panels.cpp $(BLINKENBONE_SRC_DIR)/blinkenlight_panels.h
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_clnt.o :  $(BLINKENBONE_SRC_DIR)/rpc_blinkenlight_api_clnt.cpp $(BLINKENBONE_SRC_DIR)/rpc_blinkenlight_api.h
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_xdr.o :  $(BLINKENBONE_SRC_DIR)/rpc_blinkenlight_api_xdr.cpp $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.h
+	mkdir -p $(OBJDIR)/blinkenbone
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/demo_io.o :  $(DEVICE_SRC_DIR)/demo_io.cpp $(DEVICE_SRC_DIR)/demo_io.hpp
