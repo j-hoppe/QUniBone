@@ -33,6 +33,7 @@
 
 #if !defined(BITCALC_C_)
 extern unsigned char BitmaskFromLen8[9];
+extern uint16_t BitmaskFromLen16[17] ;
 extern uint32_t BitmaskFromLen32[33];
 extern uint64_t BitmaskFromLen64[65];
 extern unsigned char BitmaskReversed[256];
