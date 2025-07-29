@@ -23,7 +23,7 @@ fi
 #    # Activates "Directory-Indexing":
 #    Options +Indexes
 
-# Recursive downlaod with wget
+# Recursive download with wget
 # -nH --cutdirs=1 : suppress  "files.retrocmp.com/qunibone/" from path
 # -R 'index.html\*' . suppresses  helper index.html?C=S;O=A etc.
 # -q --show-progress: progress per file
@@ -35,4 +35,13 @@ chmod +x *.sh
 
 # Assure all shell scripts are executable
 find . -name '*.sh' -exec chmod +x '{}' \;
+
+# some added specials
+chmod +x 91_3rd_party/blinkenlightapitst
+
+# Assure apt-get is linked to mirror at files.retrocmp.com
+(
+        cd  ~/02_bbb_config/03_debian-8.10.0-armhf
+        ./update-apt.sh
+)
 
