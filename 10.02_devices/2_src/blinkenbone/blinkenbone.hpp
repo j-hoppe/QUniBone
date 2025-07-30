@@ -131,7 +131,7 @@ public:
                                         "", "%o", "Custom ID for CONFIG register <13:0>", 14, 8);
     parameter_unsigned_c poll_period_ms = parameter_unsigned_c(this, "poll_period", "pp",/*readonly*/ false,
                                           "", "%d", "Panel switches are polled every so many milliseconds. 0=disable.", 10, 10);
-    parameter_unsigned_c update_period_ms = parameter_unsigned_c(this, "update_period", "pa",/*readonly*/ false,
+    parameter_unsigned_c update_period_ms = parameter_unsigned_c(this, "update_period", "up",/*readonly*/ false,
                                             "", "%d", "Panel lamps are updated every so many milliseconds. 0=disable.", 10, 10);
     // background worker function
     void worker(unsigned instance) override;
