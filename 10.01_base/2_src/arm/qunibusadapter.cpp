@@ -1385,7 +1385,7 @@ void qunibusadapter_c::print_pru_iopage_register_map()
         }
 }
 
-// diag: access to internal state of DMA and interupt request handling
+// diag: access to internal state of DMA and interrupt request handling
 mailbox_t mailbox_snapshot;
 
 // reset measurements and timeouts

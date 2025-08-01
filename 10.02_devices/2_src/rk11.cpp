@@ -989,7 +989,7 @@ void rk11_c::invoke_interrupt(void)
     //
     if (_ide)
     {
-        qunibusadapter->INTR(intr_request, NULL, 0); // todo: link to interupt register
+        qunibusadapter->INTR(intr_request, NULL, 0); // todo: link to interrupt register
     }
 }
 

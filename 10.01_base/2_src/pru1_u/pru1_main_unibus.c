@@ -182,7 +182,7 @@ void main(void) {
 				} else if (granted_request & PRIORITY_ARBITRATION_INTR_MASK) {
 					// convert bit in grant_mask to INTR index
 					uint8_t idx = PRIORITY_ARBITRATION_INTR_BIT2IDX(granted_request);
-					// now transfer INTR vector for interupt of GRANted level.
+					// now transfer INTR vector for interrupt of GRANted level.
 					// vector and ARM context have been setup by ARM before ARM2PRU_INTR already
 					sm_intr_master.vector = mailbox.intr.vector[idx];
 					sm_intr_master.level_index = idx; // to be returned to ARM on complete
@@ -256,7 +256,7 @@ void main(void) {
 				// vector of GRANted level is transfered with statemachine sm_intr_master
 
 				// Atomically change state in a device's associates interrupt register.
-				// The Interupt Register is set immediately. No wait for INTR GRANT,
+				// The Interrupt Register is set immediately. No wait for INTR GRANT,
 				// INTR level may be blocked.
 				if (mailbox.intr.iopage_register_handle)
 					pru_iopage_registers.registers[mailbox.intr.iopage_register_handle].value =
