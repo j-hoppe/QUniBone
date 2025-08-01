@@ -261,6 +261,8 @@ cpu_c::cpu_c() :
     // must be qunibusdevice_c then!
     register_count = 0;
     swab_vbit.value = false;
+    extended_instr.value = false;
+    allow_mxps.value = false;
 
     memset(&bus, 0, sizeof(bus));
     memset(&ka11, 0, sizeof(ka11));
@@ -509,7 +511,8 @@ void cpu_c::worker(unsigned instance)
         }
 
         ka11.swab_vbit = (swab_vbit.value == true);
-
+        ka11.extended_instr = (extended_instr.value == true);
+        ka11.allow_mxps = (allow_mxps.value == true);
     }
 }
 

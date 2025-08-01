@@ -32,22 +32,22 @@ LDFLAGS+= -static -lstdc++ -lpthread $(PRUSS_DRV_LIB)
 
 # compiler flags and libraries
 ifeq ($(MAKE_CONFIGURATION),RELEASE)
-	CC_DBG_FLAGS = -O3 -Wall -Wextra -Wshadow -DDBG
+CC_DBG_FLAGS = -O3 -Wall -Wextra -Wshadow -DDBG
 else ifeq ($(MAKE_CONFIGURATION),DBG)
- 	CC_DBG_FLAGS = -ggdb3 -O0 -Wall -Wextra -Wshadow -DDBG
+CC_DBG_FLAGS = -ggdb3 -O0 -Wall -Wextra -Wshadow -DDBG
 else
-	$(error Set MAKE_CONFIGURATION to RELEASE or DBG!)
+$(error Set MAKE_CONFIGURATION to RELEASE or DBG!)
 endif
 
 ifeq ($(MAKE_TARGET_ARCH),BBB)
-	# cross compile on x64 for BBB
-	CC=$(BBB_CC)
-	OS_CCDEFS = -DARM -U__STRICT_ANSI__
-	OBJDIR=$(abspath ../4_deploy_u)
+# cross compile on x64 for BBB
+CC=$(BBB_CC)
+OS_CCDEFS = -DARM -U__STRICT_ANSI__
+OBJDIR=$(abspath ../4_deploy_u)
 else
-	# local compile on BBB
-	OS_CCDEFS = -DARM -U__STRICT_ANSI__
-	OBJDIR=$(abspath ../4_deploy_u)
+# local compile on BBB
+OS_CCDEFS = -DARM -U__STRICT_ANSI__
+OBJDIR=$(abspath ../4_deploy_u)
 endif
 
 
