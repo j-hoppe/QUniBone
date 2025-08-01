@@ -417,7 +417,7 @@ bool memoryimage_c::load_addr_value_text(const char *fname)
  |      69
  |      70                                start:
  |      71 010000 012706  007776          	mov	#stack,sp	; init stack
- |      72 010004 005037  177776          	clr	   @#psw	; clear priority, allow all interupts
+ |      72 010004 005037  177776          	clr	   @#psw	; clear priority, allow all interrupts
  case 2: after octal data
  |     62					; xxx
  |     63	010012	012706 	002000 		go:	mov	#2000,sp		; setup a stack
