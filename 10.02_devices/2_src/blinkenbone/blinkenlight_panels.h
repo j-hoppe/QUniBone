@@ -258,7 +258,7 @@ blinkenlight_control_blinkenbus_register_wiring_t *blinkenlight_add_register_wir
 blinkenlight_panel_t * blinkenlight_panels_get_panel_by_name(blinkenlight_panel_list_t *_this,
 		char *panelname);
 blinkenlight_control_t * blinkenlight_panels_get_control_by_name(blinkenlight_panel_list_t *_this,
-		blinkenlight_panel_t *p, char *controlname, int is_input);
+		blinkenlight_panel_t *p, const char *controlname, int is_input);
 unsigned blinkenlight_panels_get_control_value_changes(blinkenlight_panel_list_t *_this,
 		blinkenlight_panel_t *p, int is_input);
 unsigned blinkenlight_panels_get_max_control_name_len(blinkenlight_panel_list_t *_this,

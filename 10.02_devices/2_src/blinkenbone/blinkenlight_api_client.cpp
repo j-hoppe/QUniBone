@@ -81,7 +81,7 @@ char *blinkenlight_api_client_get_error_text(blinkenlight_api_client_t *_this)
 }
 
 blinkenlight_api_status_t blinkenlight_api_client_connect(blinkenlight_api_client_t *_this,
-		char *server_hostname)
+		const char *server_hostname)
 {
 	if (_this->connected)
 	{

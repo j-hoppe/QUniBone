@@ -30,88 +30,79 @@
 #include "utils.hpp"
 #include "blinkenlight_api_client.h"
 
+#include "blinkenbone_panel.hpp"
+
 #include "qunibusdevice.hpp"
 
 class blinkenbone_c: public qunibusdevice_c {
+    friend class blinkenbone_panel_c ; // allow panel to work with registers
 private:
-    // global API client
-    blinkenlight_api_client_t *blinkenlight_api_client = nullptr;
 
-    blinkenlight_panel_t *panel = nullptr ; // active panel
+    blinkenbone_panel_c *panel = nullptr ; // the blinkenlight API panel
 
-    // static panel config registers
-    // bits <15:14> selftest:  0="normal", 1="historic lamp test", 2="full test", 3="powerless"
-    // bits <13:0>  panel_id. arbitrary value to communicate panel properties to PDP-11 software
-    //			    Typical set by QUnibone config script before panel connection
-    qunibusdevice_register_t *config_reg;
-    uint16_t config_value_previous ; // to detect changing DATAos
+    // static registers, modelled after DL11, KW11
+
+    // +0  PANEL_ICS, input side Control and Status
+    // bit 7: flag: any input changed, readonly, clered by read
+    // bit 6: input interrupt enable
+    qunibusdevice_register_t *reg_input_cs;
+
+    //+2  PANEL_OCS, output side CS
+    // bit 7: flag: output perdioc event passed, clear on read
+    // bit 6: output interrupt enable
+    // 1:0 testmode
+    qunibusdevice_register_t *reg_output_cs;
+
+    // +4 PANEL_IPERIOD, input polling period in ms
+    // 0...1000 set polling period in ms (read only)
+    qunibusdevice_register_t *reg_input_period;
+
+    // +6 PANEL_OPERIOD, output update period in ms
+    // 0...1000 set update frequency period in ms (read only)
+    qunibusdevice_register_t *reg_output_period;
+
+    // +010 PANEL_ICHGREG
+    // if polling detected changed in put switch, this is the address
+    // of the mapped register
+    qunibusdevice_register_t *reg_input_change_addr ;
+
+    // + 012 PANEL_CONFIG,  value from panel_config parameter
+    qunibusdevice_register_t *reg_config;
+
+    // two interrupts of same level, need slot and slot+1
+    intr_request_c intr_request_input_change = intr_request_c(this);
+    intr_request_c intr_request_output_period = intr_request_c(this);
+
+
+    /*** SLU is infact 2 independend devices: RCV and XMT ***/
+    // pthread_cond_t on_after_input_register_access_cond = PTHREAD_COND_INITIALIZER;
+    pthread_mutex_t on_after_input_register_access_mutex = PTHREAD_MUTEX_INITIALIZER;
+    //pthread_cond_t on_after_output_register_access_cond = PTHREAD_COND_INITIALIZER;
+    pthread_mutex_t on_after_output_register_access_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     // control mapping registers start at base+2
     uint16_t fix_register_count ;
 
-    // cross table entry between 16bit PDP-11 registers and 64bit blinkenlight controls
-    // for each panel control the list of necessary 16bit PDP-11 registers is listed
-    // calculated on "before_install()" when panel is known.
-    class control_value_slice_register_c     {
-    public:
-        unsigned bit_index_from, bit_index_to ; // range of bits held here
-        qunibusdevice_register_t *pdp11_reg ; // the PDP-11 register
-
-        unsigned bit_len() { // # of valid bits
-            assert(bit_index_to >= bit_index_from) ;
-            int result = bit_index_to - bit_index_from + 1 ;
-            assert(result > 0 && result <= 16) ; // must be 1..16 bits per pdp11-pdp11_reg
-            return (unsigned)result ;
-        }
-
-        // print bit range like "<0>" or "<8:5>" or "<15:00>"
-        char *bits_text() { // # of valid bits
-            static char buffer[40] ;
-            if (bit_len() == 1)
-                sprintf(buffer, "<%d>", bit_index_from) ;
-            else {
-                unsigned digit_count = (bit_index_to > 9) ? 2 : 1 ;
-                sprintf(buffer, "<%0*d:%0*d>", digit_count, bit_index_to, digit_count, bit_index_from) ;
-            }
-            return buffer ;
-        }
-
-    }  ;
-
-    class control_register_set_c {
-    public:
-        blinkenlight_control_t *control ; // back link
-        // control->panel and control->value_bitlen, value
-        unsigned register_count ; // # of 16 bit registers to represent control bits
-        // a control value len varies from 1 bit -> PDP-11 register to 36 bit (PDP-10): 3 PDP-11 registers
-        control_value_slice_register_c control_value_slice_registers[4] ; // max 4*16=64 bit controls allowed
-    } ;
-
-    static const unsigned max_input_controls_count = MAX_IOPAGE_REGISTERS_PER_DEVICE/4 ;
-    unsigned input_controls_count ;
-    control_register_set_c input_control_register_sets[max_input_controls_count];
-
-    static const unsigned max_output_controls_count = MAX_IOPAGE_REGISTERS_PER_DEVICE/4 ;
-    unsigned output_controls_count ;
-    control_register_set_c output_control_register_sets[max_output_controls_count] ;
+    // state signals, visible in CS regs
+    bool state_input_event ; // 0->1 = iNT
+    bool state_input_interrupt_enable ;
+    bool state_output_event ; // 0->1 = iNT
+    bool state_output_interrupt_enable ;
+    uint16_t state_testmode ;
 
     unsigned update_prescaler_ms ; // scale down worker() running with 1kHz
     unsigned poll_prescaler_ms ;
 
-    void worker_config_changed();
-    void worker_poll_inputs() ;
-    void worker_update_outputs() ;
-
-    void build_control_register_set(control_register_set_c *crs, blinkenlight_control_t *c) ;
-    void print_server_info() ;
     void print_register_info() ;
 
-    void set_output_update_need(bool forced_update_state) ;
-    bool outputs_need_update() ;
-    void input_controls_to_registers() ;
-    void registers_to_output_controls() ;
+    void worker_testmode_changed();
+    void worker_input_poll() ;
+    void worker_output_update() ;
 
-
+    bool get_input_intr_level() ;
+    void set_input_csr_dati_value_and_INTR();
+    bool get_output_intr_level() ;
+    void set_output_csr_dati_value_and_INTR() ;
 
 public:
     blinkenbone_c();
@@ -126,9 +117,9 @@ public:
     parameter_string_c panel_host = parameter_string_c(this, "panel_host", "ph",/*readonly*/
                                     false, "hostname of Blinkenlight server, the computer running the panel .. physical, Java or PiDP11");
     parameter_unsigned_c panel_addr = parameter_unsigned_c(this, "panel_addr", "pa",/*readonly*/ false,
-                                      "", "%d", "Address of panel Blinkenlight server", 8, 10);
-    parameter_unsigned_c panel_id = parameter_unsigned_c(this, "panel_id", "pid",/*readonly*/ false,
-                                        "", "%o", "Custom ID for CONFIG register <13:0>", 14, 8);
+                                      "", "%d", "Address of panel in the Blinkenlight server", 8, 10);
+    parameter_unsigned_c panel_config = parameter_unsigned_c(this, "panel_config", "pc",/*readonly*/ false,
+                                        "", "%o", "Custom CONFIG register", 16, 8);
     parameter_unsigned_c poll_period_ms = parameter_unsigned_c(this, "poll_period", "pp",/*readonly*/ false,
                                           "", "%d", "Panel switches are polled every so many milliseconds. 0=disable.", 10, 10);
     parameter_unsigned_c update_period_ms = parameter_unsigned_c(this, "update_period", "up",/*readonly*/ false,

@@ -237,7 +237,7 @@ blinkenlight_panel_t * blinkenlight_panels_get_panel_by_name(blinkenlight_panel_
  * result is != nULL, if only one control has a name match
  */
 blinkenlight_control_t * blinkenlight_panels_get_control_by_name(blinkenlight_panel_list_t *_this,
-		blinkenlight_panel_t *p, char *controlname, int is_input)
+		blinkenlight_panel_t *p, const char *controlname, int is_input)
 {
 	UNUSED(_this) ;
 	unsigned controlname_len;
