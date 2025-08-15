@@ -124,7 +124,7 @@ void timeout_c::wait_ns(uint64_t duration_ns)
     struct timespec ts = { (long) (duration_ns / BILLION), (long) (duration_ns % BILLION) };
     int res = nanosleep(&ts, NULL);
     assert(res == 0 || (res == -1 && errno == EINTR)); // ^C abort may happen.
-//		DEBUG("nanosleep() return a %d", res);
+//		DEBUG_FAST("nanosleep() return a %d", res);
 }
 
 // wait a number of milliseconds
@@ -250,7 +250,7 @@ void flexi_timeout_c::wait_ns(uint64_t duration_ns)
         if (res == -1)
             assert(errno == EINTR);
     }
-//		DEBUG("nanosleep() return a %d", res);
+//		DEBUG_FAST("nanosleep() return a %d", res);
 }
 
 // wait a number of milliseconds

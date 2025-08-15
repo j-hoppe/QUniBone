@@ -31,7 +31,7 @@
  - for each timer, the "timeout" cycle count is set
  - tiemr msut be polled for timeout by user.
  - a timer is considered "timed-out", if its timeout is 0.
- - a global variable regsiteres the active running timeouts.
+ - a global variable registers the active running timeouts.
  - a running timeout MUST be canceled, or polled until "timeout_rechaed" !!
 
 

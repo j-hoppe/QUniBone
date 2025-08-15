@@ -132,6 +132,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/sharedfilesystem/filesystem_rt11.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_xxdp.o \
 	$(OBJDIR)/blinkenbone/blinkenbone.o \
+	$(OBJDIR)/blinkenbone/blinkenbone_panel.o \
 	$(OBJDIR)/blinkenbone/blinkenlight_api_client.o \
 	$(OBJDIR)/blinkenbone/blinkenlight_panels.o \
 	$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_clnt.o \
@@ -351,6 +352,10 @@ $(OBJDIR)/sharedfilesystem/filesystem_xxdp.o :  $(SHAREDFILESYSTEM_SRC_DIR)/file
 	$(CC) $(CCFLAGS) $< -o $@
 
 $(OBJDIR)/blinkenbone/blinkenbone.o :  $(BLINKENBONE_SRC_DIR)/blinkenbone.cpp $(BLINKENBONE_SRC_DIR)/blinkenbone.hpp
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
+$(OBJDIR)/blinkenbone/blinkenbone_panel.o :  $(BLINKENBONE_SRC_DIR)/blinkenbone_panel.cpp $(BLINKENBONE_SRC_DIR)/blinkenbone_panel.hpp
 	mkdir -p $(OBJDIR)/blinkenbone
 	$(CC) $(CCFLAGS) $< -o $@
 

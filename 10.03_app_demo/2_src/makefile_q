@@ -131,6 +131,7 @@ OBJECTS = $(OBJDIR)/application.o	\
 	$(OBJDIR)/sharedfilesystem/filesystem_rt11.o \
 	$(OBJDIR)/sharedfilesystem/filesystem_xxdp.o \
 	$(OBJDIR)/blinkenbone/blinkenbone.o \
+	$(OBJDIR)/blinkenbone/blinkenbone_panel.o \
 	$(OBJDIR)/blinkenbone/blinkenlight_api_client.o \
 	$(OBJDIR)/blinkenbone/blinkenlight_panels.o \
 	$(OBJDIR)/blinkenbone/rpc_blinkenlight_api_clnt.o \
@@ -324,7 +325,6 @@ $(OBJDIR)/sharedfilesystem/storageimage_shared.o :  $(SHAREDFILESYSTEM_SRC_DIR)/
 	mkdir -p $(OBJDIR)/sharedfilesystem
 	$(CC) $(CCFLAGS) $< -o $@
 
-
 $(OBJDIR)/sharedfilesystem/filesystem_base.o :  $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.cpp $(SHAREDFILESYSTEM_SRC_DIR)/filesystem_base.hpp
 	mkdir -p $(OBJDIR)/sharedfilesystem
 	$(CC) $(CCFLAGS) $< -o $@
@@ -349,6 +349,10 @@ $(OBJDIR)/blinkenbone/blinkenbone.o :  $(BLINKENBONE_SRC_DIR)/blinkenbone.cpp $(
 	mkdir -p $(OBJDIR)/blinkenbone
 	$(CC) $(CCFLAGS) $< -o $@
 
+$(OBJDIR)/blinkenbone/blinkenbone_panel.o :  $(BLINKENBONE_SRC_DIR)/blinkenbone_panel.cpp $(BLINKENBONE_SRC_DIR)/blinkenbone_panel.hpp
+	mkdir -p $(OBJDIR)/blinkenbone
+	$(CC) $(CCFLAGS) $< -o $@
+
 $(OBJDIR)/blinkenbone/blinkenlight_api_client.o :  $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.cpp $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.h
 	mkdir -p $(OBJDIR)/blinkenbone
 	$(CC) $(CCFLAGS) $< -o $@
@@ -364,7 +368,6 @@ $(OBJDIR)/blinkenbone/rpc_blinkenlight_api_clnt.o :  $(BLINKENBONE_SRC_DIR)/rpc_
 $(OBJDIR)/blinkenbone/rpc_blinkenlight_api_xdr.o :  $(BLINKENBONE_SRC_DIR)/rpc_blinkenlight_api_xdr.cpp $(BLINKENBONE_SRC_DIR)/blinkenlight_api_client.h
 	mkdir -p $(OBJDIR)/blinkenbone
 	$(CC) $(CCFLAGS) $< -o $@
-
 
 $(OBJDIR)/demo_io.o :  $(DEVICE_SRC_DIR)/demo_io.cpp $(DEVICE_SRC_DIR)/demo_io.hpp
 	$(CC) $(CCFLAGS) $< -o $@

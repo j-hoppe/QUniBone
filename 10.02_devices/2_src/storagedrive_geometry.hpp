@@ -48,6 +48,7 @@ class storagedrive_geometry_c: logsource_c {
 public:
     unsigned cylinder_count, head_count, sector_count ;
     unsigned sector_size_bytes ;
+
     uint64_t bad_sector_file_offset ; // optional start of bad sector track
 
     unsigned mscp_block_count ; // cyl/head/sector struct hidden by MSCP drives

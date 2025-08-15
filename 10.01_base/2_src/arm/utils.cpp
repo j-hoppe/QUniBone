@@ -70,7 +70,7 @@ rolling_text_buffers_c rolling_text_buffers ;
 void strcpy_s(char *dest, int len, const char *src)
 {
     strncpy(dest, src, len - 1);
-    dest[len - 1] = 0; // terminate if truncated
+    dest[len - 1] = 0; // termiante if truncated
 }
 
 /*********************************
@@ -92,7 +92,7 @@ void SIGINTcatchnext()
     SIGINTreceived = 0;
 }
 
-void break_here(void) 
+void break_here(void)
 {
 }
 
@@ -688,7 +688,7 @@ static void hexdump_put(std::ostream &stream, unsigned start, char *line_hexb, c
     line_hexw[0] = 0;
     line_ascii[0] = 0;
 }
-						
+
 // hex dump with info
 void hexdump(std::ostream &stream, uint8_t *data, int size, const char *fmt, ...)
 {
@@ -823,7 +823,7 @@ bool str_decode_escapes(char *result, unsigned result_size, char *encoded)
             continue;
         }
         switch (*rp) {
-            // literals allowed behind backslash
+        // literals allowed behind backslash
         case '\'':
         case '"':
         case '?':
@@ -881,3 +881,18 @@ bool str_decode_escapes(char *result, unsigned result_size, char *encoded)
     *wp = 0;
     return true;
 }
+
+
+// clip value to range
+int	rangeToMinMax(int val, int min, int max) {
+    assert(min <= max) ;
+    int result = val ;
+    if (val < min)
+        result = min ;
+    else if (val > max)
+        result = max ;
+    else
+        result = val ;
+    return result ;
+}
+

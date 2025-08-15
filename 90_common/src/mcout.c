@@ -38,7 +38,6 @@
 // if 0: strings are printed in 1st row, then in 2nd row, etc.
 void mcout_init(mcout_t *_this, int max_strings)
 {
-
 	int i;
 
 	_this->stringcache_size = max_strings;

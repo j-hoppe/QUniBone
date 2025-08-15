@@ -108,7 +108,7 @@ bool rs232adapter_c::rs232byte_rcv_poll(rs232byte_t *rcvbyte)
 		rcvbyte->format_error = false; // default: no error info
 		int n = rs232->PollComport(&c_raw, 1);
 		if (n > 0) {
-		//DEBUG("rcv 0x%02x", (unsigned)c_raw) ;
+		//DEBUG_FAST("rcv 0x%02x", (unsigned)c_raw) ;
 		if (rcv_termios_error_encoding && c_raw == 0xff) {
 			n = rs232->PollComport(&c_raw, 1);
 			assert(n);	// next char after 0xff escape immediately available

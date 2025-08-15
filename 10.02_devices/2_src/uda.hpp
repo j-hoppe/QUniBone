@@ -20,7 +20,7 @@
 // value up to 65535.
 #define DRIVE_COUNT 8
 
-// The control/microcode version info returned by SA in the fourth intialization step.
+// The control/microcode version info returned by SA in the fourth initialization step.
 #define UDA50_ID 0x0063
 #define RQDX3_ID 0x0133
 

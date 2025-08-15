@@ -106,7 +106,7 @@ bool inputline_c::is_file_open()
 //	false = unkwown
 bool inputline_c::internal_command(char *line) 
 {
-	// endif terminates skipped line range
+	// endif termiantes skipped line range
 	if (!strncasecmp(line, ".endif", 6)) {
 		skip_lines = false ;
 		return true ;	

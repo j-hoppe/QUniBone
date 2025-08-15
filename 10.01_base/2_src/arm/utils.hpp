@@ -106,9 +106,9 @@ uint32_t random32_log(uint32_t limit);
 
 inline struct tm null_time()
 {
-	struct tm result ;
-	memset(&result, 0, sizeof(result)) ;
-	return result ;
+    struct tm result ;
+    memset(&result, 0, sizeof(result)) ;
+    return result ;
 }
 
 bool is_leapyear(int y) ;
@@ -172,6 +172,8 @@ uint64_t now_ms(void) ;
 
 // decodes C escape sequences \char, \nnn octal, \xnn hex
 bool str_decode_escapes(char *result, unsigned result_size, char *encoded) ;
+
+int	rangeToMinMax(int val, int min, int max) ;
 
 
 // rotating set of buffers for "number to text" functions

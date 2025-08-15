@@ -45,7 +45,7 @@ private:
 
     volatile bool interrupt_enable;
     volatile uint32_t qunibus_address_msb; // bits<16:17> of BA register in CS
-    // bits<21:17> of BAE register 
+    // bits<21:17> of BAE register
 
     volatile bool error_operation_incomplete; // OPI. operation aborted because of error
     volatile bool error_dma_timeout; // DMA operation addresses non existing memory
