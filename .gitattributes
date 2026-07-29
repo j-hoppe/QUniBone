@@ -1,0 +1,48 @@
+# Normalize line endings: everything git detects as text is stored with LF in
+# the repository and checked out with LF, regardless of the editor/OS used.
+# This keeps Windows editors from re-introducing CRLF and producing diffs that
+# touch every line of a file.
+* text=auto eol=lf
+
+# Sources and scripts: LF is mandatory (shell scripts, makefiles, PRU/ARM code).
+*.c        text eol=lf
+*.h        text eol=lf
+*.cpp      text eol=lf
+*.hpp      text eol=lf
+*.inc      text eol=lf
+*.cmd      text eol=lf
+*.dts      text eol=lf
+*.sh       text eol=lf
+*.mac      text eol=lf
+*.asmsrc   text eol=lf
+*.lst      text eol=lf
+Makefile   text eol=lf
+makefile*  text eol=lf
+*.env      text eol=lf
+*.example  text eol=lf
+*.md       text eol=lf
+*.txt      text eol=lf
+
+# KiCad project files are text and must stay LF for its own tooling.
+*.kicad_pcb  text eol=lf
+*.kicad_pro  text eol=lf
+*.kicad_sch  text eol=lf
+*.kicad_sym  text eol=lf
+*.kicad_mod  text eol=lf
+
+# Binary: never touch. Attribute patterns are case sensitive, so the uppercase
+# MAINDEC tape images need their own entry.
+*.bin      binary
+*.BIN      binary
+*.dtbo     binary
+*.a        binary
+*.odt      binary
+*.stl      binary
+*.pdf      binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.zip      binary
+*.gz       binary
+*.tgz      binary
