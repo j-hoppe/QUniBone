@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **This repository has moved.**
+> Active development now lives at **[QUniBone/QUniBoneClassic](https://github.com/QUniBone/QUniBoneClassic)**.
+> Please update your bookmarks, remotes, and forks.
+
 # QUniBone
 This is the software for both
 Linux-to-UNIBUS bridge "UniBone"
