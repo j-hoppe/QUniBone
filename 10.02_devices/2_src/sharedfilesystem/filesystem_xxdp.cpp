@@ -1832,7 +1832,7 @@ std::string filesystem_xxdp_c::filename_from_host(std::string *hostfname, std::s
         case '$':
         case '.':
         case '0' ... '9':
-            c = c ;
+//            c = c ;
             break ;
         default:
             c = '%' ;
