@@ -62,6 +62,7 @@ public:
 	// command line args
 	unsigned opt_linewidth = 80;
 	std::string opt_cmdfilename;
+	bool opt_changedir = false;
 	getopt_c getopt_parser;
 	void help(void);
 	void commandline_error(void);
