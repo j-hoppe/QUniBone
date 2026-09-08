@@ -1,7 +1,8 @@
 #!/bin/bash
 #
 # arg 1: Branch. "master", if none
-GITREPO=j-hoppe/QUniBone
+# GITREPO=j-hoppe/QUniBone ... old repo, no link to the new one
+GITREPO=QUniBone/QUniBoneClassic
 GITBRANCH=master
 if [ ! -z "$1" ] ; then
     GITBRANCH=$1
